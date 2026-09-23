@@ -1,0 +1,130 @@
+---
+description: Go style for Brewhouse — WASM + HTMX GUI, API, service layer, SQLite
+globs: "**/*.go"
+alwaysApply: false
+---
+
+# Go style (Brewhouse)
+
+## Repo context
+
+Brewhouse a single Go application under `app/src` (module path **`brewhouse`**). It serves an HTMX + WASM GUI, a Go HTTP API, a service layer, and SQLite. Its a management system for a Brewery that brews beer, an umbrella for multiple brewerys working with same inventory.
+
+## Application features
+- IAM
+  - CRUD operations; Users are created in the app and each users is grouped into sub-brewerys and can be either user, superuser or admin.
+    - user: Member of a sub-brewery; can create recipies (affects Inventory amounts) + Add to order wishlist + Delivery
+    - superuser: Member of a sub-brewery; Same as "user" + Economy + can manage Inventory
+    - admin: Can administrate everyting in the app
+    - brewery_admin: Can administrate the sub-brewery
+- Inventory
+  - CRUD operations: Malt, Hops, Yeast, Misc
+    - Orders: Create wishlist orders were the users can add items
+    - Prices: Cost-price
+- Hygine
+  - CRUD operations: Create routines that must be followed each brewday
+- Economy
+  - CRUD operations: Tax amounts for different ABV beer
+- Brewing 
+  - CRUD operations: Recipies, Delivery
+  - Fermentation tanks schedule
+  - Brewery schedule
+  - Calculate net-price
+- Delivery
+  - CRUD operations: Calculates each batch/recipie (OG,FG,Volume) brewed beer cost/net price based on configuration set in and alcohol tax (sweden)
+- Settings
+  - CRUD operations: 
+    - Alcohol tax levels (Sweden)
+    - Fermentation tanks
+    - Recipie/Batch price multipliers for net-price
+
+## Application flow
+1. Create user
+2. Create brewery (Name, contact info, set brewery_admin)
+3. Add user to brewery
+4. User creates a recipie (checks out amount from inventory, cannot be negative value, will ask to add on inventory order/wishlist)
+4.1. User can delete a recipie (this adds the amount back to inventory)
+5. User can then check the calendar for an available day to use the main brewery equipment (+ Fermentation tank) and book a date
+6. Brewday; User adds OG (SG) and Volume
+7. End of brewday; Brewery hygiene routines
+8. Set for Delivery; User adds FG (SG), Final delivery volume (liter), calculate tax, cost and net price. User marks the batch/recipie ready for delivery
+9. Deliver; The batch/recipie is delivered to the pub
+
+## Layout and packages
+
+- Prefer the **Go standard library** when it is the best fit.
+- Import internal packages as **`brewhouse/internal/...`**.
+- Typical packages under `app/src`:
+  - `cmd/` — process entry (`main.go`)
+  - `cmd/wasm/` (or equivalent) — Go→WASM client entry
+  - `internal/config` — env → config
+  - `internal/router` — route wiring
+  - `internal/api` — HTTP handlers and response DTOs (JSON or HTMX fragments)
+  - `internal/web` — HTML/HTMX templates and static GUI assets
+  - `internal/service` — DB queries and domain logic
+  - `internal/middleware` — auth, roles, CORS
+  - `internal/database` — SQLite connection and migrations
+- File naming: **`{package}.go`** for logic and **`{package}_structs.go`** for types; use focused feature files when helpful (`cors.go`, `auth_token.go`). Do **not** use `models.go`/`helpers.go`.
+- Load config from the environment via `internal/config`.
+- Prefer **short, standard library package names** in imports; use a **local alias** only to avoid collisions (e.g. `jwtdecoder "brewhouse/internal/jwt"`).
+
+## GUI (HTMX + WASM)
+
+- Use **server-rendered HTML + HTMX** for navigation and partial updates. Keep handlers thin; HTML fragments live in the web layer (`internal/web`), not in `internal/service`.
+- Use **Go-compiled WASM** for richer client behavior that belongs in Go.
+- **WASM versioning (required):** the server exposes an app/build version (from config or build metadata). The WASM loader (or a small JS/HTMX hook) compares the locally loaded version against the server version on relevant navigation and/or periodically. When the server version is newer, **reload the WASM (or the full page)** so long-lived tabs never stay on a stale binary. Do **not** rely on browser cache alone.
+- HTML layout: sidebar (Main navigation, minimizable drawer) + topbar (with profile icon on right), should be optimized for mobile devices (small screen)
+
+## Layers
+
+- Keep **handlers thin**: parse request, call service, write JSON or HTMX fragment responses.
+- Put **DB access and domain queries** in `internal/service`; put **HTTP response shapes** in `internal/api` structs.
+
+## Auth
+
+- Protect routes with **this app’s own JWT** middleware; authorize from roles on the token.
+- Users and claims are managed from within this application by users with an admin-role claim.
+- Allow a **documented local/dev token exception** via env only where the codebase already supports it — do not invent ad-hoc auth bypasses.
+
+## Constructors and APIs
+
+- Expose wiring with **`New*`** or **`New*Service`**: return `*T` or `(*T, error)` consistently with call sites.
+- Pass **`logger *logging.Logger`** (or equivalent) into components that need observability instead of reaching for globals.
+
+## Errors
+
+- In libraries and pure functions, wrap errors with context using **`fmt.Errorf("...: %w", err)`**.
+- At process boundaries (CLI `main`, fatal setup), log with **`logger.Error("Failed to ...:", err)`** then **`return`** (or exit) rather than silently dropping errors.
+- Logging should include the level and function that was called.
+
+```go
+// library-style
+if err != nil {
+	return "", fmt.Errorf("failed to decode key: %w", err)
+}
+
+// main / bootstrap
+if err != nil {
+	logger.Error("Failed to load config:", err)
+	return
+}
+```
+
+## Comments and readability
+
+- Use **short phase comments** above logical steps (`// Initialize database`, `// Setup routes`) where they help scan a long function.
+- Document **exported functions** with a one-line `// Name ...` when behavior or constraints are not obvious from the signature alone.
+
+## HTTP, context, concurrency
+
+- Use **distinct unexported struct types** for `context.WithValue` keys (e.g. `type rateLimitKeyContextKey struct{}`).
+- For shared maps and background goroutines, use **`sync.Mutex`** with clear lock/unlock pairing; prefer **`defer mu.Unlock()`** when the critical section is short and cannot panic in a surprising way.
+
+## Tests
+
+- Name tests **`TestExportedOrInternalName_ScenarioOrExpectation`** (underscores between segments).
+- Prefer **`t.Fatalf("expected ..., got ...", ...)`** for assertions that invalidate the rest of the test.
+
+## Naming
+
+- **Exported identifiers**: PascalCase. **Unexported**: camelCase. Reserve **`snake_case` only for route/handler group variables** when mirroring URL segments (e.g. `public_short`), not for general locals.

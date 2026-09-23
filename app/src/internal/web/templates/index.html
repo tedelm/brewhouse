@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Brewhouse</title>
+	<link rel="icon" href="/static/images/favico.png" type="image/png">
+	<meta name="app-version" content="{{.AppVersion}}">
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0">
+	<link rel="stylesheet" href="/static/css/app.css">
+	<script src="https://unpkg.com/htmx.org@2.0.4"></script>
+</head>
+<body>
+	<div id="app" class="app">
+		<div class="splash-stage">
+			<img
+				class="splash__logo"
+				src="/static/images/minus1_logo_white_small.png"
+				alt="Brewhouse"
+				width="120"
+				height="120"
+			>
+			<div class="splash__progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-label="Loading">
+				<div class="splash__progress-fill is-loading"></div>
+			</div>
+			<p class="splash__error" id="splash-error" hidden></p>
+		</div>
+
+		<div class="login-stage">
+			<img
+				class="login__logo"
+				src="/static/images/minus1_logo_white_small.png"
+				alt="Brewhouse"
+				width="120"
+				height="120"
+			>
+			<form class="login__form" id="login-form" autocomplete="on">
+				<label class="login__label" for="username">
+					<span class="visually-hidden">Username</span>
+					<input
+						class="login__input"
+						id="username"
+						name="username"
+						type="text"
+						placeholder="Username"
+						required
+						autocomplete="username"
+					>
+				</label>
+				<label class="login__label" for="password">
+					<span class="visually-hidden">Password</span>
+					<input
+						class="login__input"
+						id="password"
+						name="password"
+						type="password"
+						placeholder="Password"
+						required
+						autocomplete="current-password"
+					>
+				</label>
+				<p class="login__error" id="login-error" hidden></p>
+				<button class="login__button" type="submit">Login</button>
+			</form>
+			<p class="login__success" id="login-success" hidden></p>
+		</div>
+
+		<div class="shell-stage">
+			<div class="shell" id="shell">
+				<aside class="shell__sidebar" id="shell-sidebar">
+					<div class="shell__brand">
+						<img
+							class="shell__brand-logo"
+							src="/static/images/minus1_logo_white_small.png"
+							alt=""
+							width="36"
+							height="36"
+						>
+						<span class="shell__brand-name">Brewhouse</span>
+					</div>
+					<button type="button" class="shell__collapse" id="shell-collapse" aria-label="Collapse navigation" aria-expanded="true">
+						<span class="shell__collapse-icon" aria-hidden="true"></span>
+					</button>
+					<nav class="shell__nav" aria-label="Main">
+						<section class="shell__nav-section" data-nav-roles="user,superuser,admin">
+							<button type="button" class="shell__nav-header" aria-expanded="false">
+								<span class="material-symbols-outlined" aria-hidden="true">sports_bar</span>
+								<span class="shell__nav-label">Brewing</span>
+								<span class="material-symbols-outlined shell__nav-chevron" aria-hidden="true">expand_more</span>
+							</button>
+							<div class="shell__nav-panel">
+								<a class="shell__nav-sublink" href="/app/recipes" hx-get="/app/recipes" hx-target="#main-content" hx-swap="innerHTML">Recipes</a>
+								<a class="shell__nav-sublink" href="/app/schedule" hx-get="/app/schedule" hx-target="#main-content" hx-swap="innerHTML">Schedule</a>
+								<a class="shell__nav-sublink" href="/app/brewday" hx-get="/app/brewday" hx-target="#main-content" hx-swap="innerHTML">Brewday</a>
+								<a class="shell__nav-sublink" href="/app/delivery" hx-get="/app/delivery" hx-target="#main-content" hx-swap="innerHTML">Delivery</a>
+							</div>
+						</section>
+						<section class="shell__nav-section" data-nav-roles="user,superuser,admin">
+							<button type="button" class="shell__nav-header" aria-expanded="false">
+								<span class="material-symbols-outlined" aria-hidden="true">inventory_2</span>
+								<span class="shell__nav-label">Inventory</span>
+								<span class="material-symbols-outlined shell__nav-chevron" aria-hidden="true">expand_more</span>
+							</button>
+							<div class="shell__nav-panel">
+								<a class="shell__nav-sublink" href="/app/inventory/malt" hx-get="/app/inventory/malt" hx-target="#main-content" hx-swap="innerHTML">Malt</a>
+								<a class="shell__nav-sublink" href="/app/inventory/hops" hx-get="/app/inventory/hops" hx-target="#main-content" hx-swap="innerHTML">Hops</a>
+								<a class="shell__nav-sublink" href="/app/inventory/yeast" hx-get="/app/inventory/yeast" hx-target="#main-content" hx-swap="innerHTML">Yeast</a>
+								<a class="shell__nav-sublink" href="/app/inventory/misc" hx-get="/app/inventory/misc" hx-target="#main-content" hx-swap="innerHTML">Misc</a>
+								<a class="shell__nav-sublink" href="/app/inventory/orders" hx-get="/app/inventory/orders" hx-target="#main-content" hx-swap="innerHTML">Orders</a>
+							</div>
+						</section>
+						<section class="shell__nav-section" data-nav-roles="user,superuser,admin">
+							<button type="button" class="shell__nav-header" aria-expanded="false">
+								<span class="material-symbols-outlined" aria-hidden="true">sanitizer</span>
+								<span class="shell__nav-label">Hygiene</span>
+								<span class="material-symbols-outlined shell__nav-chevron" aria-hidden="true">expand_more</span>
+							</button>
+							<div class="shell__nav-panel">
+								<a class="shell__nav-sublink" href="/app/hygiene" hx-get="/app/hygiene" hx-target="#main-content" hx-swap="innerHTML">Routines</a>
+							</div>
+						</section>
+						<section class="shell__nav-section" data-nav-roles="superuser,admin">
+							<button type="button" class="shell__nav-header" aria-expanded="false">
+								<span class="material-symbols-outlined" aria-hidden="true">payments</span>
+								<span class="shell__nav-label">Economy</span>
+								<span class="material-symbols-outlined shell__nav-chevron" aria-hidden="true">expand_more</span>
+							</button>
+							<div class="shell__nav-panel">
+								<a class="shell__nav-sublink" href="/app/economy" hx-get="/app/economy" hx-target="#main-content" hx-swap="innerHTML">Tax rates</a>
+							</div>
+						</section>
+						<section class="shell__nav-section" data-nav-roles="admin">
+							<button type="button" class="shell__nav-header" aria-expanded="false">
+								<span class="material-symbols-outlined" aria-hidden="true">group</span>
+								<span class="shell__nav-label">IAM</span>
+								<span class="material-symbols-outlined shell__nav-chevron" aria-hidden="true">expand_more</span>
+							</button>
+							<div class="shell__nav-panel">
+								<a class="shell__nav-sublink" href="/app/iam" hx-get="/app/iam" hx-target="#main-content" hx-swap="innerHTML">Users</a>
+							</div>
+						</section>
+						<section class="shell__nav-section" data-nav-roles="admin">
+							<button type="button" class="shell__nav-header" aria-expanded="false">
+								<span class="material-symbols-outlined" aria-hidden="true">settings</span>
+								<span class="shell__nav-label">Settings</span>
+								<span class="material-symbols-outlined shell__nav-chevron" aria-hidden="true">expand_more</span>
+							</button>
+							<div class="shell__nav-panel">
+								<a class="shell__nav-sublink" href="/app/settings" hx-get="/app/settings" hx-target="#main-content" hx-swap="innerHTML">Tanks &amp; multipliers</a>
+							</div>
+						</section>
+					</nav>
+				</aside>
+				<div class="shell__main">
+					<header class="shell__topbar">
+						<div class="shell__spacer"></div>
+						<div class="shell__profile-wrap" id="shell-profile-wrap">
+							<button
+								type="button"
+								class="shell__profile"
+								id="shell-profile"
+								aria-label="Profile"
+								aria-expanded="false"
+								aria-haspopup="true"
+								aria-controls="shell-profile-menu"
+							>
+								<span class="shell__avatar" id="shell-avatar">?</span>
+								<span class="shell__profile-name" id="shell-profile-name"></span>
+							</button>
+							<div class="shell__profile-menu" id="shell-profile-menu" hidden role="menu">
+								<button type="button" class="shell__profile-menu-item" role="menuitem" id="shell-profile-view">View profile</button>
+								<button type="button" class="shell__profile-menu-item" role="menuitem" id="shell-profile-logout">Logout</button>
+							</div>
+						</div>
+					</header>
+					<main class="shell__content" id="main-content">
+						<section class="shell__welcome">
+							<h1 class="shell__welcome-title">Welcome</h1>
+							<p class="shell__welcome-text">Select a section from the navigation to get started.</p>
+						</section>
+					</main>
+				</div>
+
+				<dialog class="panel__dialog" id="profile-dialog">
+					<form method="dialog" class="panel__form" id="profile-form">
+						<h2>Profile</h2>
+						<label>Username
+							<input name="username" id="profile-username" readonly>
+						</label>
+						<label>Email
+							<input name="email" id="profile-email" type="email" required autocomplete="email">
+						</label>
+						<label>New password
+							<input name="password" id="profile-password" type="password" autocomplete="new-password" placeholder="Leave blank to keep current">
+						</label>
+						<p class="panel__error" id="profile-error" hidden></p>
+						<div class="panel__dialog-actions">
+							<button type="submit" class="btn btn--primary" value="save">Save</button>
+							<button type="submit" class="btn" value="cancel" formnovalidate>Cancel</button>
+						</div>
+					</form>
+				</dialog>
+
+				<button
+					type="button"
+					class="shell__nav-fab"
+					id="shell-nav-fab"
+					aria-label="Open navigation"
+					aria-expanded="false"
+					aria-controls="shell-nav-sheet"
+				>
+					<span class="material-symbols-outlined shell__nav-fab-icon" aria-hidden="true">menu</span>
+				</button>
+				<div class="shell__nav-backdrop" id="shell-nav-backdrop" hidden></div>
+				<nav class="shell__nav-sheet" id="shell-nav-sheet" aria-label="Main" aria-hidden="true">
+					<div class="shell__sheet-handle" aria-hidden="true"></div>
+					<section class="shell__sheet-section" data-nav-roles="user,superuser,admin">
+						<button type="button" class="shell__sheet-header" aria-expanded="false">
+							<span class="material-symbols-outlined" aria-hidden="true">sports_bar</span>
+							<span class="shell__nav-label">Brewing</span>
+							<span class="material-symbols-outlined shell__sheet-chevron" aria-hidden="true">expand_more</span>
+						</button>
+						<div class="shell__sheet-panel">
+							<a class="shell__sheet-link" href="/app/recipes" hx-get="/app/recipes" hx-target="#main-content" hx-swap="innerHTML">Recipes</a>
+							<a class="shell__sheet-link" href="/app/schedule" hx-get="/app/schedule" hx-target="#main-content" hx-swap="innerHTML">Schedule</a>
+							<a class="shell__sheet-link" href="/app/brewday" hx-get="/app/brewday" hx-target="#main-content" hx-swap="innerHTML">Brewday</a>
+							<a class="shell__sheet-link" href="/app/delivery" hx-get="/app/delivery" hx-target="#main-content" hx-swap="innerHTML">Delivery</a>
+						</div>
+					</section>
+					<section class="shell__sheet-section" data-nav-roles="user,superuser,admin">
+						<button type="button" class="shell__sheet-header" aria-expanded="false">
+							<span class="material-symbols-outlined" aria-hidden="true">inventory_2</span>
+							<span class="shell__nav-label">Inventory</span>
+							<span class="material-symbols-outlined shell__sheet-chevron" aria-hidden="true">expand_more</span>
+						</button>
+						<div class="shell__sheet-panel">
+							<a class="shell__sheet-link" href="/app/inventory/malt" hx-get="/app/inventory/malt" hx-target="#main-content" hx-swap="innerHTML">Malt</a>
+							<a class="shell__sheet-link" href="/app/inventory/hops" hx-get="/app/inventory/hops" hx-target="#main-content" hx-swap="innerHTML">Hops</a>
+							<a class="shell__sheet-link" href="/app/inventory/yeast" hx-get="/app/inventory/yeast" hx-target="#main-content" hx-swap="innerHTML">Yeast</a>
+							<a class="shell__sheet-link" href="/app/inventory/misc" hx-get="/app/inventory/misc" hx-target="#main-content" hx-swap="innerHTML">Misc</a>
+							<a class="shell__sheet-link" href="/app/inventory/orders" hx-get="/app/inventory/orders" hx-target="#main-content" hx-swap="innerHTML">Orders</a>
+						</div>
+					</section>
+					<section class="shell__sheet-section" data-nav-roles="user,superuser,admin">
+						<button type="button" class="shell__sheet-header" aria-expanded="false">
+							<span class="material-symbols-outlined" aria-hidden="true">sanitizer</span>
+							<span class="shell__nav-label">Hygiene</span>
+							<span class="material-symbols-outlined shell__sheet-chevron" aria-hidden="true">expand_more</span>
+						</button>
+						<div class="shell__sheet-panel">
+							<a class="shell__sheet-link" href="/app/hygiene" hx-get="/app/hygiene" hx-target="#main-content" hx-swap="innerHTML">Routines</a>
+						</div>
+					</section>
+					<section class="shell__sheet-section" data-nav-roles="superuser,admin">
+						<button type="button" class="shell__sheet-header" aria-expanded="false">
+							<span class="material-symbols-outlined" aria-hidden="true">payments</span>
+							<span class="shell__nav-label">Economy</span>
+							<span class="material-symbols-outlined shell__sheet-chevron" aria-hidden="true">expand_more</span>
+						</button>
+						<div class="shell__sheet-panel">
+							<a class="shell__sheet-link" href="/app/economy" hx-get="/app/economy" hx-target="#main-content" hx-swap="innerHTML">Tax rates</a>
+						</div>
+					</section>
+					<section class="shell__sheet-section" data-nav-roles="admin">
+						<button type="button" class="shell__sheet-header" aria-expanded="false">
+							<span class="material-symbols-outlined" aria-hidden="true">group</span>
+							<span class="shell__nav-label">IAM</span>
+							<span class="material-symbols-outlined shell__sheet-chevron" aria-hidden="true">expand_more</span>
+						</button>
+						<div class="shell__sheet-panel">
+							<a class="shell__sheet-link" href="/app/iam" hx-get="/app/iam" hx-target="#main-content" hx-swap="innerHTML">Users</a>
+						</div>
+					</section>
+					<section class="shell__sheet-section" data-nav-roles="admin">
+						<button type="button" class="shell__sheet-header" aria-expanded="false">
+							<span class="material-symbols-outlined" aria-hidden="true">settings</span>
+							<span class="shell__nav-label">Settings</span>
+							<span class="material-symbols-outlined shell__sheet-chevron" aria-hidden="true">expand_more</span>
+						</button>
+						<div class="shell__sheet-panel">
+							<a class="shell__sheet-link" href="/app/settings" hx-get="/app/settings" hx-target="#main-content" hx-swap="innerHTML">Tanks &amp; multipliers</a>
+						</div>
+					</section>
+				</nav>
+			</div>
+		</div>
+	</div>
+	<dialog class="panel__dialog" id="app-confirm-dialog">
+		<form method="dialog" class="panel__form" id="app-confirm-form">
+			<h2 id="app-confirm-title">Confirm</h2>
+			<p id="app-confirm-message"></p>
+			<div class="panel__dialog-actions">
+				<button type="submit" class="btn btn--primary" value="confirm">Confirm</button>
+				<button type="submit" class="btn" value="cancel" formnovalidate>Cancel</button>
+			</div>
+		</form>
+	</dialog>
+	<dialog class="panel__dialog" id="app-prompt-dialog">
+		<form method="dialog" class="panel__form" id="app-prompt-form">
+			<h2 id="app-prompt-title">Input</h2>
+			<div id="app-prompt-fields"></div>
+			<div class="panel__dialog-actions">
+				<button type="submit" class="btn btn--primary" value="save">Save</button>
+				<button type="submit" class="btn" value="cancel" formnovalidate>Cancel</button>
+			</div>
+		</form>
+	</dialog>
+	<script src="/static/js/wasm_exec.js"></script>
+	<script src="/static/js/wasm_loader.js"></script>
+	<script src="/static/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,42 @@
+<section class="panel" data-panel="recipes">
+	<header class="panel__header">
+		<h1 class="panel__title">Recipes</h1>
+		<p class="panel__lead">Create a brew batch (checks out available inventory; shortfalls go to a planning order). Delete restores checked-out stock while status is created or scheduled.</p>
+	</header>
+	<div class="panel__toolbar">
+		<button type="button" class="btn" data-action="recipe-refresh">Refresh</button>
+		<button type="button" class="btn btn--primary" data-action="recipe-new">New recipe</button>
+	</div>
+	<div class="panel__body" id="recipes-list">Loading…</div>
+	<dialog class="panel__dialog panel__dialog--wide" id="recipe-dialog">
+		<form method="dialog" class="panel__form" id="recipe-form">
+			<h2 id="recipe-dialog-title">New recipe</h2>
+			<input type="hidden" name="id" value="">
+			<label>Brewery
+				<select name="brewery_id" required></select>
+			</label>
+			<label>Name
+				<input name="name" required placeholder="Batch name">
+			</label>
+			<div id="recipe-ingredients"></div>
+			<button type="button" class="btn" data-action="recipe-add-ing">Add ingredient</button>
+			<p class="panel__error" id="recipe-error" hidden></p>
+			<div class="panel__dialog-actions">
+				<button type="submit" class="btn btn--primary" value="save" id="recipe-save-btn">Create</button>
+				<button type="submit" class="btn" value="cancel" formnovalidate>Cancel</button>
+			</div>
+		</form>
+	</dialog>
+	<dialog class="panel__dialog" id="recipe-shortfall-dialog">
+		<form method="dialog" class="panel__form" id="recipe-shortfall-form">
+			<h2>Stock shortfall</h2>
+			<p class="panel__lead" id="recipe-shortfall-lead">Available stock was checked out. Missing amounts were added to a planning order.</p>
+			<ul id="recipe-shortfall-list"></ul>
+			<p class="panel__empty" id="recipe-shortfall-notice" hidden></p>
+			<p class="panel__error" id="recipe-shortfall-error" hidden></p>
+			<div class="panel__dialog-actions">
+				<button type="submit" class="btn btn--primary" value="cancel" formnovalidate>Close</button>
+			</div>
+		</form>
+	</dialog>
+</section>

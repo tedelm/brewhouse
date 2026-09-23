@@ -1,0 +1,22 @@
+<section class="panel" data-panel="schedule">
+	<header class="panel__header">
+		<h1 class="panel__title">Schedule</h1>
+		<p class="panel__lead">Book brewery equipment day and a fermentation tank for a recipe.</p>
+	</header>
+	<div class="panel__toolbar">
+		<button type="button" class="btn" data-action="schedule-refresh">Refresh</button>
+	</div>
+	<form class="panel__form panel__form--inline" id="schedule-form">
+		<label>Recipe
+			<select name="recipe_id" id="schedule-recipe" required></select>
+		</label>
+		<label>Date <input name="date" type="date" required></label>
+		<label>Tank
+			<select name="tank_id" required></select>
+		</label>
+		<label>Tank days <input name="tank_days" type="number" value="14" min="1"></label>
+		<button type="submit" class="btn btn--primary">Book</button>
+		<p class="panel__error" id="schedule-error" hidden></p>
+	</form>
+	<div class="panel__body" id="schedule-list">Loading…</div>
+</section>

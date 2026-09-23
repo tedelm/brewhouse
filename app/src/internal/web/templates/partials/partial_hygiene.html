@@ -1,0 +1,17 @@
+<section class="panel" data-panel="hygiene">
+	<header class="panel__header">
+		<h1 class="panel__title">Hygiene routines</h1>
+		<p class="panel__lead">Checklist for brewday cleaning. Confirm once when everything is done — no need to tick each step.</p>
+	</header>
+	<div class="panel__toolbar">
+		<button type="button" class="btn" data-action="hygiene-refresh">Refresh</button>
+	</div>
+	<div class="panel__body" id="hygiene-list">Loading…</div>
+	<form class="panel__form panel__form--inline" id="hygiene-form">
+		<label>Recipe
+			<select name="recipe_id" id="hygiene-recipe" required></select>
+		</label>
+		<button type="submit" class="btn btn--primary">Confirm all done</button>
+		<p class="panel__error" id="hygiene-error" hidden></p>
+	</form>
+</section>

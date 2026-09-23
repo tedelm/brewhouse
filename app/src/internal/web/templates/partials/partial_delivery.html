@@ -1,0 +1,19 @@
+<section class="panel" data-panel="delivery">
+	<header class="panel__header">
+		<h1 class="panel__title">Delivery batches</h1>
+		<p class="panel__lead">After hygiene: set FG and delivery volume to compute tax, cost, and net. Then deliver to the pub.</p>
+	</header>
+	<div class="panel__toolbar">
+		<button type="button" class="btn" data-action="delivery-refresh">Refresh</button>
+	</div>
+	<div class="panel__body" id="delivery-list">Loading…</div>
+	<form class="panel__form panel__form--inline" id="delivery-form">
+		<label>Recipe
+			<select name="recipe_id" id="delivery-recipe" required></select>
+		</label>
+		<label>FG (SG) <input name="fg" type="number" step="0.001" required></label>
+		<label>Delivery volume (L) <input name="delivery_volume" type="number" step="any" required></label>
+		<button type="submit" class="btn btn--primary">Calculate &amp; ready</button>
+		<p class="panel__error" id="delivery-error" hidden></p>
+	</form>
+</section>

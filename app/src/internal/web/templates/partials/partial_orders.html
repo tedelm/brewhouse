@@ -1,0 +1,77 @@
+<section class="panel" data-panel="orders">
+	<header class="panel__header">
+		<h1 class="panel__title">Orders</h1>
+		<p class="panel__lead">Plan purchase orders, mark them ordered, then complete to receive stock into inventory.</p>
+	</header>
+	<div class="panel__toolbar">
+		<button type="button" class="btn" data-action="orders-refresh">Refresh</button>
+		<button type="button" class="btn btn--primary" data-action="orders-new" data-require-roles="superuser,admin">New order</button>
+	</div>
+	<div class="panel__body" id="orders-list">Loading…</div>
+	<dialog class="panel__dialog" id="order-new-dialog">
+		<form method="dialog" class="panel__form" id="order-new-form">
+			<h2>New order</h2>
+			<label>External order ID <input name="external_order_id" type="text" placeholder="Optional"></label>
+			<label>Notes <input name="notes" type="text" placeholder="Optional"></label>
+			<div class="panel__dialog-actions">
+				<button type="submit" class="btn btn--primary" value="save">Create</button>
+				<button type="submit" class="btn" value="cancel" formnovalidate>Cancel</button>
+			</div>
+		</form>
+	</dialog>
+	<dialog class="panel__dialog" id="order-line-dialog">
+		<form method="dialog" class="panel__form" id="order-line-form">
+			<h2>Add line</h2>
+			<input type="hidden" name="order_id" value="">
+			<label>Item
+				<select name="inventory_item_id" id="order-line-item" required></select>
+			</label>
+			<label>Qty <input name="qty" type="number" step="any" min="0.01" value="1" required></label>
+			<label>Brewery
+				<select name="brewery_id" id="order-line-brewery">
+					<option value="">Unassigned</option>
+				</select>
+			</label>
+			<div class="panel__dialog-actions">
+				<button type="submit" class="btn btn--primary" value="save">Add</button>
+				<button type="submit" class="btn" value="cancel" formnovalidate>Cancel</button>
+			</div>
+		</form>
+	</dialog>
+	<dialog class="panel__dialog" id="order-confirm-dialog">
+		<form method="dialog" class="panel__form" id="order-confirm-form">
+			<h2 id="order-confirm-title">Confirm</h2>
+			<p id="order-confirm-message"></p>
+			<input type="hidden" name="action" value="">
+			<input type="hidden" name="order_id" value="">
+			<input type="hidden" name="status" value="">
+			<div class="panel__dialog-actions">
+				<button type="submit" class="btn btn--primary" value="confirm">Confirm</button>
+				<button type="submit" class="btn" value="cancel" formnovalidate>Cancel</button>
+			</div>
+		</form>
+	</dialog>
+	<dialog class="panel__dialog" id="order-external-dialog">
+		<form method="dialog" class="panel__form" id="order-external-form">
+			<h2>External order ID</h2>
+			<input type="hidden" name="order_id" value="">
+			<label>External order ID <input name="external_order_id" type="text" placeholder="Optional"></label>
+			<div class="panel__dialog-actions">
+				<button type="submit" class="btn btn--primary" value="save">Save</button>
+				<button type="submit" class="btn" value="cancel" formnovalidate>Cancel</button>
+			</div>
+		</form>
+	</dialog>
+	<dialog class="panel__dialog" id="order-ordered-qty-dialog">
+		<form method="dialog" class="panel__form" id="order-ordered-qty-form">
+			<h2>Ordered quantity</h2>
+			<input type="hidden" name="order_id" value="">
+			<input type="hidden" name="line_id" value="">
+			<label>Ordered qty <input name="ordered_qty" type="number" step="any" min="0.01" required></label>
+			<div class="panel__dialog-actions">
+				<button type="submit" class="btn btn--primary" value="save">Save</button>
+				<button type="submit" class="btn" value="cancel" formnovalidate>Cancel</button>
+			</div>
+		</form>
+	</dialog>
+</section>

@@ -1,0 +1,47 @@
+﻿name;category;type;sub_type;inventory_amount;cost_price_per_kg;link
+Fermentis SafAle US-05;yeast;Ale;dry;;;
+Fermentis SafAle S-04;yeast;Ale;dry;;;
+Fermentis SafLager W-34/70;yeast;Ale;dry;;;
+Lalvin EC-1118;yeast;Ale;dry;;;
+Wyeast Nutrient Blend jästnäring;yeast;Ale;dry;;;
+US West Coast (Mangrove Jack's M44) 10 g;yeast;Ale;dry;;;https://mr-malt.se/jast/alejast/torr/us-west-coast-mangrove-jack-s-m44-10-g
+Nottingham Ale Lallemand 11 g;yeast;Ale;dry;;;https://mr-malt.se/jast/alejast/torr/nottingham-ale-lallemand-11-g
+American Ale (Wyeast 1056);yeast;Ale;liquid;;;https://mr-malt.se/jast/alejast/flytande/american-ale-jast-brewer-s-choice-1056-activator
+American Ale II (Wyeast 1272);yeast;Ale;liquid;;;https://mr-malt.se/jast/alejast/flytande/american-ale-ii-wyeast-1272
+London Ale III (Wyeast 1318);yeast;Ale;liquid;;;https://mr-malt.se/jast/alejast/flytande/london-ale-iii-jast-brewer-s-choice-1318-activator
+London Ale (Wyeast 1028);yeast;Ale / flytande;liquid;;;https://mr-malt.se/jast/alejast/flytande/london-ale-jast-brewer-s-choice-1028-activator
+Irish Ale (Wyeast 1084);yeast;Ale / flytande;liquid;;;https://mr-malt.se/jast/alejast/flytande/irish-ale-jast-brewer-s-choice-1084-activator
+London ESB Ale (Wyeast 1968);yeast;Ale / flytande;liquid;;;https://mr-malt.se/jast/alejast/flytande/special-london-ale-jast-brewer-s-choice-1968-activator
+Scottish Ale (Wyeast 1728);yeast;Ale / flytande;liquid;;;https://mr-malt.se/jast/alejast/flytande/scottish-ale-jast-brewer-s-choice-1728-activator
+BRY-97 American West Coast Lallemand 11 g;yeast;Ale / torr;dry;;;https://mr-malt.se/jast/alejast/torr/bry-97-american-west-coast-lallemand-11-g
+New World Strong Ale (Mangrove Jack's M42) 10 g;yeast;Ale / torr;dry;;;https://mr-malt.se/jast/alejast/torr/new-world-strong-ale-mangrove-jack-s-m42-10-g
+Liberty Bell Ale (Mangrove Jack's M36) 10 g;yeast;Ale / torr;dry;;;https://mr-malt.se/jast/alejast/torr/liberty-bell-ale-mangrove-jack-s-m36-10-g
+Verdant IPA Lallemand 11 g;yeast;Ale / torr;dry;;;https://mr-malt.se/jast/alejast/torr/verdant-ipa-lallemand-11-g
+Windsor Ale Lallemand 11 g;yeast;Ale / torr;dry;;;https://mr-malt.se/jast/alejast/torr/windsor-ale-lallemand-11-g
+Empire Ale (Mangrove Jack's M15) 10 g;yeast;Ale / torr;dry;;;https://mr-malt.se/jast/alejast/torr/empire-ale-mangrove-jack-s-m15-10-g
+French Saison (Wyeast 3711);yeast;Belgisk / flytande;liquid;;;https://mr-malt.se/jast/belgisk-jast/flytande/french-saison-jast-brewer-s-choice-3711-activator
+Belgian High Gravity (Wyeast 3787);yeast;Belgisk / flytande;liquid;;;https://mr-malt.se/jast/belgisk-jast/flytande/trappist-high-gravity-jast-brewer-s-choice-3787-activator
+Belgian Tripel (Mangrove Jack's M31) 10 g;yeast;Belgisk / torr;dry;;;https://mr-malt.se/jast/belgisk-jast/torr/belgian-tripel-mangrove-jack-s-m31-10-g
+Cider (Mangrove Jack's M02) 9 g;yeast;Cider;dry;;;https://mr-malt.se/jast/ciderjast/cider-mangrove-jack-s-m02-9-g
+Cider (Wyeast 4766);yeast;Cider;liquid;;;https://mr-malt.se/jast/ciderjast/ciderjast-vintner-s-choice-4766-activator
+Voss Kveik Lallemand 11 g;yeast;Kveik;dry;;;https://mr-malt.se/jast/kveik/torr/voss-kveik-lallemand-11-g
+Fermentis SafLager S-23;yeast;Lager;dry;;;
+Bohemian Lager (Mangrove Jack's M84) 10 g;yeast;Lager;dry;;;https://mr-malt.se/jast/lagerjast/torr/bohemian-lager-mangrove-jack-s-m84-10-g
+Californian Lager (Mangrove Jack's M54) 10 g;yeast;Lager;dry;;;https://mr-malt.se/jast/lagerjast/torr/californian-lager-mangrove-jack-s-m54-10-g
+Bavarian Lager (Mangrove Jack's M76) 10 g;yeast;Lager;dry;;;https://mr-malt.se/jast/lagerjast/torr/bavarian-lager-mangrove-jack-s-m76-10-g
+Mead (Mangrove Jack's M05) 10 g;yeast;Mjöd;dry;;;https://mr-malt.se/jast/mjodjast/mead-mangrove-jack-s-m05-10-g
+Weihenstephan Weizen (Wyeast 3068);yeast;Wheat;liquid;;;https://mr-malt.se/jast/veteoljast/flytande/weihenstephan-wheat-veteoljast-brewer-s-choice-3068-activator
+Bavarian Wheat (Mangrove Jack's M20) 10 g;yeast;Wheat;dry;;;https://mr-malt.se/jast/veteoljast/torr/bavarian-wheat-mangrove-jack-s-m20-10-g
+Belgian Wit (Mangrove Jack's M21) 10 g;yeast;Wheat;dry;;;https://mr-malt.se/jast/veteoljast/torr/belgian-wit-mangrove-jack-s-m21-10-g
+Red Star Côte des Blancs 5 g;yeast;Wine;dry;;;https://mr-malt.se/jast/vinjast/torr/red-star-cote-des-blancs-vinjast-5-g
+Lalvin ICV D47;yeast;Ale;dry;;;
+Lalvin 71B;yeast;Ale;dry;;;
+Fermentis SafAle S-33;yeast;Lager;dry;;;
+Fermentis SafAle T-58;yeast;Lager;dry;;;
+Fermentis SafCider AB-1;yeast;Ale;dry;;;
+Fermentis SafAle WB-06;yeast;Ale;dry;;;
+Fermentis SafAle F2;yeast;Ale;dry;;;
+Fermentis SafLager S-189;yeast;Lager;dry;;;
+Lalvin Bourgovin RC212;yeast;Ale;dry;;;
+Fermentis SafAle BE-256;yeast;Lager;dry;;;
+Fermentis SafAle K-97;yeast;Ale;dry;;;

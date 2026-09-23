@@ -1,0 +1,31 @@
+<section class="panel" data-panel="inventory" data-category="{{.Category}}">
+	<header class="panel__header">
+		<h1 class="panel__title">{{.Title}}</h1>
+		<p class="panel__lead">Shared inventory across all sub-breweries. Cost price is used for batch costing.</p>
+	</header>
+	<div class="panel__toolbar">
+		<button type="button" class="btn" data-action="inventory-refresh">Refresh</button>
+		<button type="button" class="btn btn--primary" data-action="inventory-new" data-require-roles="superuser,admin">Add item</button>
+	</div>
+	<div class="panel__body" id="inventory-list">Loading…</div>
+	<dialog class="panel__dialog" id="inventory-dialog">
+		<form method="dialog" class="panel__form" id="inventory-form">
+			<h2 id="inventory-dialog-title">Inventory item</h2>
+			<input type="hidden" name="id" value="">
+			<label>Name <input name="name" required></label>
+			<label class="inventory-field--catalog">Type <input name="item_type" placeholder="Type"></label>
+			<label class="inventory-field--catalog">Producer <input name="producer"></label>
+			<label class="inventory-field--malt">Min EBC <input name="min_ebc" type="number" step="any" value="0"></label>
+			<label class="inventory-field--malt">Max EBC <input name="max_ebc" type="number" step="any" value="0"></label>
+			<label class="inventory-field--catalog">Link <input name="link" type="url" placeholder="https://"></label>
+			<label>Unit <input name="unit" value="kg"></label>
+			<label>Qty <input name="qty" type="number" step="any" value="0"></label>
+			<label>Cost price (SEK) <input name="cost_price" type="number" step="any" value="0"></label>
+			<p class="panel__error" id="inventory-error" hidden></p>
+			<div class="panel__dialog-actions">
+				<button type="submit" class="btn btn--primary" value="save">Save</button>
+				<button type="submit" class="btn" value="cancel" formnovalidate>Cancel</button>
+			</div>
+		</form>
+	</dialog>
+</section>
