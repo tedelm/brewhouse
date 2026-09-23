@@ -1,0 +1,92 @@
+<section class="panel" data-panel="guide">
+	<header class="panel__header">
+		<h1 class="panel__title">Brewery 101</h1>
+		<p class="panel__lead">How to take a batch from recipe to the pub, and what each section of Brewhouse is for.</p>
+	</header>
+
+	<section class="guide-section">
+		<h2 class="guide-section__title">How to deliver a batch</h2>
+		<p class="guide-section__lead">Follow these steps in order. Each step advances the batch status.</p>
+		<ol class="guide-steps">
+			<li>
+				<strong>Recipes</strong> — Create a batch and pick ingredients. Available stock is checked out; shortfalls go to a planning order.
+				<span class="guide-steps__status">Status: created</span>
+			</li>
+			<li>
+				<strong>Schedule</strong> — Book a brew day and a fermentation tank.
+				<span class="guide-steps__status">Status: scheduled</span>
+			</li>
+			<li>
+				<strong>Brewday</strong> — Record original gravity (OG) and brew volume, then mark brewday completed.
+				<span class="guide-steps__status">Status: brewday</span>
+			</li>
+			<li>
+				<strong>Hygiene</strong> — Confirm cleaning is done for the batch (or use Hygiene done on Brewday).
+				<span class="guide-steps__status">Status: hygiene done</span>
+			</li>
+			<li>
+				<strong>Delivery</strong> — Set final gravity (FG), delivery volume, beer net SEK/L, and multiplier. Live estimate shows tax (fixed) and net (= beer net × multiplier × liters). Click Calculate &amp; ready.
+				<span class="guide-steps__status">Status: ready for delivery</span>
+			</li>
+			<li>
+				<strong>Deliver</strong> — On Delivery, click Deliver to mark the batch as sent to the pub.
+				<span class="guide-steps__status">Status: delivered</span>
+			</li>
+		</ol>
+	</section>
+
+	<section class="guide-section">
+		<h2 class="guide-section__title">Admin mode</h2>
+		<p class="guide-section__lead">Admin accounts sign in as superuser. Economy, IAM, and Settings stay hidden until you elevate.</p>
+		<ul class="guide-list">
+			<li><strong>Where</strong> — Open the profile menu (avatar, top right) and use the <strong>Admin mode</strong> toggle. Only admin accounts see it.</li>
+			<li><strong>On</strong> — Your session becomes admin; Economy, IAM, and Settings appear in the navigation.</li>
+			<li><strong>Off</strong> — You return to superuser; admin-only pages are left and those nav sections hide again.</li>
+		</ul>
+	</section>
+
+	<section class="guide-section">
+		<h2 class="guide-section__title">What each page does</h2>
+
+		<h3 class="guide-section__subtitle">Brewing</h3>
+		<ul class="guide-list">
+			<li><strong>Brewery 101</strong> — This guide.</li>
+			<li><strong>Recipes</strong> — Create and manage batches; inventory checkout and planning shortfalls.</li>
+			<li><strong>Schedule</strong> — Book brew day and tank.</li>
+			<li><strong>Brewday</strong> — Enter OG and brew volume; edit or revoke brewday.</li>
+			<li><strong>Delivery</strong> — Price and deliver hygiene-done batches to the pub.</li>
+		</ul>
+
+		<h3 class="guide-section__subtitle">Inventory</h3>
+		<ul class="guide-list">
+			<li><strong>Malt / Hops / Yeast / Misc</strong> — Shared stock. Cost price feeds batch cost.</li>
+			<li><strong>Orders</strong> — Plan purchases, mark ordered, complete to receive stock.</li>
+		</ul>
+
+		<h3 class="guide-section__subtitle">Hygiene</h3>
+		<ul class="guide-list">
+			<li><strong>Routines</strong> — Confirm brewday cleaning so the batch can go to delivery.</li>
+		</ul>
+
+		<h3 class="guide-section__subtitle">Economy (admin)</h3>
+		<ul class="guide-list">
+			<li><strong>Tax rates</strong> — Swedish beer alcohol tax formula used on delivery.</li>
+			<li><strong>Monthly deliveries</strong> — Delivered batches by month for declaration and invoicing (CSV export).</li>
+		</ul>
+
+		<h3 class="guide-section__subtitle">IAM (admin)</h3>
+		<ul class="guide-list">
+			<li><strong>Users</strong> — Create and edit accounts and roles.</li>
+			<li><strong>Breweries</strong> — Breweries, contacts, and memberships.</li>
+		</ul>
+
+		<h3 class="guide-section__subtitle">Settings (admin)</h3>
+		<ul class="guide-list">
+			<li><strong>Brand</strong> — Logo and favicon.</li>
+			<li><strong>Tanks</strong> — Fermentation tanks for scheduling.</li>
+			<li><strong>Multipliers</strong> — Options that scale beer net SEK/L on delivery.</li>
+			<li><strong>Beer net price</strong> — Default SEK/L prefilling the Delivery form.</li>
+			<li><strong>Hygiene routines</strong> — Master checklist used when confirming hygiene.</li>
+		</ul>
+	</section>
+</section>

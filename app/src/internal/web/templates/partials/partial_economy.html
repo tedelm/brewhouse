@@ -1,12 +1,12 @@
 <section class="panel" data-panel="economy">
 	<header class="panel__header">
 		<h1 class="panel__title">Tax rates</h1>
-		<p class="panel__lead">Swedish beer alcohol tax: 0 kr/L at or below the free ABV limit; otherwise liters × ABV% × rate. Small independent producers can apply a reduced rate by annual volume.</p>
+		<p class="panel__lead">Swedish beer alcohol tax: 0 kr/L at or below the free ABV limit; otherwise ABV% × rate × discount (SEK/L). Used on delivery; small-producer discounts by annual volume.</p>
 	</header>
 	<div class="panel__toolbar">
 		<button type="button" class="btn" data-action="economy-refresh">Refresh</button>
 	</div>
-	<form class="panel__form" id="economy-form" data-require-roles="superuser,admin">
+	<form class="panel__form" id="economy-form" data-require-roles="admin">
 		<label>Rate (SEK per liter per % ABV)
 			<input name="rate_sek" type="number" step="0.01" min="0" required>
 		</label>

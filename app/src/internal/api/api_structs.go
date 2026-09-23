@@ -8,10 +8,16 @@ type LoginRequest struct {
 
 // LoginResponse is returned on successful authentication.
 type LoginResponse struct {
-	Token    string `json:"token"`
-	Username string `json:"username"`
-	Role     string `json:"role"`
-	UserID   int64  `json:"user_id"`
+	Token      string `json:"token"`
+	Username   string `json:"username"`
+	Role       string `json:"role"`
+	UserID     int64  `json:"user_id"`
+	CanElevate bool   `json:"can_elevate"`
+}
+
+// ElevateRequest is the body for POST /api/session/elevate.
+type ElevateRequest struct {
+	Elevated bool `json:"elevated"`
 }
 
 // ErrorResponse is a JSON error payload.
@@ -102,9 +108,10 @@ type OrderLineRequest struct {
 	BreweryID       *int64  `json:"brewery_id,omitempty"`
 }
 
-// UpdateOrderLineRequest patches ordered qty on a line.
+// UpdateOrderLineRequest patches ordered qty and/or product link on a line.
 type UpdateOrderLineRequest struct {
-	OrderedQty float64 `json:"ordered_qty"`
+	OrderedQty *float64 `json:"ordered_qty,omitempty"`
+	Link       *string  `json:"link,omitempty"`
 }
 
 // UpdateOrderRequest patches notes, status, and/or external order id.
@@ -131,10 +138,12 @@ type BrewdayRequest struct {
 	BrewVolume float64 `json:"brew_volume"`
 }
 
-// DeliveryRequest sets FG and delivery volume.
+// DeliveryRequest sets FG, delivery volume, beer net SEK/L, and multiplier.
 type DeliveryRequest struct {
-	FG              float64 `json:"fg"`
-	DeliveryVolume  float64 `json:"delivery_volume"`
+	FG                 float64 `json:"fg"`
+	DeliveryVolume     float64 `json:"delivery_volume"`
+	BeerNetSEKPerLiter float64 `json:"beer_net_sek_per_liter"`
+	MultiplierID       int64   `json:"multiplier_id"`
 }
 
 // HygieneCheckRequest marks a hygiene routine complete.
@@ -166,6 +175,11 @@ type TaxConfigRequest struct {
 type MultiplierRequest struct {
 	Name       string  `json:"name"`
 	Multiplier float64 `json:"multiplier"`
+}
+
+// ActiveRequest toggles active state for tanks or multipliers.
+type ActiveRequest struct {
+	Active bool `json:"active"`
 }
 
 // BeerPriceRequest is update for minimum net SEK per liter.

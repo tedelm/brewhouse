@@ -38,11 +38,11 @@
 
 	function table(headers, rowsHtml) {
 		return (
-			'<table class="data-table"><thead><tr>' +
+			'<div class="table-scroll"><table class="data-table"><thead><tr>' +
 			headers.map((h) => "<th>" + esc(h) + "</th>").join("") +
 			"</tr></thead><tbody>" +
 			rowsHtml +
-			"</tbody></table>"
+			"</tbody></table></div>"
 		);
 	}
 
@@ -51,6 +51,13 @@
 			return "";
 		}
 		return Number(n).toFixed(2);
+	}
+
+	function fmtSG(v, fallback) {
+		if (v == null || v === "" || Number.isNaN(Number(v))) {
+			return fallback != null ? fallback : "";
+		}
+		return Number(v).toFixed(3);
 	}
 
 	function datePart(iso) {
@@ -82,6 +89,25 @@
 			const onClose = () => {
 				dialog.removeEventListener("close", onClose);
 				resolve(dialog.returnValue === "confirm");
+			};
+			dialog.addEventListener("close", onClose);
+			dialog.showModal();
+		});
+	}
+
+	function appInfo(opts) {
+		const dialog = document.getElementById("app-info-dialog");
+		const titleEl = document.getElementById("app-info-title");
+		const messageEl = document.getElementById("app-info-message");
+		if (!dialog || !titleEl || !messageEl) {
+			return Promise.resolve();
+		}
+		titleEl.textContent = (opts && opts.title) || "Info";
+		messageEl.textContent = (opts && opts.message) || "";
+		return new Promise((resolve) => {
+			const onClose = () => {
+				dialog.removeEventListener("close", onClose);
+				resolve();
 			};
 			dialog.addEventListener("close", onClose);
 			dialog.showModal();
@@ -187,11 +213,11 @@
 		}
 		applyRequireRoles(panel);
 		const kind = panel.getAttribute("data-panel");
-		if ((kind === "iam" || kind === "settings") && !canRoles("admin")) {
+		if ((kind === "iam" || (kind && kind.startsWith("iam-")) || (kind && kind.startsWith("settings"))) && !canRoles("admin")) {
 			showForbidden(panel);
 			return;
 		}
-		if (kind === "economy" && !canRoles(["superuser", "admin"])) {
+		if ((kind === "economy" || kind === "economy-deliveries") && !canRoles("admin")) {
 			showForbidden(panel);
 			return;
 		}
@@ -203,9 +229,15 @@
 			orders: loadOrders,
 			hygiene: loadHygiene,
 			economy: loadEconomy,
+			"economy-deliveries": loadEconomyDeliveries,
 			delivery: loadDelivery,
-			iam: loadIAM,
-			settings: loadSettings,
+			"iam-users": loadIAMUsers,
+			"iam-breweries": loadIAMBreweries,
+			"settings-brand": loadSettingsBrand,
+			"settings-tanks": loadSettingsTanks,
+			"settings-multipliers": loadSettingsMultipliers,
+			"settings-beer-price": loadSettingsBeerPrice,
+			"settings-hygiene": loadSettingsHygiene,
 		};
 		const fn = loaders[kind];
 		if (fn) {
@@ -225,9 +257,14 @@
 		const shortfallList = panel.querySelector("#recipe-shortfall-list");
 		const shortfallNotice = panel.querySelector("#recipe-shortfall-notice");
 		const shortfallError = panel.querySelector("#recipe-shortfall-error");
+		const showHiddenEl = panel.querySelector("#recipes-show-hidden");
 
 		function editableStatus(status) {
 			return status === "created" || status === "scheduled";
+		}
+
+		function showHidden() {
+			return !!(showHiddenEl && showHiddenEl.checked);
 		}
 
 		async function openRecipeDialog(recipe) {
@@ -274,7 +311,8 @@
 		async function refresh() {
 			list.textContent = "Loading…";
 			try {
-				const recipes = await api("/api/recipes");
+				const qs = showHidden() ? "?include_hidden=1" : "";
+				const recipes = await api("/api/recipes" + qs);
 				if (!recipes || !recipes.length) {
 					list.innerHTML = "<p class=\"panel__empty\">No recipes yet.</p>";
 					return;
@@ -289,16 +327,22 @@
 									'<button type="button" class="btn btn--small" data-edit-recipe="' +
 									r.id +
 									'">Edit</button> ';
-							}
-							actions +=
-								'<button type="button" class="btn btn--small" data-del-recipe="' +
-								r.id +
-								'">Delete</button>';
-							if (r.status === "scheduled") {
 								actions +=
-									' <button type="button" class="btn btn--small" data-brewday="' +
+									'<button type="button" class="btn btn--small" data-del-recipe="' +
 									r.id +
-									'">Brewday</button>';
+									'">Delete</button>';
+							}
+							if (r.status === "delivered" && r.active !== false) {
+								actions +=
+									' <button type="button" class="btn btn--small" data-hide-recipe="' +
+									r.id +
+									'">Hide</button>';
+							}
+							if (r.status === "delivered" && r.active === false) {
+								actions +=
+									' <button type="button" class="btn btn--small" data-unhide-recipe="' +
+									r.id +
+									'">Unhide</button>';
 							}
 							if (r.status === "ready_for_delivery") {
 								actions +=
@@ -306,6 +350,10 @@
 									r.id +
 									'">Deliver</button>';
 							}
+							const statusLabel =
+								r.status === "delivered" && r.active === false
+									? "delivered (hidden)"
+									: r.status;
 							return (
 								"<tr><td>" +
 								r.id +
@@ -314,7 +362,7 @@
 								"</td><td>" +
 								esc(r.brewery_name || String(r.brewery_id)) +
 								"</td><td>" +
-								esc(r.status) +
+								esc(statusLabel) +
 								"</td><td>" +
 								actions +
 								"</td></tr>"
@@ -400,25 +448,24 @@
 					alert(e.message);
 				}
 			}
-			if (t.hasAttribute("data-brewday")) {
-				const id = t.getAttribute("data-brewday");
-				const values = await appPrompt({
-					title: "Brewday",
-					fields: [
-						{ name: "og", label: "OG (SG)", type: "number", step: "0.001", value: "1.050" },
-						{ name: "brew_volume", label: "Brew volume (L)", type: "number", step: "any", value: "100" },
-					],
-				});
-				if (!values) {
-					return;
-				}
+			if (t.hasAttribute("data-hide-recipe")) {
+				const id = t.getAttribute("data-hide-recipe");
 				try {
-					await api("/api/recipes/" + id + "/brewday", {
+					await api("/api/recipes/" + id + "/active", {
 						method: "POST",
-						body: JSON.stringify({
-							og: parseFloat(values.og),
-							brew_volume: parseFloat(values.brew_volume),
-						}),
+						body: JSON.stringify({ active: false }),
+					});
+					refresh();
+				} catch (e) {
+					alert(e.message);
+				}
+			}
+			if (t.hasAttribute("data-unhide-recipe")) {
+				const id = t.getAttribute("data-unhide-recipe");
+				try {
+					await api("/api/recipes/" + id + "/active", {
+						method: "POST",
+						body: JSON.stringify({ active: true }),
 					});
 					refresh();
 				} catch (e) {
@@ -483,6 +530,12 @@
 				dialog.showModal();
 			}
 		});
+
+		if (showHiddenEl) {
+			showHiddenEl.addEventListener("change", () => {
+				refresh();
+			});
+		}
 
 		refresh();
 	}
@@ -586,7 +639,7 @@
 			list.textContent = "Loading…";
 			try {
 				const [tanks, recipes, bookings] = await Promise.all([
-					api("/api/settings/tanks"),
+					api("/api/settings/tanks?active=1"),
 					api("/api/recipes"),
 					api("/api/schedule"),
 				]);
@@ -602,10 +655,17 @@
 					return;
 				}
 				list.innerHTML = table(
-					["Date", "End date", "Brewery", "Recipe", "Tank"],
+					["Date", "End date", "Brewery", "Recipe", "Tank", "Actions"],
 					bookings
-						.map(
-							(b) =>
+						.map((b) => {
+							let actions = "";
+							if (b.status === "scheduled" && b.recipe_id) {
+								actions =
+									'<button type="button" class="btn btn--small" data-action="schedule-unbook" data-recipe-id="' +
+									b.recipe_id +
+									'">Remove</button>';
+							}
+							return (
 								"<tr><td>" +
 								esc(b.date) +
 								"</td><td>" +
@@ -616,8 +676,11 @@
 								esc(b.name || "") +
 								"</td><td>" +
 								esc(b.tank_name || "") +
+								"</td><td>" +
+								actions +
 								"</td></tr>"
-						)
+							);
+						})
 						.join("")
 				);
 			} catch (e) {
@@ -626,6 +689,32 @@
 		}
 
 		panel.querySelector('[data-action="schedule-refresh"]').addEventListener("click", refresh);
+		panel.addEventListener("click", async (ev) => {
+			const t = ev.target;
+			if (!(t instanceof HTMLElement)) {
+				return;
+			}
+			if (t.getAttribute("data-action") !== "schedule-unbook") {
+				return;
+			}
+			const recipeId = t.getAttribute("data-recipe-id");
+			if (!recipeId) {
+				return;
+			}
+			const ok = await appConfirm({
+				title: "Remove from schedule",
+				message: "Remove this recipe from the schedule? The batch stays; bookings are cleared.",
+			});
+			if (!ok) {
+				return;
+			}
+			try {
+				await api("/api/recipes/" + recipeId + "/schedule", { method: "DELETE" });
+				refresh();
+			} catch (e) {
+				alert(e.message);
+			}
+		});
 		form.addEventListener("submit", async (ev) => {
 			ev.preventDefault();
 			errEl.hidden = true;
@@ -659,37 +748,52 @@
 		let byID = {};
 
 		function fillBrewdayFields(recipe) {
-			if (recipe && recipe.og != null && recipe.og !== "") {
-				ogInput.value = recipe.og;
-			} else {
-				ogInput.value = "1.050";
-			}
+			ogInput.value = fmtSG(recipe && recipe.og, "1.050");
 			if (recipe && recipe.brew_volume != null && recipe.brew_volume !== "") {
 				volInput.value = recipe.brew_volume;
 			} else {
 				volInput.value = "100";
 			}
+			const submitBtn = form.querySelector('button[type="submit"]');
+			if (submitBtn) {
+				submitBtn.disabled = false;
+				submitBtn.title = "";
+			}
 		}
 
-		async function refresh() {
+		function selectRecipeForEdit(recipeId) {
+			const key = String(recipeId);
+			const recipe = byID[key];
+			if (!recipe) {
+				return;
+			}
+			recipeSel.value = key;
+			fillBrewdayFields(recipe);
+			form.scrollIntoView({ behavior: "smooth", block: "nearest" });
+		}
+
+		async function refresh(preferId) {
 			list.textContent = "Loading…";
 			try {
 				const recipes = await api("/api/recipes");
 				const selectable = (recipes || []).filter(
-					(r) => r.status === "scheduled" || r.status === "brewday"
+					(r) =>
+						r.status === "scheduled" ||
+						r.status === "brewday" ||
+						r.status === "hygiene_done"
 				);
 				byID = {};
 				selectable.forEach((r) => {
-					byID[r.id] = r;
+					byID[String(r.id)] = r;
 				});
-				const prev = recipeSel.value;
+				const prev = preferId != null ? String(preferId) : recipeSel.value;
 				fillRecipeSelect(recipeSel, selectable, "No batches ready");
 				if (prev && byID[prev]) {
 					recipeSel.value = prev;
 				}
 				fillBrewdayFields(byID[recipeSel.value]);
 				if (!selectable.length) {
-					list.innerHTML = "<p class=\"panel__empty\">No scheduled or brewday batches.</p>";
+					list.innerHTML = "<p class=\"panel__empty\">No scheduled, brewday, or hygiene-done batches.</p>";
 					return;
 				}
 				list.innerHTML = table(
@@ -704,7 +808,19 @@
 									'">Edit</button> ' +
 									'<button type="button" class="btn btn--small btn--primary" data-action="brewday-hygiene-done" data-id="' +
 									r.id +
-									'">Mark hygiene done</button>';
+									'">Mark hygiene done</button> ' +
+									'<button type="button" class="btn btn--small" data-action="brewday-revoke" data-id="' +
+									r.id +
+									'">Remove brewday</button>';
+							}
+							if (r.status === "hygiene_done") {
+								actions =
+									'<button type="button" class="btn btn--small" data-action="brewday-edit" data-id="' +
+									r.id +
+									'">Edit</button> ' +
+									'<button type="button" class="btn btn--small" data-action="brewday-hygiene-revoke" data-id="' +
+									r.id +
+									'">Revoke hygiene</button>';
 							}
 							return (
 								"<tr><td>" +
@@ -716,7 +832,7 @@
 								"</td><td>" +
 								esc(r.status) +
 								"</td><td>" +
-								(r.og ?? "") +
+								fmtSG(r.og, "") +
 								"</td><td>" +
 								(r.brew_volume ?? "") +
 								"</td><td>" +
@@ -731,7 +847,9 @@
 			}
 		}
 
-		panel.querySelector('[data-action="brewday-refresh"]').addEventListener("click", refresh);
+		panel.querySelector('[data-action="brewday-refresh"]').addEventListener("click", () => {
+			refresh();
+		});
 		recipeSel.addEventListener("change", () => {
 			fillBrewdayFields(byID[recipeSel.value]);
 		});
@@ -743,10 +861,58 @@
 			const action = t.getAttribute("data-action");
 			const id = t.getAttribute("data-id");
 			if (action === "brewday-edit") {
-				if (byID[id]) {
-					recipeSel.value = id;
-					fillBrewdayFields(byID[id]);
-					form.scrollIntoView({ behavior: "smooth", block: "nearest" });
+				const key = String(id);
+				let recipe = byID[key];
+				if (!recipe) {
+					return;
+				}
+				try {
+					if (recipe.status === "hygiene_done") {
+						await api("/api/recipes/" + key + "/hygiene/revoke", { method: "POST" });
+						await refresh(key);
+						recipe = byID[key];
+					}
+					selectRecipeForEdit(key);
+				} catch (e) {
+					alert(e.message);
+				}
+				return;
+			}
+			if (action === "brewday-revoke") {
+				const ok = await appConfirm({
+					title: "Remove brewday",
+					message:
+						"Undo brewday completed for recipe #" +
+						id +
+						"? OG and brew volume are cleared; the schedule booking stays.",
+				});
+				if (!ok) {
+					return;
+				}
+				try {
+					await api("/api/recipes/" + id + "/brewday/revoke", { method: "POST" });
+					refresh();
+				} catch (e) {
+					alert(e.message);
+				}
+				return;
+			}
+			if (action === "brewday-hygiene-revoke") {
+				const ok = await appConfirm({
+					title: "Revoke hygiene",
+					message:
+						"Undo hygiene done for recipe #" +
+						id +
+						"? Status returns to brewday so you can edit OG/volume again.",
+				});
+				if (!ok) {
+					return;
+				}
+				try {
+					await api("/api/recipes/" + id + "/hygiene/revoke", { method: "POST" });
+					refresh(id);
+				} catch (e) {
+					alert(e.message);
 				}
 				return;
 			}
@@ -1031,6 +1197,10 @@
 		const externalForm = panel.querySelector("#order-external-form");
 		const orderedQtyDialog = panel.querySelector("#order-ordered-qty-dialog");
 		const orderedQtyForm = panel.querySelector("#order-ordered-qty-form");
+		const linksDialog = panel.querySelector("#order-links-dialog");
+		const linksList = panel.querySelector("#order-links-list");
+		const linksTitle = panel.querySelector("#order-links-title");
+		const linksOrderIdEl = panel.querySelector("#order-links-order-id");
 		const canManage = canRoles(["superuser", "admin"]);
 		const isAdmin = canRoles(["admin"]);
 
@@ -1116,6 +1286,83 @@
 				.join("");
 		}
 
+		function renderLinksModal(order) {
+			if (linksOrderIdEl) {
+				linksOrderIdEl.value = String(order.id);
+			}
+			if (linksTitle) {
+				linksTitle.textContent = "Product links — order #" + order.id;
+			}
+			const lines = order.lines || [];
+			if (!lines.length) {
+				linksList.innerHTML = "<p class=\"panel__empty\">No lines on this order.</p>";
+				return;
+			}
+			linksList.innerHTML = lines
+				.map((l) => {
+					const unit = l.unit ? " " + esc(l.unit) : "";
+					const orderQty =
+						l.ordered_qty != null && l.ordered_qty !== undefined ? l.ordered_qty : l.qty;
+					const meta =
+						esc(l.item_name) +
+						" (" +
+						esc(l.category) +
+						") — need " +
+						l.qty +
+						unit +
+						" · order " +
+						orderQty +
+						unit;
+					if (!l.inventory_item_id) {
+						return (
+							'<div class="order-link-row">' +
+							'<p class="order-link-row__meta">' +
+							meta +
+							"</p>" +
+							'<p class="panel__empty">No catalog item — link cannot be set.</p>' +
+							"</div>"
+						);
+					}
+					const linkVal = l.link || "";
+					let actions =
+						'<button type="button" class="btn btn--small" data-action="order-link-open" data-line-id="' +
+						l.id +
+						'">Open</button>';
+					if (canManage) {
+						actions +=
+							' <button type="button" class="btn btn--small btn--primary" data-action="order-link-save" data-line-id="' +
+							l.id +
+							'">Save</button>';
+					}
+					return (
+						'<div class="order-link-row" data-line-id="' +
+						l.id +
+						'">' +
+						'<p class="order-link-row__meta">' +
+						meta +
+						"</p>" +
+						'<label class="order-link-row__field">Product URL' +
+						'<input type="url" name="link" value="' +
+						esc(linkVal) +
+						'" placeholder="https://…" data-line-id="' +
+						l.id +
+						'">' +
+						"</label>" +
+						'<div class="order-link-row__actions">' +
+						actions +
+						"</div>" +
+						"</div>"
+					);
+				})
+				.join("");
+		}
+
+		async function openLinksModal(orderId) {
+			const order = await api("/api/inventory/orders/" + orderId);
+			renderLinksModal(order);
+			linksDialog.showModal();
+		}
+
 		async function loadItemOptions() {
 			const items = (await api("/api/inventory")) || [];
 			itemSelect.innerHTML = items
@@ -1153,18 +1400,21 @@
 				list.innerHTML = orders
 					.map((o) => {
 						const lineCount = (o.lines || []).length;
-						let actions = "";
+						let actions =
+							'<button type="button" class="btn btn--small" data-action="order-product-links" data-id="' +
+							o.id +
+							'">Product links</button>';
 						if (canManage && o.status !== "completed") {
 							actions +=
-								'<button type="button" class="btn btn--small" data-action="order-edit-external" data-id="' +
+								' <button type="button" class="btn btn--small" data-action="order-edit-external" data-id="' +
 								o.id +
 								'" data-external="' +
 								esc(o.external_order_id || "") +
-								'">Edit external ID</button> ';
+								'">Edit external ID</button>';
 						}
 						if (canManage && o.status === "planning") {
 							actions +=
-								'<button type="button" class="btn btn--small" data-action="order-add-line" data-id="' +
+								' <button type="button" class="btn btn--small" data-action="order-add-line" data-id="' +
 								o.id +
 								'">Add line</button> ' +
 								'<button type="button" class="btn btn--small btn--primary" data-action="order-status" data-id="' +
@@ -1173,14 +1423,13 @@
 						}
 						if (canManage && o.status === "ordered") {
 							actions +=
-								'<button type="button" class="btn btn--small btn--primary" data-action="order-status" data-id="' +
+								' <button type="button" class="btn btn--small btn--primary" data-action="order-status" data-id="' +
 								o.id +
 								'" data-status="completed">Mark completed</button>';
 						}
 						if (isAdmin && o.status === "planning" && lineCount === 0) {
 							actions +=
-								(actions ? " " : "") +
-								'<button type="button" class="btn btn--small" data-action="order-delete" data-id="' +
+								' <button type="button" class="btn btn--small" data-action="order-delete" data-id="' +
 								o.id +
 								'">Delete</button>';
 						}
@@ -1211,7 +1460,9 @@
 							ext +
 							(o.notes ? "<p>" + esc(o.notes) + "</p>" : "") +
 							renderLines(o, o.lines) +
-							(actions ? '<div class="panel__card-actions">' + actions + "</div>" : "") +
+							'<div class="panel__card-actions">' +
+							actions +
+							"</div>" +
 							"</div>"
 						);
 					})
@@ -1235,6 +1486,48 @@
 				}
 				newForm.reset();
 				newDialog.showModal();
+			}
+			if (t.getAttribute("data-action") === "order-product-links") {
+				try {
+					await openLinksModal(t.getAttribute("data-id"));
+				} catch (e) {
+					alert(e.message);
+				}
+			}
+			if (t.getAttribute("data-action") === "order-link-open") {
+				const row = t.closest(".order-link-row");
+				const input = row && row.querySelector('input[name="link"]');
+				const url = input ? String(input.value || "").trim() : "";
+				if (!url) {
+					alert("No product URL set");
+					return;
+				}
+				window.open(url, "_blank", "noopener,noreferrer");
+			}
+			if (t.getAttribute("data-action") === "order-link-save") {
+				if (!canManage) {
+					return;
+				}
+				const lineId = t.getAttribute("data-line-id");
+				const orderId = linksOrderIdEl && linksOrderIdEl.value;
+				const row = t.closest(".order-link-row");
+				const input = row && row.querySelector('input[name="link"]');
+				if (!orderId || !lineId || !input) {
+					return;
+				}
+				try {
+					const updated = await api(
+						"/api/inventory/orders/" + orderId + "/lines/" + lineId,
+						{
+							method: "PATCH",
+							body: JSON.stringify({ link: String(input.value || "").trim() }),
+						}
+					);
+					renderLinksModal(updated);
+					refresh();
+				} catch (e) {
+					alert(e.message);
+				}
 			}
 			if (t.getAttribute("data-action") === "order-add-line") {
 				if (!canManage) {
@@ -1571,20 +1864,429 @@
 		refresh();
 	}
 
+	async function loadEconomyDeliveries(panel) {
+		const list = panel.querySelector("#economy-deliveries-list");
+		const monthInput = panel.querySelector("#economy-deliveries-month");
+		const sumVol = panel.querySelector("#economy-deliveries-sum-vol");
+		const sumCost = panel.querySelector("#economy-deliveries-sum-cost");
+		const sumTax = panel.querySelector("#economy-deliveries-sum-tax");
+		const sumNet = panel.querySelector("#economy-deliveries-sum-net");
+		let rows = [];
+
+		const columnHelp = {
+			delivered: {
+				title: "Delivered",
+				message: "Date the batch was marked delivered.",
+			},
+			id: {
+				title: "ID",
+				message: "Internal recipe/batch id.",
+			},
+			name: {
+				title: "Name",
+				message: "Batch name.",
+			},
+			brewery: {
+				title: "Brewery",
+				message: "Brewery that produced the batch.",
+			},
+			abv: {
+				title: "ABV",
+				message: "Alcohol by volume from (OG − FG) × 131.25.",
+			},
+			volume: {
+				title: "Volume (L)",
+				message: "Liters delivered to the pub.",
+			},
+			cost: {
+				title: "Cost",
+				message: "Sum of ingredient qty × cost price.",
+			},
+			tax: {
+				title: "Tax",
+				message: "Alcohol tax for this delivery volume.",
+			},
+			net: {
+				title: "Net",
+				message:
+					"Invoice net: beer net × multiplier × volume. Tax is separate and not included.",
+			},
+			"net-per-l": {
+				title: "Net SEK/L",
+				message: "Beer net × multiplier (net divided by delivery volume).",
+			},
+		};
+
+		const helpHeaders = [
+			{ key: "delivered", label: "Delivered" },
+			{ key: "id", label: "ID" },
+			{ key: "name", label: "Name" },
+			{ key: "brewery", label: "Brewery" },
+			{ key: "abv", label: "ABV" },
+			{ key: "volume", label: "Volume (L)" },
+			{ key: "cost", label: "Cost" },
+			{ key: "tax", label: "Tax" },
+			{ key: "net", label: "Net" },
+			{ key: "net-per-l", label: "Net SEK/L" },
+		];
+
+		function helpTable(rowsHtml) {
+			return (
+				'<div class="table-scroll"><table class="data-table"><thead><tr>' +
+				helpHeaders
+					.map(
+						(h) =>
+							'<th class="data-table__th--help" tabindex="0" data-col-help="' +
+							esc(h.key) +
+							'">' +
+							esc(h.label) +
+							"</th>"
+					)
+					.join("") +
+				"</tr></thead><tbody>" +
+				rowsHtml +
+				"</tbody></table></div>"
+			);
+		}
+
+		function currentMonthValue() {
+			const d = new Date();
+			const y = d.getFullYear();
+			const m = String(d.getMonth() + 1).padStart(2, "0");
+			return y + "-" + m;
+		}
+
+		function netPerLiter(r) {
+			const vol = Number(r.delivery_volume);
+			const net = Number(r.net);
+			if (!vol || Number.isNaN(vol) || vol <= 0 || Number.isNaN(net)) {
+				return "";
+			}
+			return fmtMoney(net / vol);
+		}
+
+		function setSummary(totals) {
+			if (!totals) {
+				sumVol.textContent = "—";
+				sumCost.textContent = "—";
+				sumNet.textContent = "—";
+				sumTax.textContent = "—";
+				return;
+			}
+			sumVol.textContent = fmtMoney(totals.volume) + " L";
+			sumCost.textContent = fmtMoney(totals.cost);
+			sumTax.textContent = fmtMoney(totals.tax);
+			sumNet.textContent = fmtMoney(totals.net);
+		}
+
+		function csvEscape(v) {
+			const s = v == null ? "" : String(v);
+			if (/[",\n\r]/.test(s)) {
+				return '"' + s.replace(/"/g, '""') + '"';
+			}
+			return s;
+		}
+
+		function downloadCSV() {
+			const month = monthInput.value || currentMonthValue();
+			const header = [
+				"Delivered",
+				"ID",
+				"Name",
+				"Brewery",
+				"ABV %",
+				"Volume L",
+				"Cost",
+				"Tax",
+				"Net",
+				"Net SEK/L",
+			];
+			const lines = [header.join(",")];
+			rows.forEach((r) => {
+				const abv =
+					r.og != null && r.fg != null
+						? ((r.og - r.fg) * 131.25).toFixed(1)
+						: "";
+				lines.push(
+					[
+						datePart(r.delivered_at),
+						r.id,
+						r.name,
+						r.brewery_name || "",
+						abv,
+						r.delivery_volume != null ? r.delivery_volume : "",
+						r.cost != null ? Number(r.cost).toFixed(2) : "",
+						r.tax != null ? Number(r.tax).toFixed(2) : "",
+						r.net != null ? Number(r.net).toFixed(2) : "",
+						netPerLiter(r),
+					]
+						.map(csvEscape)
+						.join(",")
+				);
+			});
+			const blob = new Blob([lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = "deliveries-" + month + ".csv";
+			document.body.appendChild(a);
+			a.click();
+			a.remove();
+			URL.revokeObjectURL(url);
+		}
+
+		async function refresh() {
+			const month = monthInput.value || currentMonthValue();
+			monthInput.value = month;
+			list.textContent = "Loading…";
+			setSummary(null);
+			rows = [];
+			try {
+				const recipes = await api("/api/recipes?include_hidden=1");
+				rows = (recipes || [])
+					.filter(
+						(r) =>
+							r.status === "delivered" &&
+							r.delivered_at &&
+							String(r.delivered_at).slice(0, 7) === month
+					)
+					.sort((a, b) =>
+						String(a.delivered_at).localeCompare(String(b.delivered_at))
+					);
+				const totals = { volume: 0, cost: 0, tax: 0, net: 0 };
+				rows.forEach((r) => {
+					totals.volume += Number(r.delivery_volume) || 0;
+					totals.cost += Number(r.cost) || 0;
+					totals.tax += Number(r.tax) || 0;
+					totals.net += Number(r.net) || 0;
+				});
+				setSummary(totals);
+				if (!rows.length) {
+					list.innerHTML =
+						'<p class="panel__empty">No deliveries in ' + esc(month) + ".</p>";
+					return;
+				}
+				list.innerHTML = helpTable(
+					rows
+						.map(
+							(r) =>
+								"<tr><td>" +
+								esc(datePart(r.delivered_at)) +
+								"</td><td>" +
+								r.id +
+								"</td><td>" +
+								esc(r.name) +
+								"</td><td>" +
+								esc(r.brewery_name || "") +
+								"</td><td>" +
+								esc(recipeABV(r)) +
+								"</td><td>" +
+								fmtMoney(r.delivery_volume) +
+								"</td><td>" +
+								fmtMoney(r.cost) +
+								"</td><td>" +
+								fmtMoney(r.tax) +
+								"</td><td>" +
+								fmtMoney(r.net) +
+								"</td><td>" +
+								esc(netPerLiter(r)) +
+								"</td></tr>"
+						)
+						.join("")
+				);
+			} catch (e) {
+				list.textContent = e.message;
+			}
+		}
+
+		if (!monthInput.value) {
+			monthInput.value = currentMonthValue();
+		}
+		panel
+			.querySelector('[data-action="economy-deliveries-refresh"]')
+			.addEventListener("click", refresh);
+		panel
+			.querySelector('[data-action="economy-deliveries-csv"]')
+			.addEventListener("click", downloadCSV);
+		monthInput.addEventListener("change", refresh);
+		list.addEventListener("click", (ev) => {
+			const th = ev.target.closest("[data-col-help]");
+			if (!th || !list.contains(th)) {
+				return;
+			}
+			const key = th.getAttribute("data-col-help");
+			const help = columnHelp[key];
+			if (!help) {
+				return;
+			}
+			appInfo(help);
+		});
+		list.addEventListener("keydown", (ev) => {
+			if (ev.key !== "Enter" && ev.key !== " ") {
+				return;
+			}
+			const th = ev.target.closest("[data-col-help]");
+			if (!th || !list.contains(th)) {
+				return;
+			}
+			ev.preventDefault();
+			const key = th.getAttribute("data-col-help");
+			const help = columnHelp[key];
+			if (help) {
+				appInfo(help);
+			}
+		});
+		refresh();
+	}
+
 	async function loadDelivery(panel) {
 		const list = panel.querySelector("#delivery-list");
 		const form = panel.querySelector("#delivery-form");
 		const errEl = panel.querySelector("#delivery-error");
 		const recipeSel = panel.querySelector("#delivery-recipe");
+		const multSel = panel.querySelector("#delivery-multiplier");
+		const beerNetInput = panel.querySelector("#delivery-beer-net");
+		const fgInput = form.querySelector('[name="fg"]');
+		const volInput = form.querySelector('[name="delivery_volume"]');
+		const previewABV = panel.querySelector("#delivery-preview-abv");
+		const previewCost = panel.querySelector("#delivery-preview-cost");
+		const previewTax = panel.querySelector("#delivery-preview-tax");
+		const previewNet = panel.querySelector("#delivery-preview-net");
+		const previewPerL = panel.querySelector("#delivery-preview-per-l");
+		let byID = {};
+		let taxCfg = { rate_sek: 2.28, free_max_abv: 2.8, discount: 1.0 };
+		let previewOG = null;
+		let previewCostTotal = 0;
+
+		function fillFG(recipe) {
+			fgInput.value = fmtSG(recipe && recipe.fg, "1.010");
+		}
+
+		function clearPreview() {
+			previewABV.textContent = "—";
+			previewCost.textContent = "—";
+			previewTax.textContent = "—";
+			previewNet.textContent = "—";
+			previewPerL.textContent = "—";
+		}
+
+		function selectedMultiplier() {
+			const opt = multSel.selectedOptions[0];
+			if (!opt) {
+				return NaN;
+			}
+			const raw = opt.getAttribute("data-multiplier");
+			const n = parseFloat(raw);
+			return Number.isNaN(n) ? NaN : n;
+		}
+
+		function updatePreview() {
+			const og = previewOG;
+			const fg = parseFloat(fgInput.value);
+			const vol = parseFloat(volInput.value);
+			const beerNet = parseFloat(beerNetInput.value);
+			const mult = selectedMultiplier();
+			if (
+				og == null ||
+				Number.isNaN(og) ||
+				Number.isNaN(fg) ||
+				Number.isNaN(vol) ||
+				vol <= 0 ||
+				Number.isNaN(beerNet) ||
+				Number.isNaN(mult)
+			) {
+				clearPreview();
+				return;
+			}
+			const abv = (og - fg) * 131.25;
+			const taxPerL =
+				abv <= taxCfg.free_max_abv ? 0 : abv * taxCfg.rate_sek * taxCfg.discount;
+			const tax = vol * taxPerL;
+			const cost = previewCostTotal;
+			const perL = beerNet * mult;
+			const net = perL * vol;
+			previewABV.textContent = abv.toFixed(1) + " %";
+			previewCost.textContent = fmtMoney(cost);
+			previewTax.textContent = fmtMoney(tax);
+			previewNet.textContent = fmtMoney(net);
+			previewPerL.textContent = fmtMoney(perL);
+		}
+
+		async function loadRecipePreview(id) {
+			previewOG = null;
+			previewCostTotal = 0;
+			if (!id) {
+				clearPreview();
+				return;
+			}
+			try {
+				const recipe = await api("/api/recipes/" + id);
+				previewOG = recipe.og != null ? Number(recipe.og) : null;
+				const ings = recipe.ingredients || [];
+				previewCostTotal = ings.reduce(
+					(sum, ing) => sum + Number(ing.qty || 0) * Number(ing.cost_price || 0),
+					0
+				);
+				if (recipe.delivery_volume != null && recipe.delivery_volume > 0) {
+					volInput.value = recipe.delivery_volume;
+				}
+				updatePreview();
+			} catch (e) {
+				clearPreview();
+			}
+		}
+
+		async function loadPricingControls() {
+			const [mults, beer, tax] = await Promise.all([
+				api("/api/settings/multipliers?active=1"),
+				api("/api/settings/beer-price"),
+				api("/api/settings/tax-config"),
+			]);
+			taxCfg = tax || taxCfg;
+			const listMults = mults || [];
+			multSel.innerHTML = listMults
+				.map((m) => {
+					const selected = m.name === "default" ? " selected" : "";
+					return (
+						'<option value="' +
+						m.id +
+						'" data-multiplier="' +
+						m.multiplier +
+						'"' +
+						selected +
+						">" +
+						esc(m.name) +
+						" (×" +
+						m.multiplier +
+						")</option>"
+					);
+				})
+				.join("");
+			if (listMults.length && !multSel.value) {
+				multSel.value = String(listMults[0].id);
+			}
+			beerNetInput.value = beer.min_net_sek_per_liter ?? 0;
+		}
+
 		async function refresh() {
 			try {
 				const recipes = await api("/api/recipes");
 				const selectable = (recipes || []).filter(
 					(r) => r.status === "hygiene_done" || r.status === "ready_for_delivery"
 				);
+				byID = {};
+				selectable.forEach((r) => {
+					byID[String(r.id)] = r;
+				});
+				const prev = recipeSel.value;
 				fillRecipeSelect(recipeSel, selectable, "No recipes ready for delivery calc");
+				if (prev && byID[prev]) {
+					recipeSel.value = prev;
+				}
+				fillFG(byID[recipeSel.value]);
+				await loadRecipePreview(recipeSel.value);
 				const relevant = (recipes || []).filter((r) =>
-					["hygiene_done", "ready_for_delivery", "delivered", "brewday"].includes(r.status)
+					["hygiene_done", "ready_for_delivery", "delivered"].includes(r.status)
 				);
 				if (!relevant.length) {
 					list.innerHTML = "<p class=\"panel__empty\">No batches in delivery pipeline.</p>";
@@ -1651,6 +2353,16 @@
 			}
 		}
 		panel.querySelector('[data-action="delivery-refresh"]').addEventListener("click", refresh);
+		recipeSel.addEventListener("change", async () => {
+			fillFG(byID[recipeSel.value]);
+			await loadRecipePreview(recipeSel.value);
+		});
+		["input", "change"].forEach((evt) => {
+			fgInput.addEventListener(evt, updatePreview);
+			volInput.addEventListener(evt, updatePreview);
+			beerNetInput.addEventListener(evt, updatePreview);
+			multSel.addEventListener(evt, updatePreview);
+		});
 		panel.addEventListener("click", async (ev) => {
 			const t = ev.target;
 			if (!(t instanceof HTMLElement)) {
@@ -1697,6 +2409,8 @@
 					body: JSON.stringify({
 						fg: parseFloat(fd.get("fg")),
 						delivery_volume: parseFloat(fd.get("delivery_volume")),
+						beer_net_sek_per_liter: parseFloat(fd.get("beer_net_sek_per_liter")),
+						multiplier_id: parseInt(fd.get("multiplier_id"), 10),
 					}),
 				});
 				refresh();
@@ -1705,12 +2419,17 @@
 				errEl.textContent = e.message;
 			}
 		});
+		try {
+			await loadPricingControls();
+		} catch (e) {
+			errEl.hidden = false;
+			errEl.textContent = e.message;
+		}
 		refresh();
 	}
 
-	async function loadIAM(panel) {
+	async function loadIAMUsers(panel) {
 		const usersEl = panel.querySelector("#iam-users");
-		const brewEl = panel.querySelector("#iam-breweries");
 
 		async function refreshUsers() {
 			try {
@@ -1758,36 +2477,6 @@
 			}
 		}
 
-		async function refreshBreweries() {
-			try {
-				const list = await api("/api/breweries");
-				brewEl.innerHTML = (list || [])
-					.map(
-						(b) =>
-							'<div class="panel__card"><strong>#' +
-							b.id +
-							" " +
-							esc(b.name) +
-							'</strong><br>' +
-							esc(b.contact_name) +
-							" " +
-							esc(b.contact_email) +
-							'<br><button type="button" class="btn btn--small" data-add-member="' +
-							b.id +
-							'" data-brewery-name="' +
-							esc(b.name) +
-							'">Add member</button> <button type="button" class="btn btn--small" data-list-members="' +
-							b.id +
-							'" data-brewery-name="' +
-							esc(b.name) +
-							'">Members</button></div>'
-					)
-					.join("") || '<p class="panel__empty">No breweries.</p>';
-			} catch (e) {
-				brewEl.textContent = e.message;
-			}
-		}
-
 		panel.addEventListener("click", async (ev) => {
 			const t = ev.target;
 			if (!(t instanceof HTMLElement)) {
@@ -1796,9 +2485,6 @@
 			const action = t.getAttribute("data-action");
 			if (action === "iam-users-refresh") {
 				refreshUsers();
-			}
-			if (action === "iam-breweries-refresh") {
-				refreshBreweries();
 			}
 			if (action === "iam-user-new") {
 				const dlg = panel.querySelector("#iam-user-dialog");
@@ -1812,29 +2498,6 @@
 							.join("");
 				} catch (e) {
 					brewSel.innerHTML = '<option value="">None</option>';
-				}
-				dlg.showModal();
-			}
-			if (action === "iam-brewery-new") {
-				const dlg = panel.querySelector("#iam-brewery-dialog");
-				const adminSel = dlg.querySelector('[name="brewery_admin_user_id"]');
-				try {
-					const users = await api("/api/users");
-					adminSel.innerHTML =
-						'<option value="">None</option>' +
-						(users || [])
-							.filter((u) => u.active !== false)
-							.map(
-								(u) =>
-									'<option value="' +
-									u.id +
-									'">' +
-									esc(u.username + (u.email ? " (" + u.email + ")" : "")) +
-									"</option>"
-							)
-							.join("");
-				} catch (e) {
-					adminSel.innerHTML = '<option value="">None</option>';
 				}
 				dlg.showModal();
 			}
@@ -1888,6 +2551,300 @@
 				} catch (e) {
 					alert(e.message);
 				}
+			}
+		});
+
+		const userDialog = panel.querySelector("#iam-user-dialog");
+		const userForm = panel.querySelector("#iam-user-form");
+		userDialog.addEventListener("close", async () => {
+			if (userDialog.returnValue !== "save") {
+				return;
+			}
+			const fd = new FormData(userForm);
+			const body = {
+				username: fd.get("username"),
+				password: fd.get("password"),
+				email: fd.get("email"),
+				role: fd.get("role"),
+			};
+			const breweryID = fd.get("brewery_id");
+			if (breweryID) {
+				body.brewery_id = parseInt(breweryID, 10);
+			}
+			try {
+				await api("/api/users", {
+					method: "POST",
+					body: JSON.stringify(body),
+				});
+				userForm.reset();
+				refreshUsers();
+			} catch (e) {
+				alert(e.message);
+			}
+		});
+
+		const editUserDialog = panel.querySelector("#iam-edit-user-dialog");
+		const editUserForm = panel.querySelector("#iam-edit-user-form");
+		editUserDialog.addEventListener("close", async () => {
+			if (editUserDialog.returnValue !== "save") {
+				return;
+			}
+			const fd = new FormData(editUserForm);
+			const id = fd.get("user_id");
+			const roleSel = editUserForm.querySelector('[name="role"]');
+			const role = roleSel.disabled ? "admin" : fd.get("role");
+			const selfID = sessionStorage.getItem("brewhouse_user_id") || "";
+			if (String(id) === selfID && role !== "admin") {
+				alert("cannot change your own role away from admin");
+				return;
+			}
+			try {
+				await api("/api/users/" + id, {
+					method: "PATCH",
+					body: JSON.stringify({
+						username: fd.get("username"),
+						email: fd.get("email"),
+						role: role,
+					}),
+				});
+				editUserForm.reset();
+				roleSel.disabled = false;
+				panel.querySelector("#iam-edit-role-hint").hidden = true;
+				refreshUsers();
+			} catch (e) {
+				alert(e.message);
+			}
+		});
+
+		const resetDialog = panel.querySelector("#iam-reset-password-dialog");
+		const resetForm = panel.querySelector("#iam-reset-password-form");
+		resetDialog.addEventListener("close", async () => {
+			if (resetDialog.returnValue !== "save") {
+				return;
+			}
+			const fd = new FormData(resetForm);
+			const id = fd.get("user_id");
+			try {
+				await api("/api/users/" + id, {
+					method: "PATCH",
+					body: JSON.stringify({
+						username: fd.get("username"),
+						email: fd.get("email"),
+						role: fd.get("role"),
+						password: fd.get("password"),
+					}),
+				});
+				resetForm.reset();
+				alert("Password updated");
+			} catch (e) {
+				alert(e.message);
+			}
+		});
+
+		refreshUsers();
+	}
+
+	async function loadIAMBreweries(panel) {
+		const brewEl = panel.querySelector("#iam-breweries");
+
+		async function refreshBreweries() {
+			try {
+				const list = await api("/api/breweries");
+				brewEl.innerHTML = (list || [])
+					.map(
+						(b) =>
+							'<div class="panel__card"><strong>#' +
+							b.id +
+							" " +
+							esc(b.name) +
+							"</strong><br>" +
+							esc(b.contact_name) +
+							" " +
+							esc(b.contact_email) +
+							" " +
+							esc(b.contact_phone || "") +
+							'<br><button type="button" class="btn btn--small" data-edit-brewery="' +
+							b.id +
+							'">Edit</button> <button type="button" class="btn btn--small" data-del-brewery="' +
+							b.id +
+							'" data-brewery-name="' +
+							esc(b.name) +
+							'">Remove</button> <button type="button" class="btn btn--small" data-add-member="' +
+							b.id +
+							'" data-brewery-name="' +
+							esc(b.name) +
+							'">Add member</button> <button type="button" class="btn btn--small" data-list-members="' +
+							b.id +
+							'" data-brewery-name="' +
+							esc(b.name) +
+							'">Members</button></div>'
+					)
+					.join("") || '<p class="panel__empty">No breweries.</p>';
+			} catch (e) {
+				brewEl.textContent = e.message;
+			}
+		}
+
+		async function fillBreweryAdminSelect(selectEl, selectedID) {
+			try {
+				const users = await api("/api/users");
+				selectEl.innerHTML =
+					'<option value="">None</option>' +
+					(users || [])
+						.filter((u) => u.active !== false)
+						.map(
+							(u) =>
+								'<option value="' +
+								u.id +
+								'">' +
+								esc(u.username + (u.email ? " (" + u.email + ")" : "")) +
+								"</option>"
+						)
+						.join("");
+				if (selectedID) {
+					selectEl.value = String(selectedID);
+				}
+			} catch (e) {
+				selectEl.innerHTML = '<option value="">None</option>';
+			}
+		}
+
+		async function openBreweryDialog(breweryID) {
+			const dlg = panel.querySelector("#iam-brewery-dialog");
+			const form = panel.querySelector("#iam-brewery-form");
+			const title = panel.querySelector("#iam-brewery-title");
+			const adminSel = form.querySelector('[name="brewery_admin_user_id"]');
+			form.reset();
+			form.querySelector('[name="brewery_id"]').value = breweryID ? String(breweryID) : "";
+			let adminID = "";
+			if (breweryID) {
+				title.textContent = "Edit brewery";
+				const [brewery, members] = await Promise.all([
+					api("/api/breweries/" + breweryID),
+					api("/api/breweries/" + breweryID + "/members"),
+				]);
+				form.querySelector('[name="name"]').value = brewery.name || "";
+				form.querySelector('[name="contact_name"]').value = brewery.contact_name || "";
+				form.querySelector('[name="contact_email"]').value = brewery.contact_email || "";
+				form.querySelector('[name="contact_phone"]').value = brewery.contact_phone || "";
+				const admin = (members || []).find((m) => m.role === "brewery_admin");
+				if (admin) {
+					adminID = String(admin.user_id);
+				}
+			} else {
+				title.textContent = "New brewery";
+			}
+			await fillBreweryAdminSelect(adminSel, adminID);
+			dlg.showModal();
+		}
+
+		const membersDialog = panel.querySelector("#iam-members-dialog");
+		const membersClose = panel.querySelector("#iam-members-close");
+
+		async function refreshMembersList(breweryID) {
+			const listEl = panel.querySelector("#iam-members-list");
+			listEl.textContent = "Loading…";
+			try {
+				const members = await api("/api/breweries/" + breweryID + "/members");
+				if (!members || !members.length) {
+					listEl.innerHTML = '<p class="panel__empty">No members.</p>';
+					return;
+				}
+				const roles = ["user", "superuser", "brewery_admin"];
+				listEl.innerHTML = table(
+					["User", "Role", ""],
+					members
+						.map((m) => {
+							const opts = roles
+								.map(
+									(r) =>
+										'<option value="' +
+										r +
+										'"' +
+										(m.role === r ? " selected" : "") +
+										">" +
+										r +
+										"</option>"
+								)
+								.join("");
+							return (
+								"<tr><td>" +
+								esc(m.username) +
+								'</td><td><select data-member-role="' +
+								m.user_id +
+								'">' +
+								opts +
+								'</select></td><td><button type="button" class="btn btn--small" data-remove-member="' +
+								m.user_id +
+								'">Remove</button></td></tr>'
+							);
+						})
+						.join("")
+				);
+			} catch (e) {
+				listEl.textContent = e.message;
+			}
+		}
+
+		async function openMembersDialog(breweryID, breweryName) {
+			panel.querySelector("#iam-members-brewery-id").value = breweryID;
+			panel.querySelector("#iam-members-title").textContent = "Members — " + breweryName;
+			await refreshMembersList(breweryID);
+			membersDialog.showModal();
+		}
+
+		if (membersClose) {
+			membersClose.addEventListener("click", () => {
+				membersDialog.close();
+			});
+		}
+
+		panel.addEventListener("click", async (ev) => {
+			const t = ev.target;
+			if (!(t instanceof HTMLElement)) {
+				return;
+			}
+			const action = t.getAttribute("data-action");
+			if (action === "iam-breweries-refresh") {
+				refreshBreweries();
+			}
+			if (action === "iam-brewery-new") {
+				try {
+					await openBreweryDialog(null);
+				} catch (e) {
+					alert(e.message);
+				}
+			}
+			if (t.hasAttribute("data-edit-brewery")) {
+				try {
+					await openBreweryDialog(t.getAttribute("data-edit-brewery"));
+				} catch (e) {
+					alert(e.message);
+				}
+				return;
+			}
+			if (t.hasAttribute("data-del-brewery")) {
+				const id = t.getAttribute("data-del-brewery");
+				const name = t.getAttribute("data-brewery-name") || id;
+				const ok = await appConfirm({
+					title: "Remove brewery",
+					message:
+						"Remove brewery #" +
+						id +
+						" (" +
+						name +
+						")? This is blocked if the brewery has delivered batches.",
+				});
+				if (!ok) {
+					return;
+				}
+				try {
+					await api("/api/breweries/" + id, { method: "DELETE" });
+					refreshBreweries();
+				} catch (e) {
+					alert(e.message);
+				}
+				return;
 			}
 			if (t.hasAttribute("data-add-member")) {
 				const breweryID = t.getAttribute("data-add-member");
@@ -1968,136 +2925,15 @@
 			}
 		});
 
-		const membersDialog = panel.querySelector("#iam-members-dialog");
-		const membersClose = panel.querySelector("#iam-members-close");
-
-		async function refreshMembersList(breweryID) {
-			const listEl = panel.querySelector("#iam-members-list");
-			listEl.textContent = "Loading…";
-			try {
-				const members = await api("/api/breweries/" + breweryID + "/members");
-				if (!members || !members.length) {
-					listEl.innerHTML = '<p class="panel__empty">No members.</p>';
-					return;
-				}
-				const roles = ["user", "superuser", "brewery_admin"];
-				listEl.innerHTML = table(
-					["User", "Role", ""],
-					members
-						.map((m) => {
-							const opts = roles
-								.map(
-									(r) =>
-										'<option value="' +
-										r +
-										'"' +
-										(m.role === r ? " selected" : "") +
-										">" +
-										r +
-										"</option>"
-								)
-								.join("");
-							return (
-								"<tr><td>" +
-								esc(m.username) +
-								'</td><td><select data-member-role="' +
-								m.user_id +
-								'">' +
-								opts +
-								'</select></td><td><button type="button" class="btn btn--small" data-remove-member="' +
-								m.user_id +
-								'">Remove</button></td></tr>'
-							);
-						})
-						.join("")
-				);
-			} catch (e) {
-				listEl.textContent = e.message;
-			}
-		}
-
-		async function openMembersDialog(breweryID, breweryName) {
-			panel.querySelector("#iam-members-brewery-id").value = breweryID;
-			panel.querySelector("#iam-members-title").textContent = "Members — " + breweryName;
-			await refreshMembersList(breweryID);
-			membersDialog.showModal();
-		}
-
-		if (membersClose) {
-			membersClose.addEventListener("click", () => {
-				membersDialog.close();
-			});
-		}
-
-		const userDialog = panel.querySelector("#iam-user-dialog");
-		const userForm = panel.querySelector("#iam-user-form");
-		userDialog.addEventListener("close", async () => {
-			if (userDialog.returnValue !== "save") {
-				return;
-			}
-			const fd = new FormData(userForm);
-			const body = {
-				username: fd.get("username"),
-				password: fd.get("password"),
-				email: fd.get("email"),
-				role: fd.get("role"),
-			};
-			const breweryID = fd.get("brewery_id");
-			if (breweryID) {
-				body.brewery_id = parseInt(breweryID, 10);
-			}
-			try {
-				await api("/api/users", {
-					method: "POST",
-					body: JSON.stringify(body),
-				});
-				userForm.reset();
-				refreshUsers();
-			} catch (e) {
-				alert(e.message);
-			}
-		});
-
-		const editUserDialog = panel.querySelector("#iam-edit-user-dialog");
-		const editUserForm = panel.querySelector("#iam-edit-user-form");
-		editUserDialog.addEventListener("close", async () => {
-			if (editUserDialog.returnValue !== "save") {
-				return;
-			}
-			const fd = new FormData(editUserForm);
-			const id = fd.get("user_id");
-			const roleSel = editUserForm.querySelector('[name="role"]');
-			const role = roleSel.disabled ? "admin" : fd.get("role");
-			const selfID = sessionStorage.getItem("brewhouse_user_id") || "";
-			if (String(id) === selfID && role !== "admin") {
-				alert("cannot change your own role away from admin");
-				return;
-			}
-			try {
-				await api("/api/users/" + id, {
-					method: "PATCH",
-					body: JSON.stringify({
-						username: fd.get("username"),
-						email: fd.get("email"),
-						role: role,
-					}),
-				});
-				editUserForm.reset();
-				roleSel.disabled = false;
-				panel.querySelector("#iam-edit-role-hint").hidden = true;
-				refreshUsers();
-			} catch (e) {
-				alert(e.message);
-			}
-		});
-
 		const breweryDialog = panel.querySelector("#iam-brewery-dialog");
 		const breweryForm = panel.querySelector("#iam-brewery-form");
 		breweryDialog.addEventListener("close", async () => {
 			if (breweryDialog.returnValue !== "save") {
+				breweryForm.reset();
 				return;
 			}
 			const fd = new FormData(breweryForm);
+			const breweryID = fd.get("brewery_id");
 			const adminID = fd.get("brewery_admin_user_id");
 			const body = {
 				name: fd.get("name"),
@@ -2109,7 +2945,14 @@
 				body.brewery_admin_user_id = parseInt(adminID, 10);
 			}
 			try {
-				await api("/api/breweries", { method: "POST", body: JSON.stringify(body) });
+				if (breweryID) {
+					await api("/api/breweries/" + breweryID, {
+						method: "PUT",
+						body: JSON.stringify(body),
+					});
+				} else {
+					await api("/api/breweries", { method: "POST", body: JSON.stringify(body) });
+				}
 				breweryForm.reset();
 				refreshBreweries();
 			} catch (e) {
@@ -2138,88 +2981,421 @@
 			}
 		});
 
-		const resetDialog = panel.querySelector("#iam-reset-password-dialog");
-		const resetForm = panel.querySelector("#iam-reset-password-form");
-		resetDialog.addEventListener("close", async () => {
-			if (resetDialog.returnValue !== "save") {
-				return;
-			}
-			const fd = new FormData(resetForm);
-			const id = fd.get("user_id");
-			try {
-				await api("/api/users/" + id, {
-					method: "PATCH",
-					body: JSON.stringify({
-						username: fd.get("username"),
-						email: fd.get("email"),
-						role: fd.get("role"),
-						password: fd.get("password"),
-					}),
-				});
-				resetForm.reset();
-				alert("Password updated");
-			} catch (e) {
-				alert(e.message);
-			}
-		});
-
-		refreshUsers();
 		refreshBreweries();
 	}
 
-	async function loadSettings(panel) {
+	async function loadSettingsBrand(panel) {
+		const logoPreview = panel.querySelector("#settings-logo-preview");
+		const faviconPreview = panel.querySelector("#settings-favicon-preview");
+		const logoErr = panel.querySelector("#settings-logo-error");
+		const faviconErr = panel.querySelector("#settings-favicon-error");
+
+		function bustBrand(kind) {
+			const url = "/" + kind + "?t=" + Date.now();
+			if (kind === "logo") {
+				if (logoPreview) {
+					logoPreview.src = url;
+				}
+				document.querySelectorAll(".splash__logo, .login__logo, .shell__brand-logo").forEach((img) => {
+					img.src = url;
+				});
+			} else {
+				if (faviconPreview) {
+					faviconPreview.src = url;
+				}
+				const link = document.querySelector('link[rel="icon"]');
+				if (link) {
+					link.href = url;
+				}
+			}
+		}
+
+		async function uploadBrand(kind, fileInput, errEl) {
+			errEl.hidden = true;
+			const file = fileInput.files && fileInput.files[0];
+			if (!file) {
+				errEl.hidden = false;
+				errEl.textContent = "Choose a file first";
+				return;
+			}
+			const fd = new FormData();
+			fd.append(kind, file);
+			const res = await fetch("/api/settings/" + kind, {
+				method: "PUT",
+				headers: { Authorization: "Bearer " + token() },
+				body: fd,
+			});
+			const text = await res.text();
+			let data = null;
+			try {
+				data = text ? JSON.parse(text) : null;
+			} catch {
+				data = { error: text };
+			}
+			if (!res.ok) {
+				throw new Error((data && data.error) || res.statusText);
+			}
+			fileInput.value = "";
+			bustBrand(kind);
+		}
+
+		async function resetBrand(kind, errEl) {
+			errEl.hidden = true;
+			await api("/api/settings/" + kind, { method: "DELETE" });
+			bustBrand(kind);
+		}
+
+		bustBrand("logo");
+		bustBrand("favicon");
+
+		panel.addEventListener("click", async (ev) => {
+			const t = ev.target;
+			if (!(t instanceof HTMLElement)) {
+				return;
+			}
+			const action = t.getAttribute("data-action");
+			if (action === "settings-logo-upload") {
+				try {
+					await uploadBrand("logo", panel.querySelector("#settings-logo-file"), logoErr);
+				} catch (e) {
+					logoErr.hidden = false;
+					logoErr.textContent = e.message;
+				}
+			}
+			if (action === "settings-logo-reset") {
+				try {
+					await resetBrand("logo", logoErr);
+				} catch (e) {
+					logoErr.hidden = false;
+					logoErr.textContent = e.message;
+				}
+			}
+			if (action === "settings-favicon-upload") {
+				try {
+					await uploadBrand(
+						"favicon",
+						panel.querySelector("#settings-favicon-file"),
+						faviconErr
+					);
+				} catch (e) {
+					faviconErr.hidden = false;
+					faviconErr.textContent = e.message;
+				}
+			}
+			if (action === "settings-favicon-reset") {
+				try {
+					await resetBrand("favicon", faviconErr);
+				} catch (e) {
+					faviconErr.hidden = false;
+					faviconErr.textContent = e.message;
+				}
+			}
+		});
+	}
+
+	async function loadSettingsTanks(panel) {
 		const tanksEl = panel.querySelector("#settings-tanks");
-		const multsEl = panel.querySelector("#settings-mults");
-		const hygEl = panel.querySelector("#settings-hygiene");
-		const beerForm = panel.querySelector("#settings-beer-price-form");
-		const beerErr = panel.querySelector("#settings-beer-price-error");
 
 		async function refresh() {
 			try {
 				const tanks = await api("/api/settings/tanks");
 				tanksEl.innerHTML = table(
-					["ID", "Name", "Capacity L"],
+					["ID", "Name", "Capacity L", "Active", ""],
 					(tanks || [])
-						.map(
-							(t) =>
+						.map((t) => {
+							const toggleLabel = t.active ? "Disable" : "Enable";
+							return (
 								"<tr><td>" +
 								t.id +
 								"</td><td>" +
 								esc(t.name) +
 								"</td><td>" +
 								t.capacity_liters +
-								"</td></tr>"
-						)
+								"</td><td>" +
+								(t.active ? "yes" : "no") +
+								'</td><td><button type="button" class="btn btn--small" data-tank-edit="' +
+								t.id +
+								'" data-name="' +
+								esc(t.name) +
+								'" data-capacity="' +
+								t.capacity_liters +
+								'">Edit</button> <button type="button" class="btn btn--small" data-tank-active="' +
+								t.id +
+								'" data-active="' +
+								(t.active ? "0" : "1") +
+								'">' +
+								toggleLabel +
+								'</button> <button type="button" class="btn btn--small" data-tank-delete="' +
+								t.id +
+								'">Remove</button></td></tr>'
+							);
+						})
 						.join("")
 				);
+			} catch (e) {
+				tanksEl.textContent = e.message;
+			}
+		}
+
+		panel.addEventListener("click", async (ev) => {
+			const t = ev.target;
+			if (!(t instanceof HTMLElement)) {
+				return;
+			}
+			if (t.hasAttribute("data-tank-edit")) {
+				const id = t.getAttribute("data-tank-edit");
+				const values = await appPrompt({
+					title: "Edit tank",
+					fields: [
+						{
+							name: "name",
+							label: "Tank name",
+							type: "text",
+							value: t.getAttribute("data-name") || "",
+						},
+						{
+							name: "capacity_liters",
+							label: "Capacity liters",
+							type: "number",
+							step: "any",
+							value: t.getAttribute("data-capacity") || "0",
+						},
+					],
+				});
+				if (!values || !String(values.name || "").trim()) {
+					return;
+				}
+				try {
+					await api("/api/settings/tanks/" + id, {
+						method: "PUT",
+						body: JSON.stringify({
+							name: String(values.name).trim(),
+							capacity_liters: parseFloat(values.capacity_liters),
+						}),
+					});
+					refresh();
+				} catch (e) {
+					alert(e.message);
+				}
+				return;
+			}
+			if (t.hasAttribute("data-tank-active")) {
+				try {
+					await api("/api/settings/tanks/" + t.getAttribute("data-tank-active") + "/active", {
+						method: "POST",
+						body: JSON.stringify({ active: t.getAttribute("data-active") === "1" }),
+					});
+					refresh();
+				} catch (e) {
+					alert(e.message);
+				}
+				return;
+			}
+			if (t.hasAttribute("data-tank-delete")) {
+				const id = t.getAttribute("data-tank-delete");
+				const ok = await appConfirm({
+					title: "Remove tank",
+					message: "Remove tank #" + id + " permanently?",
+				});
+				if (!ok) {
+					return;
+				}
+				try {
+					await api("/api/settings/tanks/" + id, { method: "DELETE" });
+					refresh();
+				} catch (e) {
+					alert(e.message);
+				}
+				return;
+			}
+			if (t.getAttribute("data-action") !== "settings-tank-new") {
+				return;
+			}
+			const values = await appPrompt({
+				title: "New tank",
+				fields: [
+					{ name: "name", label: "Tank name", type: "text" },
+					{ name: "capacity_liters", label: "Capacity liters", type: "number", step: "any", value: "1000" },
+				],
+			});
+			if (!values || !String(values.name || "").trim()) {
+				return;
+			}
+			try {
+				await api("/api/settings/tanks", {
+					method: "POST",
+					body: JSON.stringify({
+						name: String(values.name).trim(),
+						capacity_liters: parseFloat(values.capacity_liters),
+					}),
+				});
+				refresh();
+			} catch (e) {
+				alert(e.message);
+			}
+		});
+		refresh();
+	}
+
+	async function loadSettingsMultipliers(panel) {
+		const multsEl = panel.querySelector("#settings-mults");
+
+		async function refresh() {
+			try {
 				const mults = await api("/api/settings/multipliers");
 				multsEl.innerHTML = table(
-					["ID", "Name", "×"],
+					["ID", "Name", "×", "Active", ""],
 					(mults || [])
-						.map(
-							(m) =>
+						.map((m) => {
+							const toggleLabel = m.active ? "Disable" : "Enable";
+							return (
 								"<tr><td>" +
 								m.id +
 								"</td><td>" +
 								esc(m.name) +
 								"</td><td>" +
 								m.multiplier +
-								"</td></tr>"
-						)
-						.join("")
-				);
-				const beer = await api("/api/settings/beer-price");
-				beerForm.querySelector('[name="min_net_sek_per_liter"]').value =
-					beer.min_net_sek_per_liter ?? 0;
-				const hyg = await api("/api/settings/hygiene-routines");
-				hygEl.innerHTML = table(
-					["ID", "Name"],
-					(hyg || [])
-						.map((r) => "<tr><td>" + r.id + "</td><td>" + esc(r.name) + "</td></tr>")
+								"</td><td>" +
+								(m.active ? "yes" : "no") +
+								'</td><td><button type="button" class="btn btn--small" data-mult-edit="' +
+								m.id +
+								'" data-name="' +
+								esc(m.name) +
+								'" data-multiplier="' +
+								m.multiplier +
+								'">Edit</button> <button type="button" class="btn btn--small" data-mult-active="' +
+								m.id +
+								'" data-active="' +
+								(m.active ? "0" : "1") +
+								'">' +
+								toggleLabel +
+								'</button> <button type="button" class="btn btn--small" data-mult-delete="' +
+								m.id +
+								'">Remove</button></td></tr>'
+							);
+						})
 						.join("")
 				);
 			} catch (e) {
-				tanksEl.textContent = e.message;
+				multsEl.textContent = e.message;
+			}
+		}
+
+		panel.addEventListener("click", async (ev) => {
+			const t = ev.target;
+			if (!(t instanceof HTMLElement)) {
+				return;
+			}
+			if (t.hasAttribute("data-mult-edit")) {
+				const id = t.getAttribute("data-mult-edit");
+				const values = await appPrompt({
+					title: "Edit multiplier",
+					fields: [
+						{
+							name: "name",
+							label: "Multiplier name",
+							type: "text",
+							value: t.getAttribute("data-name") || "",
+						},
+						{
+							name: "multiplier",
+							label: "Multiplier",
+							type: "number",
+							step: "any",
+							value: t.getAttribute("data-multiplier") || "1",
+						},
+					],
+				});
+				if (!values || !String(values.name || "").trim()) {
+					return;
+				}
+				try {
+					await api("/api/settings/multipliers/" + id, {
+						method: "PUT",
+						body: JSON.stringify({
+							name: String(values.name).trim(),
+							multiplier: parseFloat(values.multiplier),
+						}),
+					});
+					refresh();
+				} catch (e) {
+					alert(e.message);
+				}
+				return;
+			}
+			if (t.hasAttribute("data-mult-active")) {
+				try {
+					await api(
+						"/api/settings/multipliers/" + t.getAttribute("data-mult-active") + "/active",
+						{
+							method: "POST",
+							body: JSON.stringify({ active: t.getAttribute("data-active") === "1" }),
+						}
+					);
+					refresh();
+				} catch (e) {
+					alert(e.message);
+				}
+				return;
+			}
+			if (t.hasAttribute("data-mult-delete")) {
+				const id = t.getAttribute("data-mult-delete");
+				const ok = await appConfirm({
+					title: "Remove multiplier",
+					message: "Remove multiplier #" + id + " permanently?",
+				});
+				if (!ok) {
+					return;
+				}
+				try {
+					await api("/api/settings/multipliers/" + id, { method: "DELETE" });
+					refresh();
+				} catch (e) {
+					alert(e.message);
+				}
+				return;
+			}
+			if (t.getAttribute("data-action") !== "settings-mult-new") {
+				return;
+			}
+			const values = await appPrompt({
+				title: "New multiplier",
+				fields: [
+					{ name: "name", label: "Multiplier name", type: "text" },
+					{ name: "multiplier", label: "Multiplier", type: "number", step: "any", value: "1.5" },
+				],
+			});
+			if (!values || !String(values.name || "").trim()) {
+				return;
+			}
+			try {
+				await api("/api/settings/multipliers", {
+					method: "POST",
+					body: JSON.stringify({
+						name: String(values.name).trim(),
+						multiplier: parseFloat(values.multiplier),
+					}),
+				});
+				refresh();
+			} catch (e) {
+				alert(e.message);
+			}
+		});
+		refresh();
+	}
+
+	async function loadSettingsBeerPrice(panel) {
+		const beerForm = panel.querySelector("#settings-beer-price-form");
+		const beerErr = panel.querySelector("#settings-beer-price-error");
+
+		async function refresh() {
+			try {
+				const beer = await api("/api/settings/beer-price");
+				beerForm.querySelector('[name="min_net_sek_per_liter"]').value =
+					beer.min_net_sek_per_liter ?? 0;
+			} catch (e) {
+				beerErr.hidden = false;
+				beerErr.textContent = e.message;
 			}
 		}
 
@@ -2239,62 +3415,142 @@
 				beerErr.textContent = e.message;
 			}
 		});
+		refresh();
+	}
+
+	async function loadSettingsHygiene(panel) {
+		const hygEl = panel.querySelector("#settings-hygiene");
+
+		async function refresh() {
+			try {
+				const hyg = await api("/api/settings/hygiene-routines");
+				hygEl.innerHTML = table(
+					["Name", "Description", "Sort", ""],
+					(hyg || [])
+						.map((r) => {
+							return (
+								"<tr><td>" +
+								esc(r.name) +
+								"</td><td>" +
+								esc(r.description || "") +
+								"</td><td>" +
+								r.sort_order +
+								'</td><td><button type="button" class="btn btn--small" data-hygiene-edit="' +
+								r.id +
+								'" data-name="' +
+								esc(r.name) +
+								'" data-description="' +
+								esc(r.description || "") +
+								'" data-sort="' +
+								r.sort_order +
+								'">Edit</button> <button type="button" class="btn btn--small" data-hygiene-delete="' +
+								r.id +
+								'">Remove</button></td></tr>'
+							);
+						})
+						.join("")
+				);
+			} catch (e) {
+				hygEl.textContent = e.message;
+			}
+		}
 
 		panel.addEventListener("click", async (ev) => {
 			const t = ev.target;
 			if (!(t instanceof HTMLElement)) {
 				return;
 			}
-			if (t.getAttribute("data-action") === "settings-tank-new") {
+			if (t.hasAttribute("data-hygiene-edit")) {
+				const id = t.getAttribute("data-hygiene-edit");
 				const values = await appPrompt({
-					title: "New tank",
+					title: "Edit hygiene routine",
 					fields: [
-						{ name: "name", label: "Tank name", type: "text" },
-						{ name: "capacity_liters", label: "Capacity liters", type: "number", step: "any", value: "1000" },
+						{
+							name: "name",
+							label: "Name",
+							type: "text",
+							value: t.getAttribute("data-name") || "",
+						},
+						{
+							name: "description",
+							label: "Description",
+							type: "text",
+							value: t.getAttribute("data-description") || "",
+						},
+						{
+							name: "sort_order",
+							label: "Sort order",
+							type: "number",
+							step: "1",
+							value: t.getAttribute("data-sort") || "0",
+						},
 					],
 				});
 				if (!values || !String(values.name || "").trim()) {
 					return;
 				}
 				try {
-					await api("/api/settings/tanks", {
-						method: "POST",
+					await api("/api/settings/hygiene-routines/" + id, {
+						method: "PUT",
 						body: JSON.stringify({
 							name: String(values.name).trim(),
-							capacity_liters: parseFloat(values.capacity_liters),
+							description: String(values.description || "").trim(),
+							sort_order: parseInt(values.sort_order, 10) || 0,
 						}),
 					});
 					refresh();
 				} catch (e) {
 					alert(e.message);
 				}
+				return;
 			}
-			if (t.getAttribute("data-action") === "settings-mult-new") {
-				const values = await appPrompt({
-					title: "New multiplier",
-					fields: [
-						{ name: "name", label: "Multiplier name", type: "text" },
-						{ name: "multiplier", label: "Multiplier", type: "number", step: "any", value: "1.5" },
-					],
+			if (t.hasAttribute("data-hygiene-delete")) {
+				const id = t.getAttribute("data-hygiene-delete");
+				const ok = await appConfirm({
+					title: "Remove hygiene routine",
+					message: "Remove routine #" + id + " permanently?",
 				});
-				if (!values || !String(values.name || "").trim()) {
+				if (!ok) {
 					return;
 				}
 				try {
-					await api("/api/settings/multipliers", {
-						method: "POST",
-						body: JSON.stringify({
-							name: String(values.name).trim(),
-							multiplier: parseFloat(values.multiplier),
-						}),
-					});
+					await api("/api/settings/hygiene-routines/" + id, { method: "DELETE" });
 					refresh();
 				} catch (e) {
 					alert(e.message);
 				}
+				return;
 			}
 			if (t.getAttribute("data-action") === "settings-hygiene-refresh") {
 				refresh();
+				return;
+			}
+			if (t.getAttribute("data-action") !== "settings-hygiene-new") {
+				return;
+			}
+			const values = await appPrompt({
+				title: "New hygiene routine",
+				fields: [
+					{ name: "name", label: "Name", type: "text" },
+					{ name: "description", label: "Description", type: "text" },
+					{ name: "sort_order", label: "Sort order", type: "number", step: "1", value: "0" },
+				],
+			});
+			if (!values || !String(values.name || "").trim()) {
+				return;
+			}
+			try {
+				await api("/api/settings/hygiene-routines", {
+					method: "POST",
+					body: JSON.stringify({
+						name: String(values.name).trim(),
+						description: String(values.description || "").trim(),
+						sort_order: parseInt(values.sort_order, 10) || 0,
+					}),
+				});
+				refresh();
+			} catch (e) {
+				alert(e.message);
 			}
 		});
 		refresh();

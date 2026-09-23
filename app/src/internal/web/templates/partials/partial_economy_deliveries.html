@@ -1,0 +1,18 @@
+<section class="panel" data-panel="economy-deliveries">
+	<header class="panel__header">
+		<h1 class="panel__title">Monthly deliveries</h1>
+		<p class="panel__lead">List delivered batches for a month with volume, ABV, tax, and net for tax declaration and invoicing. Download CSV for export.</p>
+	</header>
+	<div class="panel__toolbar">
+		<input type="month" class="btn" id="economy-deliveries-month" aria-label="Month" required>
+		<button type="button" class="btn" data-action="economy-deliveries-refresh">Refresh</button>
+		<button type="button" class="btn" data-action="economy-deliveries-csv">Download CSV</button>
+	</div>
+	<div class="economy-deliveries-summary" id="economy-deliveries-summary" aria-live="polite">
+		<div><span class="economy-deliveries-summary__label">Volume</span> <strong id="economy-deliveries-sum-vol">—</strong></div>
+		<div><span class="economy-deliveries-summary__label">Cost</span> <strong id="economy-deliveries-sum-cost">—</strong></div>
+		<div><span class="economy-deliveries-summary__label">Tax</span> <strong id="economy-deliveries-sum-tax">—</strong></div>
+		<div><span class="economy-deliveries-summary__label">Net</span> <strong id="economy-deliveries-sum-net">—</strong></div>
+	</div>
+	<div class="panel__body" id="economy-deliveries-list">Loading…</div>
+</section>

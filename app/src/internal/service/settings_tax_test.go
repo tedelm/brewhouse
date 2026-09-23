@@ -1,6 +1,7 @@
 package service_test
 
 import (
+	"errors"
 	"math"
 	"testing"
 
@@ -51,5 +52,61 @@ func TestTaxForABV_SwedishBeerFormula(t *testing.T) {
 	}
 	if math.Abs(sek-5.70) > 1e-9 {
 		t.Fatalf("expected 5.70 at 5%% with 50%% discount, got %v", sek)
+	}
+}
+
+func TestUpdateAlcoholTaxConfig_ForbiddenForSuperuser(t *testing.T) {
+	_, users, _, _, settings, _, _ := testDB(t)
+	if err := users.EnsureDemoUser(); err != nil {
+		t.Fatalf("demo: %v", err)
+	}
+	su := service.Actor{UserID: 1, Role: service.RoleSuperuser}
+	_, err := settings.UpdateAlcoholTaxConfig(su, 2.28, 2.8, 1.0)
+	if !errors.Is(err, service.ErrForbidden) {
+		t.Fatalf("expected ErrForbidden, got %v", err)
+	}
+}
+
+func TestDeleteTank_BlockedWhenBooked(t *testing.T) {
+	_, users, breweries, inventory, settings, recipes, schedule := testDB(t)
+	if err := users.EnsureDemoUser(); err != nil {
+		t.Fatalf("demo: %v", err)
+	}
+	u, err := users.Authenticate("demo", "demo")
+	if err != nil {
+		t.Fatalf("auth: %v", err)
+	}
+	admin := service.Actor{UserID: u.ID, Role: service.RoleAdmin}
+	brewery, err := breweries.Create(admin, "Tank Guard Brewery", "", "", "", nil)
+	if err != nil {
+		t.Fatalf("brewery: %v", err)
+	}
+	item, err := inventory.Create(admin, service.InventoryItem{
+		Category: service.CategoryMalt, Name: "Pale", Unit: "kg", Qty: 20, CostPrice: 10,
+	})
+	if err != nil {
+		t.Fatalf("item: %v", err)
+	}
+	tank, err := settings.CreateTank(admin, "BookedFV", 500)
+	if err != nil {
+		t.Fatalf("tank: %v", err)
+	}
+	created, err := recipes.Create(admin, brewery.ID, "Booked Batch", []service.IngredientInput{
+		{InventoryItemID: item.ID, Qty: 5},
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if err := schedule.Book(admin, service.BookRequest{
+		RecipeID: created.Recipe.ID, Date: "2031-01-01", TankID: tank.ID, TankDays: 7,
+	}); err != nil {
+		t.Fatalf("book: %v", err)
+	}
+	err = settings.DeleteTank(admin, tank.ID)
+	if err == nil {
+		t.Fatal("expected delete to fail")
+	}
+	if !errors.Is(err, service.ErrConflict) {
+		t.Fatalf("expected ErrConflict, got %v", err)
 	}
 }

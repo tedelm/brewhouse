@@ -87,7 +87,8 @@ func migrate(db *sql.DB) error {
 		`CREATE TABLE IF NOT EXISTS fermentation_tanks (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			name TEXT NOT NULL UNIQUE,
-			capacity_liters REAL NOT NULL DEFAULT 0
+			capacity_liters REAL NOT NULL DEFAULT 0,
+			active INTEGER NOT NULL DEFAULT 1
 		)`,
 		`CREATE TABLE IF NOT EXISTS alcohol_tax_tiers (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -105,10 +106,21 @@ func migrate(db *sql.DB) error {
 			id INTEGER PRIMARY KEY CHECK (id = 1),
 			min_net_sek_per_liter REAL NOT NULL
 		)`,
+		`CREATE TABLE IF NOT EXISTS app_logo (
+			id INTEGER PRIMARY KEY CHECK (id = 1),
+			content_type TEXT NOT NULL,
+			data BLOB NOT NULL
+		)`,
+		`CREATE TABLE IF NOT EXISTS app_favicon (
+			id INTEGER PRIMARY KEY CHECK (id = 1),
+			content_type TEXT NOT NULL,
+			data BLOB NOT NULL
+		)`,
 		`CREATE TABLE IF NOT EXISTS price_multipliers (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			name TEXT NOT NULL UNIQUE,
-			multiplier REAL NOT NULL DEFAULT 1.0
+			multiplier REAL NOT NULL DEFAULT 1.0,
+			active INTEGER NOT NULL DEFAULT 1
 		)`,
 		`CREATE TABLE IF NOT EXISTS hygiene_routines (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -133,6 +145,7 @@ func migrate(db *sql.DB) error {
 			created_by INTEGER,
 			created_at TEXT NOT NULL,
 			delivered_at TEXT,
+			active INTEGER NOT NULL DEFAULT 1,
 			FOREIGN KEY (brewery_id) REFERENCES breweries(id) ON DELETE CASCADE,
 			FOREIGN KEY (tank_id) REFERENCES fermentation_tanks(id) ON DELETE SET NULL,
 			FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
@@ -215,11 +228,31 @@ func migrate(db *sql.DB) error {
 	if err := ensureHygieneChecklist(db); err != nil {
 		return fmt.Errorf("ensure hygiene checklist: %w", err)
 	}
+	if err := ensureTankAndMultiplierActiveColumns(db); err != nil {
+		return fmt.Errorf("ensure tank/multiplier active: %w", err)
+	}
+	if err := ensureRecipeActiveColumn(db); err != nil {
+		return fmt.Errorf("ensure recipes.active: %w", err)
+	}
 
 	if err := seedDefaults(db); err != nil {
 		return fmt.Errorf("seed defaults: %w", err)
 	}
 	return nil
+}
+
+func ensureTankAndMultiplierActiveColumns(db *sql.DB) error {
+	if err := addColumnIfMissing(db, "fermentation_tanks", "active",
+		`ALTER TABLE fermentation_tanks ADD COLUMN active INTEGER NOT NULL DEFAULT 1`); err != nil {
+		return err
+	}
+	return addColumnIfMissing(db, "price_multipliers", "active",
+		`ALTER TABLE price_multipliers ADD COLUMN active INTEGER NOT NULL DEFAULT 1`)
+}
+
+func ensureRecipeActiveColumn(db *sql.DB) error {
+	return addColumnIfMissing(db, "recipes", "active",
+		`ALTER TABLE recipes ADD COLUMN active INTEGER NOT NULL DEFAULT 1`)
 }
 
 func ensureUserEmailColumn(db *sql.DB) error {
@@ -398,18 +431,38 @@ func seedDefaults(db *sql.DB) error {
 	}
 	if count == 0 {
 		if _, err := db.Exec(
-			`INSERT INTO beer_price_config (id, min_net_sek_per_liter) VALUES (1, 0)`,
+			`INSERT INTO beer_price_config (id, min_net_sek_per_liter) VALUES (1, 55)`,
 		); err != nil {
 			return err
 		}
-	}
-
-	if err := db.QueryRow(`SELECT COUNT(*) FROM price_multipliers`).Scan(&count); err != nil {
+	} else if _, err := db.Exec(
+		`UPDATE beer_price_config SET min_net_sek_per_liter = 55 WHERE id = 1 AND min_net_sek_per_liter = 0`,
+	); err != nil {
 		return err
 	}
-	if count == 0 {
+
+	if _, err := db.Exec(
+		`DELETE FROM price_multipliers WHERE name IN ('good', 'extra good', 'super')`,
+	); err != nil {
+		return err
+	}
+	for _, row := range []struct {
+		name string
+		mult float64
+	}{
+		{"default", 1.0},
+		{"1.25", 1.25},
+		{"1.50", 1.50},
+		{"1.75", 1.75},
+		{"2.00", 2.00},
+		{"2.25", 2.25},
+		{"2.50", 2.50},
+		{"2.75", 2.75},
+		{"3.00", 3.00},
+	} {
 		if _, err := db.Exec(
-			`INSERT INTO price_multipliers (name, multiplier) VALUES ('default', 1.5)`,
+			`INSERT OR IGNORE INTO price_multipliers (name, multiplier) VALUES (?, ?)`,
+			row.name, row.mult,
 		); err != nil {
 			return err
 		}

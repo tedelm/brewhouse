@@ -1,7 +1,7 @@
 <section class="panel" data-panel="delivery">
 	<header class="panel__header">
 		<h1 class="panel__title">Delivery batches</h1>
-		<p class="panel__lead">After hygiene: set FG and delivery volume to compute tax, cost, and net. Then deliver to the pub.</p>
+		<p class="panel__lead">After hygiene: set FG, delivery volume, beer net SEK/L, and multiplier. Net = beer net × multiplier × liters; alcohol tax is fixed and separate. Calculate &amp; ready, then deliver to the pub.</p>
 	</header>
 	<div class="panel__toolbar">
 		<button type="button" class="btn" data-action="delivery-refresh">Refresh</button>
@@ -11,9 +11,23 @@
 		<label>Recipe
 			<select name="recipe_id" id="delivery-recipe" required></select>
 		</label>
-		<label>FG (SG) <input name="fg" type="number" step="0.001" required></label>
-		<label>Delivery volume (L) <input name="delivery_volume" type="number" step="any" required></label>
+		<label>FG (SG, 1.xxx) <input name="fg" type="number" step="0.001" min="0" value="1.010" required></label>
+		<label>Delivery volume (L) <input name="delivery_volume" type="number" step="any" min="0" required></label>
+		<label>Beer net (SEK/L) <input name="beer_net_sek_per_liter" id="delivery-beer-net" type="number" step="any" min="0" required></label>
+		<label>Multiplier
+			<select name="multiplier_id" id="delivery-multiplier" required></select>
+		</label>
 		<button type="submit" class="btn btn--primary">Calculate &amp; ready</button>
 		<p class="panel__error" id="delivery-error" hidden></p>
 	</form>
+	<div class="delivery-preview" id="delivery-preview" aria-live="polite">
+		<p class="delivery-preview__title">Live estimate</p>
+		<dl class="delivery-preview__grid">
+			<div><dt>ABV</dt><dd id="delivery-preview-abv">—</dd></div>
+			<div><dt>Cost</dt><dd id="delivery-preview-cost">—</dd></div>
+			<div><dt>Tax</dt><dd id="delivery-preview-tax">—</dd></div>
+			<div><dt>Net total</dt><dd id="delivery-preview-net">—</dd></div>
+			<div class="delivery-preview__highlight"><dt>Net SEK/L</dt><dd id="delivery-preview-per-l">—</dd></div>
+		</dl>
+	</div>
 </section>

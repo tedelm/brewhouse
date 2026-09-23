@@ -1,11 +1,15 @@
 <section class="panel" data-panel="recipes">
 	<header class="panel__header">
 		<h1 class="panel__title">Recipes</h1>
-		<p class="panel__lead">Create a brew batch (checks out available inventory; shortfalls go to a planning order). Delete restores checked-out stock while status is created or scheduled.</p>
+		<p class="panel__lead">Create a batch and check out available stock; missing amounts go to a planning order. Delete restores stock while the batch is created or scheduled. Delivered batches can be hidden instead of deleted.</p>
 	</header>
 	<div class="panel__toolbar">
 		<button type="button" class="btn" data-action="recipe-refresh">Refresh</button>
 		<button type="button" class="btn btn--primary" data-action="recipe-new">New recipe</button>
+		<label class="panel__toolbar-toggle">
+			<span>Show hidden delivered</span>
+			<input type="checkbox" id="recipes-show-hidden" role="switch">
+		</label>
 	</div>
 	<div class="panel__body" id="recipes-list">Loading…</div>
 	<dialog class="panel__dialog panel__dialog--wide" id="recipe-dialog">

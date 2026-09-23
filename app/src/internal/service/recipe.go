@@ -21,21 +21,35 @@ func NewRecipeService(db *sql.DB, access *AccessService, inventory *InventorySer
 }
 
 // List returns recipes for a brewery (or all accessible if breweryID is 0 for admin).
-func (s *RecipeService) List(actor Actor, breweryID int64) ([]Recipe, error) {
+// When includeHidden is false, only active recipes are returned.
+func (s *RecipeService) List(actor Actor, breweryID int64, includeHidden bool) ([]Recipe, error) {
+	activeFilter := ""
+	activeFilterAliased := ""
+	if !includeHidden {
+		activeFilter = ` AND active = 1`
+		activeFilterAliased = ` AND r.active = 1`
+	}
 	var out []Recipe
 	var err error
 	if breweryID > 0 {
 		if err := s.access.RequireBreweryAccess(actor, breweryID); err != nil {
 			return nil, err
 		}
-		out, err = s.queryRecipes(`SELECT `+recipeColumns+` FROM recipes WHERE brewery_id = ? ORDER BY id DESC`, breweryID)
+		out, err = s.queryRecipes(
+			`SELECT `+recipeColumns+` FROM recipes WHERE brewery_id = ?`+activeFilter+` ORDER BY id DESC`,
+			breweryID,
+		)
 	} else if actor.IsAdmin() {
-		out, err = s.queryRecipes(`SELECT ` + recipeColumns + ` FROM recipes ORDER BY id DESC`)
+		where := ""
+		if !includeHidden {
+			where = ` WHERE active = 1`
+		}
+		out, err = s.queryRecipes(`SELECT ` + recipeColumns + ` FROM recipes` + where + ` ORDER BY id DESC`)
 	} else {
 		out, err = s.queryRecipes(
 			`SELECT `+recipeColumnsAliased+` FROM recipes r
 			 INNER JOIN brewery_members m ON m.brewery_id = r.brewery_id
-			 WHERE m.user_id = ?
+			 WHERE m.user_id = ?`+activeFilterAliased+`
 			 ORDER BY r.id DESC`,
 			actor.UserID,
 		)
@@ -49,9 +63,9 @@ func (s *RecipeService) List(actor Actor, breweryID int64) ([]Recipe, error) {
 	return out, nil
 }
 
-const recipeColumns = `id, brewery_id, name, status, booked_date, tank_id, og, fg, brew_volume, delivery_volume, cost, tax, net, created_by, created_at, delivered_at`
+const recipeColumns = `id, brewery_id, name, status, booked_date, tank_id, og, fg, brew_volume, delivery_volume, cost, tax, net, created_by, created_at, delivered_at, active`
 
-const recipeColumnsAliased = `r.id, r.brewery_id, r.name, r.status, r.booked_date, r.tank_id, r.og, r.fg, r.brew_volume, r.delivery_volume, r.cost, r.tax, r.net, r.created_by, r.created_at, r.delivered_at`
+const recipeColumnsAliased = `r.id, r.brewery_id, r.name, r.status, r.booked_date, r.tank_id, r.og, r.fg, r.brew_volume, r.delivery_volume, r.cost, r.tax, r.net, r.created_by, r.created_at, r.delivered_at, r.active`
 
 func (s *RecipeService) queryRecipes(query string, args ...any) ([]Recipe, error) {
 	rows, err := s.db.Query(query, args...)
@@ -102,14 +116,16 @@ func scanRecipe(row scannable) (*Recipe, error) {
 	var bookedDate, deliveredAt sql.NullString
 	var tankID, createdBy sql.NullInt64
 	var og, fg, brewVol, delVol, cost, tax, net sql.NullFloat64
+	var active int
 	err := row.Scan(
 		&r.ID, &r.BreweryID, &r.Name, &r.Status,
 		&bookedDate, &tankID, &og, &fg, &brewVol, &delVol, &cost, &tax, &net,
-		&createdBy, &r.CreatedAt, &deliveredAt,
+		&createdBy, &r.CreatedAt, &deliveredAt, &active,
 	)
 	if err != nil {
 		return nil, err
 	}
+	r.Active = active != 0
 	if bookedDate.Valid {
 		r.BookedDate = &bookedDate.String
 	}
@@ -229,7 +245,7 @@ func (s *RecipeService) Create(actor Actor, breweryID int64, name string, ingred
 
 	createdAt := time.Now().UTC().Format(time.RFC3339)
 	res, err := tx.Exec(
-		`INSERT INTO recipes (brewery_id, name, status, created_by, created_at) VALUES (?, ?, ?, ?, ?)`,
+		`INSERT INTO recipes (brewery_id, name, status, created_by, created_at, active) VALUES (?, ?, ?, ?, ?, 1)`,
 		breweryID, name, StatusCreated, actor.UserID, createdAt,
 	)
 	if err != nil {
@@ -443,6 +459,26 @@ func (s *RecipeService) Delete(actor Actor, id int64) error {
 	return tx.Commit()
 }
 
+// SetActive hides or unhides a delivered recipe (soft-hide; no inventory changes).
+func (s *RecipeService) SetActive(actor Actor, id int64, active bool) (*Recipe, error) {
+	recipe, err := s.Get(actor, id)
+	if err != nil {
+		return nil, err
+	}
+	if recipe.Status != StatusDelivered {
+		return nil, ErrInvalidStatus
+	}
+	val := 0
+	if active {
+		val = 1
+	}
+	_, err = s.db.Exec(`UPDATE recipes SET active = ? WHERE id = ?`, val, id)
+	if err != nil {
+		return nil, err
+	}
+	return s.Get(actor, id)
+}
+
 // SetBrewday records OG and brew volume and advances status to brewday.
 func (s *RecipeService) SetBrewday(actor Actor, id int64, og, brewVolume float64) (*Recipe, error) {
 	recipe, err := s.Get(actor, id)
@@ -452,9 +488,31 @@ func (s *RecipeService) SetBrewday(actor Actor, id int64, og, brewVolume float64
 	if recipe.Status != StatusScheduled && recipe.Status != StatusBrewday {
 		return nil, ErrInvalidStatus
 	}
+	if recipe.BookedDate == nil {
+		return nil, ErrInvalidStatus
+	}
 	_, err = s.db.Exec(
 		`UPDATE recipes SET og = ?, brew_volume = ?, status = ? WHERE id = ?`,
 		og, brewVolume, StatusBrewday, id,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return s.Get(actor, id)
+}
+
+// RevokeBrewday undoes brewday recording: back to scheduled, clears OG and brew volume.
+func (s *RecipeService) RevokeBrewday(actor Actor, id int64) (*Recipe, error) {
+	recipe, err := s.Get(actor, id)
+	if err != nil {
+		return nil, err
+	}
+	if recipe.Status != StatusBrewday {
+		return nil, ErrInvalidStatus
+	}
+	_, err = s.db.Exec(
+		`UPDATE recipes SET status = ?, og = NULL, brew_volume = NULL WHERE id = ?`,
+		StatusScheduled, id,
 	)
 	if err != nil {
 		return nil, err
@@ -469,6 +527,9 @@ func (s *RecipeService) CompleteHygiene(actor Actor, recipeID, routineID int64) 
 		return nil, err
 	}
 	if recipe.Status != StatusBrewday && recipe.Status != StatusHygieneDone {
+		return nil, ErrInvalidStatus
+	}
+	if recipe.OG == nil {
 		return nil, ErrInvalidStatus
 	}
 	now := time.Now().UTC().Format(time.RFC3339)
@@ -511,6 +572,9 @@ func (s *RecipeService) CompleteAllHygiene(actor Actor, recipeID int64) (*Recipe
 	if recipe.Status != StatusBrewday {
 		return nil, ErrInvalidStatus
 	}
+	if recipe.OG == nil {
+		return nil, ErrInvalidStatus
+	}
 	routines, err := s.settings.ListHygieneRoutines()
 	if err != nil {
 		return nil, err
@@ -534,6 +598,32 @@ func (s *RecipeService) CompleteAllHygiene(actor Actor, recipeID int64) (*Recipe
 	}
 	_, err = tx.Exec(`UPDATE recipes SET status = ? WHERE id = ?`, StatusHygieneDone, recipeID)
 	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return s.Get(actor, recipeID)
+}
+
+// RevokeHygiene undoes hygiene completion: back to brewday and clears hygiene checks.
+func (s *RecipeService) RevokeHygiene(actor Actor, recipeID int64) (*Recipe, error) {
+	recipe, err := s.Get(actor, recipeID)
+	if err != nil {
+		return nil, err
+	}
+	if recipe.Status != StatusHygieneDone {
+		return nil, ErrInvalidStatus
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.Exec(`DELETE FROM recipe_hygiene_checks WHERE recipe_id = ?`, recipeID); err != nil {
+		return nil, err
+	}
+	if _, err := tx.Exec(`UPDATE recipes SET status = ? WHERE id = ?`, StatusBrewday, recipeID); err != nil {
 		return nil, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -569,8 +659,9 @@ func (s *RecipeService) HygieneStatus(actor Actor, recipeID int64) ([]HygieneRou
 	return routines, done, rows.Err()
 }
 
-// SetDelivery computes tax/cost/net from FG and delivery volume and marks ready_for_delivery.
-func (s *RecipeService) SetDelivery(actor Actor, id int64, fg, deliveryVolume float64) (*Recipe, error) {
+// SetDelivery computes tax/cost/net from FG, delivery volume, beer net SEK/L, and multiplier.
+// Net = beerNetSEKPerLiter × multiplier × volume. Tax is fixed alcohol tax (never multiplied, not included in net).
+func (s *RecipeService) SetDelivery(actor Actor, id int64, fg, deliveryVolume, beerNetSEKPerLiter float64, multiplierID int64) (*Recipe, error) {
 	recipe, err := s.Get(actor, id)
 	if err != nil {
 		return nil, err
@@ -580,6 +671,20 @@ func (s *RecipeService) SetDelivery(actor Actor, id int64, fg, deliveryVolume fl
 	}
 	if recipe.OG == nil {
 		return nil, fmt.Errorf("og required before delivery")
+	}
+	if beerNetSEKPerLiter < 0 {
+		return nil, fmt.Errorf("beer net SEK per liter must be non-negative")
+	}
+	if deliveryVolume <= 0 {
+		return nil, fmt.Errorf("delivery volume must be positive")
+	}
+
+	mult, err := s.settings.GetMultiplier(multiplierID)
+	if err != nil {
+		return nil, err
+	}
+	if !mult.Active {
+		return nil, fmt.Errorf("multiplier is disabled")
 	}
 
 	abv := ABVFromSG(*recipe.OG, fg)
@@ -597,19 +702,7 @@ func (s *RecipeService) SetDelivery(actor Actor, id int64, fg, deliveryVolume fl
 	for _, ing := range ings {
 		cost += ing.Qty * ing.CostPrice
 	}
-	mult, err := s.settings.DefaultMultiplier()
-	if err != nil {
-		return nil, err
-	}
-	net := (cost + tax) * mult
-	priceCfg, err := s.settings.GetBeerPriceConfig()
-	if err != nil {
-		return nil, err
-	}
-	floor := priceCfg.MinNetSEKPerLiter * deliveryVolume
-	if net < floor {
-		net = floor
-	}
+	net := beerNetSEKPerLiter * mult.Multiplier * deliveryVolume
 
 	_, err = s.db.Exec(
 		`UPDATE recipes SET fg = ?, delivery_volume = ?, cost = ?, tax = ?, net = ?, status = ? WHERE id = ?`,
@@ -651,7 +744,7 @@ func (s *RecipeService) RevokeDelivery(actor Actor, id int64) (*Recipe, error) {
 		return nil, ErrInvalidStatus
 	}
 	_, err = s.db.Exec(
-		`UPDATE recipes SET status = ?, fg = NULL, delivery_volume = NULL, cost = NULL, tax = NULL, net = NULL, delivered_at = NULL WHERE id = ?`,
+		`UPDATE recipes SET status = ?, fg = NULL, delivery_volume = NULL, cost = NULL, tax = NULL, net = NULL, delivered_at = NULL, active = 1 WHERE id = ?`,
 		StatusHygieneDone, id,
 	)
 	if err != nil {

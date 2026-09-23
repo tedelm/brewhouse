@@ -4,7 +4,7 @@
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<title>Brewhouse</title>
-	<link rel="icon" href="/static/images/favico.png" type="image/png">
+	<link rel="icon" href="/favicon" type="image/png">
 	<meta name="app-version" content="{{.AppVersion}}">
 	<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0">
 	<link rel="stylesheet" href="/static/css/app.css">
@@ -15,7 +15,7 @@
 		<div class="splash-stage">
 			<img
 				class="splash__logo"
-				src="/static/images/minus1_logo_white_small.png"
+				src="/logo"
 				alt="Brewhouse"
 				width="120"
 				height="120"
@@ -29,7 +29,7 @@
 		<div class="login-stage">
 			<img
 				class="login__logo"
-				src="/static/images/minus1_logo_white_small.png"
+				src="/logo"
 				alt="Brewhouse"
 				width="120"
 				height="120"
@@ -71,7 +71,8 @@
 					<div class="shell__brand">
 						<img
 							class="shell__brand-logo"
-							src="/static/images/minus1_logo_white_small.png"
+							id="shell-brand-logo"
+							src="/logo"
 							alt=""
 							width="36"
 							height="36"
@@ -89,6 +90,7 @@
 								<span class="material-symbols-outlined shell__nav-chevron" aria-hidden="true">expand_more</span>
 							</button>
 							<div class="shell__nav-panel">
+								<a class="shell__nav-sublink" href="/app/guide" hx-get="/app/guide" hx-target="#main-content" hx-swap="innerHTML">Brewery 101</a>
 								<a class="shell__nav-sublink" href="/app/recipes" hx-get="/app/recipes" hx-target="#main-content" hx-swap="innerHTML">Recipes</a>
 								<a class="shell__nav-sublink" href="/app/schedule" hx-get="/app/schedule" hx-target="#main-content" hx-swap="innerHTML">Schedule</a>
 								<a class="shell__nav-sublink" href="/app/brewday" hx-get="/app/brewday" hx-target="#main-content" hx-swap="innerHTML">Brewday</a>
@@ -119,7 +121,7 @@
 								<a class="shell__nav-sublink" href="/app/hygiene" hx-get="/app/hygiene" hx-target="#main-content" hx-swap="innerHTML">Routines</a>
 							</div>
 						</section>
-						<section class="shell__nav-section" data-nav-roles="superuser,admin">
+						<section class="shell__nav-section" data-nav-roles="admin">
 							<button type="button" class="shell__nav-header" aria-expanded="false">
 								<span class="material-symbols-outlined" aria-hidden="true">payments</span>
 								<span class="shell__nav-label">Economy</span>
@@ -127,6 +129,7 @@
 							</button>
 							<div class="shell__nav-panel">
 								<a class="shell__nav-sublink" href="/app/economy" hx-get="/app/economy" hx-target="#main-content" hx-swap="innerHTML">Tax rates</a>
+								<a class="shell__nav-sublink" href="/app/economy/deliveries" hx-get="/app/economy/deliveries" hx-target="#main-content" hx-swap="innerHTML">Monthly deliveries</a>
 							</div>
 						</section>
 						<section class="shell__nav-section" data-nav-roles="admin">
@@ -136,7 +139,8 @@
 								<span class="material-symbols-outlined shell__nav-chevron" aria-hidden="true">expand_more</span>
 							</button>
 							<div class="shell__nav-panel">
-								<a class="shell__nav-sublink" href="/app/iam" hx-get="/app/iam" hx-target="#main-content" hx-swap="innerHTML">Users</a>
+								<a class="shell__nav-sublink" href="/app/iam/users" hx-get="/app/iam/users" hx-target="#main-content" hx-swap="innerHTML">Users</a>
+								<a class="shell__nav-sublink" href="/app/iam/breweries" hx-get="/app/iam/breweries" hx-target="#main-content" hx-swap="innerHTML">Breweries</a>
 							</div>
 						</section>
 						<section class="shell__nav-section" data-nav-roles="admin">
@@ -146,7 +150,11 @@
 								<span class="material-symbols-outlined shell__nav-chevron" aria-hidden="true">expand_more</span>
 							</button>
 							<div class="shell__nav-panel">
-								<a class="shell__nav-sublink" href="/app/settings" hx-get="/app/settings" hx-target="#main-content" hx-swap="innerHTML">Tanks &amp; multipliers</a>
+								<a class="shell__nav-sublink" href="/app/settings/brand" hx-get="/app/settings/brand" hx-target="#main-content" hx-swap="innerHTML">Brand</a>
+								<a class="shell__nav-sublink" href="/app/settings/tanks" hx-get="/app/settings/tanks" hx-target="#main-content" hx-swap="innerHTML">Tanks</a>
+								<a class="shell__nav-sublink" href="/app/settings/multipliers" hx-get="/app/settings/multipliers" hx-target="#main-content" hx-swap="innerHTML">Multipliers</a>
+								<a class="shell__nav-sublink" href="/app/settings/beer-price" hx-get="/app/settings/beer-price" hx-target="#main-content" hx-swap="innerHTML">Beer net price</a>
+								<a class="shell__nav-sublink" href="/app/settings/hygiene" hx-get="/app/settings/hygiene" hx-target="#main-content" hx-swap="innerHTML">Hygiene routines</a>
 							</div>
 						</section>
 					</nav>
@@ -168,6 +176,10 @@
 								<span class="shell__profile-name" id="shell-profile-name"></span>
 							</button>
 							<div class="shell__profile-menu" id="shell-profile-menu" hidden role="menu">
+								<label class="shell__profile-menu-item shell__profile-menu-item--toggle" id="shell-profile-admin-wrap" hidden>
+									<span>Admin mode</span>
+									<input type="checkbox" id="shell-profile-admin" role="switch">
+								</label>
 								<button type="button" class="shell__profile-menu-item" role="menuitem" id="shell-profile-view">View profile</button>
 								<button type="button" class="shell__profile-menu-item" role="menuitem" id="shell-profile-logout">Logout</button>
 							</div>
@@ -176,7 +188,8 @@
 					<main class="shell__content" id="main-content">
 						<section class="shell__welcome">
 							<h1 class="shell__welcome-title">Welcome</h1>
-							<p class="shell__welcome-text">Select a section from the navigation to get started.</p>
+							<p class="shell__welcome-text">Select a section from the navigation to get started. See <strong>Brewery 101</strong> for the recipe-to-delivery pipeline.</p>
+							<p class="shell__welcome-text">Admin accounts: open your profile menu (avatar) and turn on <strong>Admin mode</strong> to unlock Economy, IAM, and Settings.</p>
 						</section>
 					</main>
 				</div>
@@ -192,6 +205,9 @@
 						</label>
 						<label>New password
 							<input name="password" id="profile-password" type="password" autocomplete="new-password" placeholder="Leave blank to keep current">
+						</label>
+						<label>Confirm new password
+							<input name="password_confirm" id="profile-password-confirm" type="password" autocomplete="new-password" placeholder="Leave blank to keep current">
 						</label>
 						<p class="panel__error" id="profile-error" hidden></p>
 						<div class="panel__dialog-actions">
@@ -221,6 +237,7 @@
 							<span class="material-symbols-outlined shell__sheet-chevron" aria-hidden="true">expand_more</span>
 						</button>
 						<div class="shell__sheet-panel">
+							<a class="shell__sheet-link" href="/app/guide" hx-get="/app/guide" hx-target="#main-content" hx-swap="innerHTML">Brewery 101</a>
 							<a class="shell__sheet-link" href="/app/recipes" hx-get="/app/recipes" hx-target="#main-content" hx-swap="innerHTML">Recipes</a>
 							<a class="shell__sheet-link" href="/app/schedule" hx-get="/app/schedule" hx-target="#main-content" hx-swap="innerHTML">Schedule</a>
 							<a class="shell__sheet-link" href="/app/brewday" hx-get="/app/brewday" hx-target="#main-content" hx-swap="innerHTML">Brewday</a>
@@ -251,7 +268,7 @@
 							<a class="shell__sheet-link" href="/app/hygiene" hx-get="/app/hygiene" hx-target="#main-content" hx-swap="innerHTML">Routines</a>
 						</div>
 					</section>
-					<section class="shell__sheet-section" data-nav-roles="superuser,admin">
+					<section class="shell__sheet-section" data-nav-roles="admin">
 						<button type="button" class="shell__sheet-header" aria-expanded="false">
 							<span class="material-symbols-outlined" aria-hidden="true">payments</span>
 							<span class="shell__nav-label">Economy</span>
@@ -259,6 +276,7 @@
 						</button>
 						<div class="shell__sheet-panel">
 							<a class="shell__sheet-link" href="/app/economy" hx-get="/app/economy" hx-target="#main-content" hx-swap="innerHTML">Tax rates</a>
+							<a class="shell__sheet-link" href="/app/economy/deliveries" hx-get="/app/economy/deliveries" hx-target="#main-content" hx-swap="innerHTML">Monthly deliveries</a>
 						</div>
 					</section>
 					<section class="shell__sheet-section" data-nav-roles="admin">
@@ -268,7 +286,8 @@
 							<span class="material-symbols-outlined shell__sheet-chevron" aria-hidden="true">expand_more</span>
 						</button>
 						<div class="shell__sheet-panel">
-							<a class="shell__sheet-link" href="/app/iam" hx-get="/app/iam" hx-target="#main-content" hx-swap="innerHTML">Users</a>
+							<a class="shell__sheet-link" href="/app/iam/users" hx-get="/app/iam/users" hx-target="#main-content" hx-swap="innerHTML">Users</a>
+							<a class="shell__sheet-link" href="/app/iam/breweries" hx-get="/app/iam/breweries" hx-target="#main-content" hx-swap="innerHTML">Breweries</a>
 						</div>
 					</section>
 					<section class="shell__sheet-section" data-nav-roles="admin">
@@ -278,7 +297,11 @@
 							<span class="material-symbols-outlined shell__sheet-chevron" aria-hidden="true">expand_more</span>
 						</button>
 						<div class="shell__sheet-panel">
-							<a class="shell__sheet-link" href="/app/settings" hx-get="/app/settings" hx-target="#main-content" hx-swap="innerHTML">Tanks &amp; multipliers</a>
+							<a class="shell__sheet-link" href="/app/settings/brand" hx-get="/app/settings/brand" hx-target="#main-content" hx-swap="innerHTML">Brand</a>
+							<a class="shell__sheet-link" href="/app/settings/tanks" hx-get="/app/settings/tanks" hx-target="#main-content" hx-swap="innerHTML">Tanks</a>
+							<a class="shell__sheet-link" href="/app/settings/multipliers" hx-get="/app/settings/multipliers" hx-target="#main-content" hx-swap="innerHTML">Multipliers</a>
+							<a class="shell__sheet-link" href="/app/settings/beer-price" hx-get="/app/settings/beer-price" hx-target="#main-content" hx-swap="innerHTML">Beer net price</a>
+							<a class="shell__sheet-link" href="/app/settings/hygiene" hx-get="/app/settings/hygiene" hx-target="#main-content" hx-swap="innerHTML">Hygiene routines</a>
 						</div>
 					</section>
 				</nav>
@@ -292,6 +315,15 @@
 			<div class="panel__dialog-actions">
 				<button type="submit" class="btn btn--primary" value="confirm">Confirm</button>
 				<button type="submit" class="btn" value="cancel" formnovalidate>Cancel</button>
+			</div>
+		</form>
+	</dialog>
+	<dialog class="panel__dialog" id="app-info-dialog">
+		<form method="dialog" class="panel__form" id="app-info-form">
+			<h2 id="app-info-title">Info</h2>
+			<p id="app-info-message"></p>
+			<div class="panel__dialog-actions">
+				<button type="submit" class="btn btn--primary" value="close">Close</button>
 			</div>
 		</form>
 	</dialog>

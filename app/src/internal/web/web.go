@@ -3,6 +3,7 @@ package web
 import (
 	"embed"
 	"html/template"
+	"io"
 	"io/fs"
 	"net/http"
 )
@@ -60,4 +61,14 @@ func (h *Handler) RenderPartial(w http.ResponseWriter, name string, data any) {
 // Static returns an http.Handler that serves embedded static assets.
 func (h *Handler) Static() http.Handler {
 	return http.StripPrefix("/static/", http.FileServer(h.staticFS))
+}
+
+// ReadStatic reads an embedded static file by path relative to the static root.
+func (h *Handler) ReadStatic(name string) ([]byte, error) {
+	f, err := h.staticFS.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	return io.ReadAll(f)
 }

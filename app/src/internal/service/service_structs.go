@@ -100,6 +100,7 @@ type InventoryOrderLine struct {
 	Qty             float64  `json:"qty"`
 	OrderedQty      *float64 `json:"ordered_qty,omitempty"`
 	Unit            string   `json:"unit"`
+	Link            string   `json:"link,omitempty"`
 	BreweryID       *int64   `json:"brewery_id,omitempty"`
 	BreweryName     string   `json:"brewery_name,omitempty"`
 	RecipeID        *int64   `json:"recipe_id,omitempty"`
@@ -117,6 +118,7 @@ type FermentationTank struct {
 	ID             int64   `json:"id"`
 	Name           string  `json:"name"`
 	CapacityLiters float64 `json:"capacity_liters"`
+	Active         bool    `json:"active"`
 }
 
 // AlcoholTaxTier is a legacy ABV tax band (SEK/liter); unused by delivery formula.
@@ -139,11 +141,17 @@ type BeerPriceConfig struct {
 	MinNetSEKPerLiter float64 `json:"min_net_sek_per_liter"`
 }
 
+// BrandImageMeta reports whether a custom brand asset is stored.
+type BrandImageMeta struct {
+	Configured bool `json:"configured"`
+}
+
 // PriceMultiplier scales (cost+tax) to net price.
 type PriceMultiplier struct {
 	ID         int64   `json:"id"`
 	Name       string  `json:"name"`
 	Multiplier float64 `json:"multiplier"`
+	Active     bool    `json:"active"`
 }
 
 // HygieneRoutine is a brewday checklist item.
@@ -186,6 +194,7 @@ type Recipe struct {
 	CreatedBy       *int64             `json:"created_by,omitempty"`
 	CreatedAt       string             `json:"created_at"`
 	DeliveredAt     *string            `json:"delivered_at,omitempty"`
+	Active          bool               `json:"active"`
 	Ingredients     []RecipeIngredient `json:"ingredients,omitempty"`
 	HygieneComplete bool               `json:"hygiene_complete,omitempty"`
 }

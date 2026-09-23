@@ -652,7 +652,7 @@ func (s *InventoryService) GetOrder(id int64) (*InventoryOrder, error) {
 func (s *InventoryService) orderLines(orderID int64) ([]InventoryOrderLine, error) {
 	rows, err := s.db.Query(
 		`SELECT l.id, l.order_id, l.inventory_item_id, l.item_name, l.category, l.qty, l.ordered_qty,
-		        COALESCE(i.unit, ''), l.brewery_id, COALESCE(b.name, ''), l.recipe_id
+		        COALESCE(i.unit, ''), COALESCE(i.link, ''), l.brewery_id, COALESCE(b.name, ''), l.recipe_id
 		 FROM inventory_order_lines l
 		 LEFT JOIN inventory_items i ON i.id = l.inventory_item_id
 		 LEFT JOIN breweries b ON b.id = l.brewery_id
@@ -672,7 +672,7 @@ func (s *InventoryService) orderLines(orderID int64) ([]InventoryOrderLine, erro
 		var orderedQty sql.NullFloat64
 		if err := rows.Scan(
 			&line.ID, &line.OrderID, &itemID, &line.ItemName, &line.Category, &line.Qty, &orderedQty,
-			&line.Unit, &breweryID, &line.BreweryName, &recipeID,
+			&line.Unit, &line.Link, &breweryID, &line.BreweryName, &recipeID,
 		); err != nil {
 			return nil, err
 		}
@@ -735,6 +735,36 @@ func (s *InventoryService) UpdateOrderLineOrderedQty(actor Actor, orderID, lineI
 	}
 	if err := s.touchOrderUpdatedAt(orderID); err != nil {
 		return nil, err
+	}
+	return s.GetOrder(orderID)
+}
+
+// UpdateOrderLineProductLink sets the catalog product URL for a line's inventory item.
+func (s *InventoryService) UpdateOrderLineProductLink(actor Actor, orderID, lineID int64, link string) (*InventoryOrder, error) {
+	ok, err := s.access.CanManageInventory(actor)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, ErrForbidden
+	}
+	order, err := s.GetOrder(orderID)
+	if err != nil {
+		return nil, err
+	}
+	var itemID *int64
+	for _, line := range order.Lines {
+		if line.ID == lineID {
+			itemID = line.InventoryItemID
+			break
+		}
+	}
+	if itemID == nil {
+		return nil, ErrNotFound
+	}
+	_, err = s.db.Exec(`UPDATE inventory_items SET link = ? WHERE id = ?`, link, *itemID)
+	if err != nil {
+		return nil, fmt.Errorf("update product link: %w", err)
 	}
 	return s.GetOrder(orderID)
 }

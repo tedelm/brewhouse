@@ -1,0 +1,13 @@
+<section class="panel" data-panel="settings-beer-price">
+	<header class="panel__header">
+		<h1 class="panel__title">Beer net price</h1>
+		<p class="panel__lead">Default beer net SEK/L prefilling the Delivery form. Multiplier is applied on top when calculating net.</p>
+	</header>
+	<form class="panel__form" id="settings-beer-price-form">
+		<label>Min net SEK/L
+			<input name="min_net_sek_per_liter" type="number" step="any" min="0" required>
+		</label>
+		<button type="submit" class="btn btn--primary">Save</button>
+		<p class="panel__error" id="settings-beer-price-error" hidden></p>
+	</form>
+</section>

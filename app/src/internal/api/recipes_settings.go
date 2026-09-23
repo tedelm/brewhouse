@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -35,7 +36,8 @@ func (h *Handler) Recipes(w http.ResponseWriter, r *http.Request) {
 				}
 				breweryID = id
 			}
-			list, err := h.recipes.List(actor, breweryID)
+			includeHidden := r.URL.Query().Get("include_hidden") == "1"
+			list, err := h.recipes.List(actor, breweryID, includeHidden)
 			if err != nil {
 				h.writeErr(w, err)
 				return
@@ -108,27 +110,52 @@ func (h *Handler) Recipes(w http.ResponseWriter, r *http.Request) {
 
 	switch parts[1] {
 	case "schedule":
-		if r.Method != http.MethodPost {
+		switch r.Method {
+		case http.MethodPost:
+			var req service.BookRequest
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid body"})
+				return
+			}
+			req.RecipeID = id
+			if err := h.schedule.Book(actor, req); err != nil {
+				h.writeErr(w, err)
+				return
+			}
+			recipe, err := h.recipes.Get(actor, id)
+			if err != nil {
+				h.writeErr(w, err)
+				return
+			}
+			writeJSON(w, http.StatusOK, recipe)
+		case http.MethodDelete:
+			if err := h.schedule.Unbook(actor, id); err != nil {
+				h.writeErr(w, err)
+				return
+			}
+			recipe, err := h.recipes.Get(actor, id)
+			if err != nil {
+				h.writeErr(w, err)
+				return
+			}
+			writeJSON(w, http.StatusOK, recipe)
+		default:
 			writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
-			return
 		}
-		var req service.BookRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid body"})
-			return
-		}
-		req.RecipeID = id
-		if err := h.schedule.Book(actor, req); err != nil {
-			h.writeErr(w, err)
-			return
-		}
-		recipe, err := h.recipes.Get(actor, id)
-		if err != nil {
-			h.writeErr(w, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, recipe)
 	case "brewday":
+		if len(parts) >= 3 && parts[2] == "revoke" {
+			if r.Method != http.MethodPost {
+				writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
+				return
+			}
+			recipe, err := h.recipes.RevokeBrewday(actor, id)
+			if err != nil {
+				h.writeErr(w, err)
+				return
+			}
+			writeJSON(w, http.StatusOK, recipe)
+			return
+		}
 		if r.Method != http.MethodPost && r.Method != http.MethodPatch {
 			writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
 			return
@@ -169,7 +196,7 @@ func (h *Handler) Recipes(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid body"})
 			return
 		}
-		recipe, err := h.recipes.SetDelivery(actor, id, req.FG, req.DeliveryVolume)
+		recipe, err := h.recipes.SetDelivery(actor, id, req.FG, req.DeliveryVolume, req.BeerNetSEKPerLiter, req.MultiplierID)
 		if err != nil {
 			h.writeErr(w, err)
 			return
@@ -186,6 +213,22 @@ func (h *Handler) Recipes(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		writeJSON(w, http.StatusOK, recipe)
+	case "active":
+		if r.Method != http.MethodPost {
+			writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
+			return
+		}
+		var req ActiveRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid body"})
+			return
+		}
+		recipe, err := h.recipes.SetActive(actor, id, req.Active)
+		if err != nil {
+			h.writeErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, recipe)
 	default:
 		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "not found"})
 	}
@@ -194,6 +237,15 @@ func (h *Handler) Recipes(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) recipeHygiene(w http.ResponseWriter, r *http.Request, actor service.Actor, recipeID int64, parts []string) {
 	if len(parts) == 1 && parts[0] == "complete" && r.Method == http.MethodPost {
 		recipe, err := h.recipes.CompleteAllHygiene(actor, recipeID)
+		if err != nil {
+			h.writeErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, recipe)
+		return
+	}
+	if len(parts) == 1 && parts[0] == "revoke" && r.Method == http.MethodPost {
+		recipe, err := h.recipes.RevokeHygiene(actor, recipeID)
 		if err != nil {
 			h.writeErr(w, err)
 			return
@@ -304,6 +356,10 @@ func (h *Handler) Settings(w http.ResponseWriter, r *http.Request) {
 		h.settingsBeerPrice(w, r, actor, parts[1:])
 	case "hygiene-routines":
 		h.settingsHygiene(w, r, actor, parts[1:])
+	case "logo":
+		h.settingsLogo(w, r, actor, parts[1:])
+	case "favicon":
+		h.settingsFavicon(w, r, actor, parts[1:])
 	default:
 		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "not found"})
 	}
@@ -313,7 +369,15 @@ func (h *Handler) settingsTanks(w http.ResponseWriter, r *http.Request, actor se
 	if len(parts) == 0 {
 		switch r.Method {
 		case http.MethodGet:
-			list, err := h.settings.ListTanks()
+			var (
+				list []service.FermentationTank
+				err  error
+			)
+			if r.URL.Query().Get("active") == "1" {
+				list, err = h.settings.ListActiveTanks()
+			} else {
+				list, err = h.settings.ListTanks()
+			}
 			if err != nil {
 				h.writeErr(w, err)
 				return
@@ -339,6 +403,28 @@ func (h *Handler) settingsTanks(w http.ResponseWriter, r *http.Request, actor se
 	id, err := strconv.ParseInt(parts[0], 10, 64)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid id"})
+		return
+	}
+	if len(parts) == 2 && parts[1] == "active" {
+		if r.Method != http.MethodPost {
+			writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
+			return
+		}
+		var req ActiveRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid body"})
+			return
+		}
+		t, err := h.settings.SetTankActive(actor, id, req.Active)
+		if err != nil {
+			h.writeErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, t)
+		return
+	}
+	if len(parts) != 1 {
+		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "not found"})
 		return
 	}
 	switch r.Method {
@@ -493,7 +579,15 @@ func (h *Handler) settingsMultipliers(w http.ResponseWriter, r *http.Request, ac
 	if len(parts) == 0 {
 		switch r.Method {
 		case http.MethodGet:
-			list, err := h.settings.ListMultipliers()
+			var (
+				list []service.PriceMultiplier
+				err  error
+			)
+			if r.URL.Query().Get("active") == "1" {
+				list, err = h.settings.ListActiveMultipliers()
+			} else {
+				list, err = h.settings.ListMultipliers()
+			}
 			if err != nil {
 				h.writeErr(w, err)
 				return
@@ -519,6 +613,28 @@ func (h *Handler) settingsMultipliers(w http.ResponseWriter, r *http.Request, ac
 	id, err := strconv.ParseInt(parts[0], 10, 64)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid id"})
+		return
+	}
+	if len(parts) == 2 && parts[1] == "active" {
+		if r.Method != http.MethodPost {
+			writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
+			return
+		}
+		var req ActiveRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid body"})
+			return
+		}
+		m, err := h.settings.SetMultiplierActive(actor, id, req.Active)
+		if err != nil {
+			h.writeErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, m)
+		return
+	}
+	if len(parts) != 1 {
+		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "not found"})
 		return
 	}
 	switch r.Method {
@@ -592,6 +708,79 @@ func (h *Handler) settingsHygiene(w http.ResponseWriter, r *http.Request, actor 
 		writeJSON(w, http.StatusOK, rt)
 	case http.MethodDelete:
 		if err := h.settings.DeleteHygieneRoutine(actor, id); err != nil {
+			h.writeErr(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	default:
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
+	}
+}
+
+func (h *Handler) settingsLogo(w http.ResponseWriter, r *http.Request, actor service.Actor, parts []string) {
+	if len(parts) != 0 {
+		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "not found"})
+		return
+	}
+	h.settingsBrandImage(w, r, actor, "logo", h.settings.LogoConfigured, h.settings.SetLogo, h.settings.ClearLogo)
+}
+
+func (h *Handler) settingsFavicon(w http.ResponseWriter, r *http.Request, actor service.Actor, parts []string) {
+	if len(parts) != 0 {
+		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "not found"})
+		return
+	}
+	h.settingsBrandImage(w, r, actor, "favicon", h.settings.FaviconConfigured, h.settings.SetFavicon, h.settings.ClearFavicon)
+}
+
+func (h *Handler) settingsBrandImage(
+	w http.ResponseWriter,
+	r *http.Request,
+	actor service.Actor,
+	field string,
+	configured func() (bool, error),
+	set func(service.Actor, string, []byte) error,
+	clear func(service.Actor) error,
+) {
+	switch r.Method {
+	case http.MethodGet:
+		ok, err := configured()
+		if err != nil {
+			h.writeErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, service.BrandImageMeta{Configured: ok})
+	case http.MethodPut, http.MethodPost:
+		if err := r.ParseMultipartForm(600 << 10); err != nil {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid multipart form"})
+			return
+		}
+		file, header, err := r.FormFile(field)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "missing " + field + " file"})
+			return
+		}
+		defer file.Close()
+		data, err := io.ReadAll(io.LimitReader(file, 500*1024+1))
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "failed to read file"})
+			return
+		}
+		contentType := header.Header.Get("Content-Type")
+		if contentType == "" || contentType == "application/octet-stream" {
+			contentType = http.DetectContentType(data)
+		}
+		if err := set(actor, contentType, data); err != nil {
+			if errors.Is(err, service.ErrForbidden) {
+				h.writeErr(w, err)
+				return
+			}
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, service.BrandImageMeta{Configured: true})
+	case http.MethodDelete:
+		if err := clear(actor); err != nil {
 			h.writeErr(w, err)
 			return
 		}

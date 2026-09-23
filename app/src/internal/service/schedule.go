@@ -103,7 +103,7 @@ func (s *ScheduleService) Book(actor Actor, req BookRequest) error {
 		return err
 	}
 	if !ok {
-		return ErrConflict
+		return s.tankConflictError(req.TankID, start, end, req.RecipeID)
 	}
 
 	tx, err := s.db.Begin()
@@ -139,10 +139,70 @@ func (s *ScheduleService) Book(actor Actor, req BookRequest) error {
 	return tx.Commit()
 }
 
+// tankConflictError builds ErrConflict with brewery, recipe, and date range of the overlap.
+func (s *ScheduleService) tankConflictError(tankID int64, start, end string, excludeRecipeID int64) error {
+	var breweryName, recipeName, conflictStart, conflictEnd string
+	err := s.db.QueryRow(
+		`SELECT br.name, r.name, tb.start_date, tb.end_date
+		 FROM tank_bookings tb
+		 INNER JOIN recipes r ON r.id = tb.recipe_id
+		 INNER JOIN breweries br ON br.id = r.brewery_id
+		 WHERE tb.tank_id = ? AND tb.recipe_id != ?
+		   AND tb.start_date <= ? AND tb.end_date >= ?
+		 ORDER BY tb.start_date
+		 LIMIT 1`,
+		tankID, excludeRecipeID, end, start,
+	).Scan(&breweryName, &recipeName, &conflictStart, &conflictEnd)
+	if err != nil {
+		return ErrConflict
+	}
+	return fmt.Errorf("%w: tank conflict with %s / %s (%s–%s)", ErrConflict, breweryName, recipeName, conflictStart, conflictEnd)
+}
+
+// Unbook removes schedule bookings and returns a recipe to created status.
+func (s *ScheduleService) Unbook(actor Actor, recipeID int64) error {
+	var breweryID int64
+	var status string
+	err := s.db.QueryRow(`SELECT brewery_id, status FROM recipes WHERE id = ?`, recipeID).
+		Scan(&breweryID, &status)
+	if err == sql.ErrNoRows {
+		return ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+	if err := s.access.RequireBreweryAccess(actor, breweryID); err != nil {
+		return err
+	}
+	if status != StatusScheduled {
+		return ErrInvalidStatus
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if _, err := tx.Exec(`DELETE FROM brewery_bookings WHERE recipe_id = ?`, recipeID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM tank_bookings WHERE recipe_id = ?`, recipeID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(
+		`UPDATE recipes SET status = ?, booked_date = NULL, tank_id = NULL WHERE id = ?`,
+		StatusCreated, recipeID,
+	); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
 // ListBookings returns brewery bookings in a date range.
 func (s *ScheduleService) ListBookings(from, to string) ([]map[string]any, error) {
 	rows, err := s.db.Query(
-		`SELECT b.booked_date, COALESCE(tb.end_date, b.booked_date), br.name, r.name, COALESCE(t.name, '')
+		`SELECT r.id, r.status, b.booked_date, COALESCE(tb.end_date, b.booked_date), br.name, r.name, COALESCE(t.name, '')
 		 FROM brewery_bookings b
 		 INNER JOIN recipes r ON r.id = b.recipe_id
 		 INNER JOIN breweries br ON br.id = r.brewery_id
@@ -158,11 +218,14 @@ func (s *ScheduleService) ListBookings(from, to string) ([]map[string]any, error
 	defer rows.Close()
 	var out []map[string]any
 	for rows.Next() {
-		var date, endDate, breweryName, recipeName, tankName string
-		if err := rows.Scan(&date, &endDate, &breweryName, &recipeName, &tankName); err != nil {
+		var recipeID int64
+		var status, date, endDate, breweryName, recipeName, tankName string
+		if err := rows.Scan(&recipeID, &status, &date, &endDate, &breweryName, &recipeName, &tankName); err != nil {
 			return nil, err
 		}
 		out = append(out, map[string]any{
+			"recipe_id":     recipeID,
+			"status":        status,
 			"date":          date,
 			"end_date":      endDate,
 			"brewery_name":  breweryName,

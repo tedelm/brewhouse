@@ -1,9 +1,14 @@
 package service
 
 import (
+	"bytes"
 	"database/sql"
 	"errors"
 	"fmt"
+	"image"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
 )
 
 // SettingsService manages tanks, tax tiers, multipliers, and hygiene routines.
@@ -26,20 +31,44 @@ func (s *SettingsService) requireAdmin(actor Actor) error {
 
 // --- Fermentation tanks ---
 
+func scanTank(scanner interface{ Scan(dest ...any) error }) (*FermentationTank, error) {
+	t := &FermentationTank{}
+	var active int
+	if err := scanner.Scan(&t.ID, &t.Name, &t.CapacityLiters, &active); err != nil {
+		return nil, err
+	}
+	t.Active = active != 0
+	return t, nil
+}
+
 // ListTanks returns all fermentation tanks.
 func (s *SettingsService) ListTanks() ([]FermentationTank, error) {
-	rows, err := s.db.Query(`SELECT id, name, capacity_liters FROM fermentation_tanks ORDER BY name`)
+	return s.listTanks(false)
+}
+
+// ListActiveTanks returns tanks with active = 1.
+func (s *SettingsService) ListActiveTanks() ([]FermentationTank, error) {
+	return s.listTanks(true)
+}
+
+func (s *SettingsService) listTanks(activeOnly bool) ([]FermentationTank, error) {
+	q := `SELECT id, name, capacity_liters, active FROM fermentation_tanks`
+	if activeOnly {
+		q += ` WHERE active = 1`
+	}
+	q += ` ORDER BY name`
+	rows, err := s.db.Query(q)
 	if err != nil {
 		return nil, fmt.Errorf("list tanks: %w", err)
 	}
 	defer rows.Close()
 	var out []FermentationTank
 	for rows.Next() {
-		var t FermentationTank
-		if err := rows.Scan(&t.ID, &t.Name, &t.CapacityLiters); err != nil {
+		t, err := scanTank(rows)
+		if err != nil {
 			return nil, err
 		}
-		out = append(out, t)
+		out = append(out, *t)
 	}
 	return out, rows.Err()
 }
@@ -49,7 +78,10 @@ func (s *SettingsService) CreateTank(actor Actor, name string, capacity float64)
 	if err := s.requireAdmin(actor); err != nil {
 		return nil, err
 	}
-	res, err := s.db.Exec(`INSERT INTO fermentation_tanks (name, capacity_liters) VALUES (?, ?)`, name, capacity)
+	res, err := s.db.Exec(
+		`INSERT INTO fermentation_tanks (name, capacity_liters, active) VALUES (?, ?, 1)`,
+		name, capacity,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("insert tank: %w", err)
 	}
@@ -59,9 +91,9 @@ func (s *SettingsService) CreateTank(actor Actor, name string, capacity float64)
 
 // GetTank returns a tank by id.
 func (s *SettingsService) GetTank(id int64) (*FermentationTank, error) {
-	t := &FermentationTank{}
-	err := s.db.QueryRow(`SELECT id, name, capacity_liters FROM fermentation_tanks WHERE id = ?`, id).
-		Scan(&t.ID, &t.Name, &t.CapacityLiters)
+	t, err := scanTank(s.db.QueryRow(
+		`SELECT id, name, capacity_liters, active FROM fermentation_tanks WHERE id = ?`, id,
+	))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -83,10 +115,37 @@ func (s *SettingsService) UpdateTank(actor Actor, id int64, name string, capacit
 	return s.GetTank(id)
 }
 
+// SetTankActive enables or disables a tank.
+func (s *SettingsService) SetTankActive(actor Actor, id int64, active bool) (*FermentationTank, error) {
+	if err := s.requireAdmin(actor); err != nil {
+		return nil, err
+	}
+	val := 0
+	if active {
+		val = 1
+	}
+	res, err := s.db.Exec(`UPDATE fermentation_tanks SET active = ? WHERE id = ?`, val, id)
+	if err != nil {
+		return nil, err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return nil, ErrNotFound
+	}
+	return s.GetTank(id)
+}
+
 // DeleteTank removes a tank.
 func (s *SettingsService) DeleteTank(actor Actor, id int64) error {
 	if err := s.requireAdmin(actor); err != nil {
 		return err
+	}
+	var nBookings int
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM tank_bookings WHERE tank_id = ?`, id).Scan(&nBookings); err != nil {
+		return fmt.Errorf("count tank bookings: %w", err)
+	}
+	if nBookings > 0 {
+		return fmt.Errorf("%w: tank has historical bookings; disable it instead", ErrConflict)
 	}
 	res, err := s.db.Exec(`DELETE FROM fermentation_tanks WHERE id = ?`, id)
 	if err != nil {
@@ -289,20 +348,44 @@ func (s *SettingsService) UpdateBeerPriceConfig(actor Actor, minNetSEKPerLiter f
 
 // --- Price multipliers ---
 
-// ListMultipliers returns price multipliers.
+func scanMultiplier(scanner interface{ Scan(dest ...any) error }) (*PriceMultiplier, error) {
+	m := &PriceMultiplier{}
+	var active int
+	if err := scanner.Scan(&m.ID, &m.Name, &m.Multiplier, &active); err != nil {
+		return nil, err
+	}
+	m.Active = active != 0
+	return m, nil
+}
+
+// ListMultipliers returns all price multipliers.
 func (s *SettingsService) ListMultipliers() ([]PriceMultiplier, error) {
-	rows, err := s.db.Query(`SELECT id, name, multiplier FROM price_multipliers ORDER BY name`)
+	return s.listMultipliers(false)
+}
+
+// ListActiveMultipliers returns multipliers with active = 1.
+func (s *SettingsService) ListActiveMultipliers() ([]PriceMultiplier, error) {
+	return s.listMultipliers(true)
+}
+
+func (s *SettingsService) listMultipliers(activeOnly bool) ([]PriceMultiplier, error) {
+	q := `SELECT id, name, multiplier, active FROM price_multipliers`
+	if activeOnly {
+		q += ` WHERE active = 1`
+	}
+	q += ` ORDER BY name`
+	rows, err := s.db.Query(q)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	var out []PriceMultiplier
 	for rows.Next() {
-		var m PriceMultiplier
-		if err := rows.Scan(&m.ID, &m.Name, &m.Multiplier); err != nil {
+		m, err := scanMultiplier(rows)
+		if err != nil {
 			return nil, err
 		}
-		out = append(out, m)
+		out = append(out, *m)
 	}
 	return out, rows.Err()
 }
@@ -325,7 +408,10 @@ func (s *SettingsService) CreateMultiplier(actor Actor, name string, multiplier 
 	if err := s.requireAdmin(actor); err != nil {
 		return nil, err
 	}
-	res, err := s.db.Exec(`INSERT INTO price_multipliers (name, multiplier) VALUES (?, ?)`, name, multiplier)
+	res, err := s.db.Exec(
+		`INSERT INTO price_multipliers (name, multiplier, active) VALUES (?, ?, 1)`,
+		name, multiplier,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -334,9 +420,9 @@ func (s *SettingsService) CreateMultiplier(actor Actor, name string, multiplier 
 }
 
 func (s *SettingsService) getMultiplier(id int64) (*PriceMultiplier, error) {
-	m := &PriceMultiplier{}
-	err := s.db.QueryRow(`SELECT id, name, multiplier FROM price_multipliers WHERE id = ?`, id).
-		Scan(&m.ID, &m.Name, &m.Multiplier)
+	m, err := scanMultiplier(s.db.QueryRow(
+		`SELECT id, name, multiplier, active FROM price_multipliers WHERE id = ?`, id,
+	))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
@@ -344,6 +430,11 @@ func (s *SettingsService) getMultiplier(id int64) (*PriceMultiplier, error) {
 		return nil, err
 	}
 	return m, nil
+}
+
+// GetMultiplier returns a price multiplier by id.
+func (s *SettingsService) GetMultiplier(id int64) (*PriceMultiplier, error) {
+	return s.getMultiplier(id)
 }
 
 // UpdateMultiplier updates a multiplier.
@@ -354,6 +445,26 @@ func (s *SettingsService) UpdateMultiplier(actor Actor, id int64, name string, m
 	_, err := s.db.Exec(`UPDATE price_multipliers SET name = ?, multiplier = ? WHERE id = ?`, name, multiplier, id)
 	if err != nil {
 		return nil, err
+	}
+	return s.getMultiplier(id)
+}
+
+// SetMultiplierActive enables or disables a multiplier.
+func (s *SettingsService) SetMultiplierActive(actor Actor, id int64, active bool) (*PriceMultiplier, error) {
+	if err := s.requireAdmin(actor); err != nil {
+		return nil, err
+	}
+	val := 0
+	if active {
+		val = 1
+	}
+	res, err := s.db.Exec(`UPDATE price_multipliers SET active = ? WHERE id = ?`, val, id)
+	if err != nil {
+		return nil, err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return nil, ErrNotFound
 	}
 	return s.getMultiplier(id)
 }
@@ -453,6 +564,136 @@ func (s *SettingsService) DeleteHygieneRoutine(actor Actor, id int64) error {
 	n, _ := res.RowsAffected()
 	if n == 0 {
 		return ErrNotFound
+	}
+	return nil
+}
+
+// --- Brand assets (logo / favicon) ---
+
+const (
+	maxBrandImageBytes = 500 * 1024
+	maxLogoWidth       = 300
+	maxLogoHeight      = 300
+	maxFaviconWidth    = 16
+	maxFaviconHeight   = 16
+)
+
+// GetLogo returns the stored logo bytes when configured.
+func (s *SettingsService) GetLogo() (contentType string, data []byte, ok bool, err error) {
+	return s.getBrandImage("app_logo")
+}
+
+// SetLogo stores a custom logo (admin only).
+func (s *SettingsService) SetLogo(actor Actor, contentType string, data []byte) error {
+	return s.setBrandImage(actor, "app_logo", contentType, data, maxLogoWidth, maxLogoHeight)
+}
+
+// ClearLogo removes the custom logo (admin only).
+func (s *SettingsService) ClearLogo(actor Actor) error {
+	return s.clearBrandImage(actor, "app_logo")
+}
+
+// LogoConfigured reports whether a custom logo is stored.
+func (s *SettingsService) LogoConfigured() (bool, error) {
+	return s.brandImageConfigured("app_logo")
+}
+
+// GetFavicon returns the stored favicon bytes when configured.
+func (s *SettingsService) GetFavicon() (contentType string, data []byte, ok bool, err error) {
+	return s.getBrandImage("app_favicon")
+}
+
+// SetFavicon stores a custom favicon (admin only).
+func (s *SettingsService) SetFavicon(actor Actor, contentType string, data []byte) error {
+	return s.setBrandImage(actor, "app_favicon", contentType, data, maxFaviconWidth, maxFaviconHeight)
+}
+
+// ClearFavicon removes the custom favicon (admin only).
+func (s *SettingsService) ClearFavicon(actor Actor) error {
+	return s.clearBrandImage(actor, "app_favicon")
+}
+
+// FaviconConfigured reports whether a custom favicon is stored.
+func (s *SettingsService) FaviconConfigured() (bool, error) {
+	return s.brandImageConfigured("app_favicon")
+}
+
+func (s *SettingsService) getBrandImage(table string) (contentType string, data []byte, ok bool, err error) {
+	err = s.db.QueryRow(`SELECT content_type, data FROM `+table+` WHERE id = 1`).Scan(&contentType, &data)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil, false, nil
+	}
+	if err != nil {
+		return "", nil, false, fmt.Errorf("get %s: %w", table, err)
+	}
+	return contentType, data, true, nil
+}
+
+func (s *SettingsService) brandImageConfigured(table string) (bool, error) {
+	var n int
+	err := s.db.QueryRow(`SELECT COUNT(*) FROM ` + table + ` WHERE id = 1`).Scan(&n)
+	if err != nil {
+		return false, fmt.Errorf("count %s: %w", table, err)
+	}
+	return n > 0, nil
+}
+
+func (s *SettingsService) setBrandImage(actor Actor, table, contentType string, data []byte, maxW, maxH int) error {
+	if err := s.requireAdmin(actor); err != nil {
+		return err
+	}
+	if err := validateBrandImage(contentType, data, maxW, maxH); err != nil {
+		return err
+	}
+	_, err := s.db.Exec(
+		`INSERT INTO `+table+` (id, content_type, data) VALUES (1, ?, ?)
+		 ON CONFLICT(id) DO UPDATE SET content_type = excluded.content_type, data = excluded.data`,
+		contentType, data,
+	)
+	if err != nil {
+		return fmt.Errorf("set %s: %w", table, err)
+	}
+	return nil
+}
+
+func (s *SettingsService) clearBrandImage(actor Actor, table string) error {
+	if err := s.requireAdmin(actor); err != nil {
+		return err
+	}
+	_, err := s.db.Exec(`DELETE FROM ` + table + ` WHERE id = 1`)
+	if err != nil {
+		return fmt.Errorf("clear %s: %w", table, err)
+	}
+	return nil
+}
+
+func validateBrandImage(contentType string, data []byte, maxW, maxH int) error {
+	if len(data) == 0 {
+		return fmt.Errorf("image is empty")
+	}
+	if len(data) > maxBrandImageBytes {
+		return fmt.Errorf("image must be at most 500 KB")
+	}
+	switch contentType {
+	case "image/png", "image/jpeg", "image/gif":
+	default:
+		return fmt.Errorf("image must be PNG, JPEG, or GIF")
+	}
+	cfg, format, err := image.DecodeConfig(bytes.NewReader(data))
+	if err != nil {
+		return fmt.Errorf("invalid image: %w", err)
+	}
+	switch format {
+	case "png", "jpeg", "gif":
+	default:
+		return fmt.Errorf("image must be PNG, JPEG, or GIF")
+	}
+	expected := map[string]string{"png": "image/png", "jpeg": "image/jpeg", "gif": "image/gif"}
+	if expected[format] != contentType {
+		return fmt.Errorf("content type does not match image data")
+	}
+	if cfg.Width > maxW || cfg.Height > maxH {
+		return fmt.Errorf("image must be at most %dx%d px", maxW, maxH)
 	}
 	return nil
 }

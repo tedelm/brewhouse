@@ -81,7 +81,7 @@ func (h *Handler) writeErr(w http.ResponseWriter, err error) {
 	case errors.Is(err, service.ErrNotFound):
 		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "not found"})
 	case errors.Is(err, service.ErrConflict):
-		writeJSON(w, http.StatusConflict, ErrorResponse{Error: "conflict"})
+		writeJSON(w, http.StatusConflict, ErrorResponse{Error: err.Error()})
 	case errors.Is(err, service.ErrInsufficientStock):
 		writeJSON(w, http.StatusConflict, ErrorResponse{Error: "insufficient stock"})
 	case errors.Is(err, service.ErrInvalidStatus):
@@ -137,7 +137,8 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := h.tokens.Issue(user.ID, user.Username, user.Role)
+	role, canElevate := sessionRoleForAccount(user.Role)
+	token, err := h.tokens.Issue(user.ID, user.Username, role, canElevate)
 	if err != nil {
 		h.logger.Println("Failed to issue token:", err)
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "internal error"})
@@ -145,9 +146,109 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, LoginResponse{
-		Token:    token,
-		Username: user.Username,
-		Role:     user.Role,
-		UserID:   user.ID,
+		Token:      token,
+		Username:   user.Username,
+		Role:       role,
+		UserID:     user.ID,
+		CanElevate: canElevate,
 	})
+}
+
+// sessionRoleForAccount returns the effective JWT role and elevate flag for a DB account role.
+func sessionRoleForAccount(accountRole string) (role string, canElevate bool) {
+	if accountRole == service.RoleAdmin {
+		return service.RoleSuperuser, true
+	}
+	return accountRole, false
+}
+
+// Elevate re-issues a JWT with admin or superuser role for accounts that may elevate.
+func (h *Handler) Elevate(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
+		return
+	}
+	actor, ok := h.actor(r)
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		return
+	}
+
+	var req ElevateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid body"})
+		return
+	}
+
+	user, err := h.users.Get(actor.UserID)
+	if err != nil {
+		h.writeErr(w, err)
+		return
+	}
+	if user.Role != service.RoleAdmin {
+		writeJSON(w, http.StatusForbidden, ErrorResponse{Error: "forbidden"})
+		return
+	}
+
+	role := service.RoleSuperuser
+	if req.Elevated {
+		role = service.RoleAdmin
+	}
+	token, err := h.tokens.Issue(user.ID, user.Username, role, true)
+	if err != nil {
+		h.logger.Println("Failed to issue token:", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "internal error"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, LoginResponse{
+		Token:      token,
+		Username:   user.Username,
+		Role:       role,
+		UserID:     user.ID,
+		CanElevate: true,
+	})
+}
+
+// Logo serves the app brand logo (public).
+func (h *Handler) Logo(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
+		return
+	}
+	h.serveBrandImage(w, h.settings.GetLogo, "images/minus1_logo_white_small.png", "image/png")
+}
+
+// Favicon serves the app favicon (public).
+func (h *Handler) Favicon(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
+		return
+	}
+	h.serveBrandImage(w, h.settings.GetFavicon, "images/favico.png", "image/png")
+}
+
+func (h *Handler) serveBrandImage(
+	w http.ResponseWriter,
+	get func() (string, []byte, bool, error),
+	fallbackPath, fallbackType string,
+) {
+	contentType, data, ok, err := get()
+	if err != nil {
+		h.writeErr(w, err)
+		return
+	}
+	if !ok {
+		data, err = h.web.ReadStatic(fallbackPath)
+		if err != nil {
+			h.logger.Println("Failed to read default brand image:", err)
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		contentType = fallbackType
+	}
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Cache-Control", "no-cache")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(data)
 }

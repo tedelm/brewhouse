@@ -1,7 +1,7 @@
 <section class="panel" data-panel="orders">
 	<header class="panel__header">
 		<h1 class="panel__title">Orders</h1>
-		<p class="panel__lead">Plan purchase orders, mark them ordered, then complete to receive stock into inventory.</p>
+		<p class="panel__lead">Build a planning order, mark it ordered, then complete it to receive stock into inventory.</p>
 	</header>
 	<div class="panel__toolbar">
 		<button type="button" class="btn" data-action="orders-refresh">Refresh</button>
@@ -71,6 +71,17 @@
 			<div class="panel__dialog-actions">
 				<button type="submit" class="btn btn--primary" value="save">Save</button>
 				<button type="submit" class="btn" value="cancel" formnovalidate>Cancel</button>
+			</div>
+		</form>
+	</dialog>
+	<dialog class="panel__dialog panel__dialog--wide" id="order-links-dialog">
+		<form method="dialog" class="panel__form" id="order-links-form">
+			<h2 id="order-links-title">Product links</h2>
+			<p class="panel__lead">Open supplier product pages while ordering. Managers can save links to the inventory catalog.</p>
+			<input type="hidden" name="order_id" value="" id="order-links-order-id">
+			<div id="order-links-list" class="order-links-list"></div>
+			<div class="panel__dialog-actions">
+				<button type="submit" class="btn" value="cancel" formnovalidate>Close</button>
 			</div>
 		</form>
 	</dialog>

@@ -10,8 +10,9 @@ import (
 
 // Claims are JWT claims issued by this application.
 type Claims struct {
-	UserID int64  `json:"uid"`
-	Role   string `json:"role"`
+	UserID     int64  `json:"uid"`
+	Role       string `json:"role"`
+	CanElevate bool   `json:"can_elevate,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -29,12 +30,13 @@ func NewTokenIssuer(secret string, ttl time.Duration) *TokenIssuer {
 	}
 }
 
-// Issue returns a signed JWT for the given user id, username, and role.
-func (t *TokenIssuer) Issue(userID int64, username, role string) (string, error) {
+// Issue returns a signed JWT for the given user id, username, effective role, and elevate flag.
+func (t *TokenIssuer) Issue(userID int64, username, role string, canElevate bool) (string, error) {
 	now := time.Now()
 	claims := Claims{
-		UserID: userID,
-		Role:   role,
+		UserID:     userID,
+		Role:       role,
+		CanElevate: canElevate,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   username,
 			IssuedAt:  jwt.NewNumericDate(now),

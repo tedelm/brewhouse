@@ -16,6 +16,8 @@
 	const profileMenu = document.getElementById("shell-profile-menu");
 	const profileViewBtn = document.getElementById("shell-profile-view");
 	const profileLogoutBtn = document.getElementById("shell-profile-logout");
+	const profileAdminWrap = document.getElementById("shell-profile-admin-wrap");
+	const profileAdminToggle = document.getElementById("shell-profile-admin");
 	const profileDialog = document.getElementById("profile-dialog");
 	const profileForm = document.getElementById("profile-form");
 	const profileError = document.getElementById("profile-error");
@@ -40,6 +42,21 @@
 		return (sessionStorage.getItem("brewhouse_role") || "").trim().toLowerCase();
 	}
 
+	function canElevate() {
+		return sessionStorage.getItem("brewhouse_can_elevate") === "1";
+	}
+
+	function syncAdminToggle() {
+		if (!profileAdminWrap || !profileAdminToggle) {
+			return;
+		}
+		const elevatable = canElevate();
+		profileAdminWrap.hidden = !elevatable;
+		if (elevatable) {
+			profileAdminToggle.checked = currentRole() === "admin";
+		}
+	}
+
 	function applyNavVisibility(role) {
 		const r = (role || currentRole() || "").toLowerCase();
 		document.querySelectorAll("[data-nav-roles]").forEach((el) => {
@@ -62,6 +79,7 @@
 	window.BrewhouseAuth = {
 		role: currentRole,
 		token: () => sessionStorage.getItem("brewhouse_token") || "",
+		canElevate,
 		can: (roles) => {
 			const r = currentRole();
 			if (!r) {
@@ -119,6 +137,9 @@
 		profileMenu.hidden = !open;
 		profileWrap.classList.toggle("is-open", open);
 		shellProfile.setAttribute("aria-expanded", open ? "true" : "false");
+		if (open) {
+			syncAdminToggle();
+		}
 	}
 
 	function showShell(username) {
@@ -127,6 +148,7 @@
 		setSheetOpen(false);
 		setProfileMenuOpen(false);
 		applyNavVisibility(currentRole());
+		syncAdminToggle();
 
 		const initial = (username || "?").charAt(0).toUpperCase();
 		shellAvatar.textContent = initial;
@@ -139,6 +161,7 @@
 		sessionStorage.removeItem("brewhouse_username");
 		sessionStorage.removeItem("brewhouse_user_id");
 		sessionStorage.removeItem("brewhouse_role");
+		sessionStorage.removeItem("brewhouse_can_elevate");
 		setProfileMenuOpen(false);
 		setSheetOpen(false);
 		app.classList.remove("is-shell");
@@ -151,10 +174,46 @@
 		}
 	}
 
+	function leaveAdminOnlyPageIfNeeded() {
+		const main = document.getElementById("main-content");
+		const panel = main ? main.querySelector("[data-panel]") : null;
+		const kind = panel ? panel.getAttribute("data-panel") : "";
+		if (kind === "iam" || (kind && kind.startsWith("iam-")) || (kind && kind.startsWith("settings"))) {
+			main.innerHTML =
+				'<section class="shell__welcome"><h1 class="shell__welcome-title">Welcome</h1>' +
+				'<p class="shell__welcome-text">Select a section from the navigation to get started. See <strong>Brewery 101</strong> for the recipe-to-delivery pipeline.</p>' +
+				'<p class="shell__welcome-text">Admin accounts: open your profile menu (avatar) and turn on <strong>Admin mode</strong> to unlock Economy, IAM, and Settings.</p></section>';
+			history.replaceState(null, "", "/");
+		}
+	}
+
+	async function setElevated(elevated) {
+		const res = await fetch("/api/session/elevate", {
+			method: "POST",
+			headers: authHeaders(),
+			body: JSON.stringify({ elevated: !!elevated }),
+		});
+		const data = await res.json().catch(() => ({}));
+		if (!res.ok) {
+			throw new Error(data.error || "Could not change admin mode");
+		}
+		sessionStorage.setItem("brewhouse_token", data.token);
+		if (data.role) {
+			sessionStorage.setItem("brewhouse_role", data.role);
+		}
+		sessionStorage.setItem("brewhouse_can_elevate", data.can_elevate ? "1" : "0");
+		applyNavVisibility(data.role);
+		syncAdminToggle();
+		if (!elevated) {
+			leaveAdminOnlyPageIfNeeded();
+		}
+	}
+
 	async function openProfileDialog() {
 		setProfileMenuOpen(false);
 		profileError.hidden = true;
 		profileForm.password.value = "";
+		profileForm.password_confirm.value = "";
 		try {
 			const res = await fetch("/api/me", { headers: authHeaders() });
 			const data = await res.json().catch(() => ({}));
@@ -240,6 +299,19 @@
 		});
 	}
 
+	if (profileAdminToggle) {
+		profileAdminToggle.addEventListener("change", async () => {
+			const want = profileAdminToggle.checked;
+			try {
+				await setElevated(want);
+				setProfileMenuOpen(false);
+			} catch (err) {
+				profileAdminToggle.checked = !want;
+				alert(err.message || "Could not change admin mode");
+			}
+		});
+	}
+
 	document.addEventListener("click", (event) => {
 		if (!profileWrap || profileMenu.hidden) {
 			return;
@@ -266,6 +338,13 @@
 			profileError.hidden = true;
 			const email = profileForm.email.value.trim();
 			const password = profileForm.password.value;
+			const passwordConfirm = profileForm.password_confirm.value;
+			if (password !== passwordConfirm) {
+				profileError.hidden = false;
+				profileError.textContent = "Passwords do not match";
+				profileDialog.showModal();
+				return;
+			}
 			const body = { email };
 			if (password) {
 				body.password = password;
@@ -284,6 +363,7 @@
 					return;
 				}
 				profileForm.password.value = "";
+				profileForm.password_confirm.value = "";
 			} catch (err) {
 				profileError.hidden = false;
 				profileError.textContent = "Could not reach the server";
@@ -371,6 +451,7 @@
 				if (data.role) {
 					sessionStorage.setItem("brewhouse_role", data.role);
 				}
+				sessionStorage.setItem("brewhouse_can_elevate", data.can_elevate ? "1" : "0");
 				showLoginSuccess(data.username);
 			} catch (err) {
 				console.error("Login request failed:", err);

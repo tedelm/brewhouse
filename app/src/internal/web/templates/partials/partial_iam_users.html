@@ -1,0 +1,73 @@
+<section class="panel" data-panel="iam-users">
+	<header class="panel__header">
+		<h1 class="panel__title">Users</h1>
+		<p class="panel__lead">Create and edit users (user, superuser, admin). Optionally attach a brewery when creating a user.</p>
+	</header>
+	<div class="panel__toolbar">
+		<button type="button" class="btn" data-action="iam-users-refresh">Refresh</button>
+		<button type="button" class="btn btn--primary" data-action="iam-user-new">New user</button>
+	</div>
+	<div class="panel__body" id="iam-users">Loading…</div>
+	<dialog class="panel__dialog" id="iam-user-dialog">
+		<form method="dialog" class="panel__form" id="iam-user-form">
+			<h2>User</h2>
+			<label>Username <input name="username" required autocomplete="username"></label>
+			<label>Password <input name="password" type="password" required autocomplete="new-password"></label>
+			<label>Email <input name="email" type="email" required autocomplete="email"></label>
+			<label>Role
+				<select name="role" required>
+					<option value="user">user</option>
+					<option value="superuser">superuser</option>
+					<option value="admin">admin</option>
+				</select>
+			</label>
+			<label>Brewery
+				<select name="brewery_id">
+					<option value="">None</option>
+				</select>
+			</label>
+			<div class="panel__dialog-actions">
+				<button type="submit" class="btn btn--primary" value="save">Save</button>
+				<button type="submit" class="btn" value="cancel" formnovalidate>Cancel</button>
+			</div>
+		</form>
+	</dialog>
+	<dialog class="panel__dialog" id="iam-edit-user-dialog">
+		<form method="dialog" class="panel__form" id="iam-edit-user-form">
+			<h2>Edit user</h2>
+			<input type="hidden" name="user_id">
+			<label>Username <input name="username" required autocomplete="username"></label>
+			<label>Email <input name="email" type="email" required autocomplete="email"></label>
+			<label>Role
+				<select name="role" required>
+					<option value="user">user</option>
+					<option value="superuser">superuser</option>
+					<option value="admin">admin</option>
+				</select>
+			</label>
+			<p class="panel__lead" id="iam-edit-role-hint" hidden>You cannot change your own role away from admin.</p>
+			<div class="panel__dialog-actions">
+				<button type="submit" class="btn btn--primary" value="save">Save</button>
+				<button type="submit" class="btn" value="cancel" formnovalidate>Cancel</button>
+			</div>
+		</form>
+	</dialog>
+	<dialog class="panel__dialog" id="iam-reset-password-dialog">
+		<form method="dialog" class="panel__form" id="iam-reset-password-form">
+			<h2>Reset password</h2>
+			<input type="hidden" name="user_id">
+			<input type="hidden" name="email">
+			<input type="hidden" name="role">
+			<label>Username
+				<input name="username" readonly>
+			</label>
+			<label>New password
+				<input name="password" type="password" required autocomplete="new-password">
+			</label>
+			<div class="panel__dialog-actions">
+				<button type="submit" class="btn btn--primary" value="save">Save</button>
+				<button type="submit" class="btn" value="cancel" formnovalidate>Cancel</button>
+			</div>
+		</form>
+	</dialog>
+</section>

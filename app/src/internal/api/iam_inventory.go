@@ -195,7 +195,7 @@ func (h *Handler) Breweries(w http.ResponseWriter, r *http.Request) {
 				writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid body"})
 				return
 			}
-			b, err := h.breweries.Update(actor, id, req.Name, req.ContactName, req.ContactEmail, req.ContactPhone)
+			b, err := h.breweries.Update(actor, id, req.Name, req.ContactName, req.ContactEmail, req.ContactPhone, req.BreweryAdminUserID)
 			if err != nil {
 				h.writeErr(w, err)
 				return
@@ -483,10 +483,24 @@ func (h *Handler) inventoryOrders(w http.ResponseWriter, r *http.Request, actor 
 				writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid body"})
 				return
 			}
-			order, err := h.inventory.UpdateOrderLineOrderedQty(actor, id, lineID, req.OrderedQty)
-			if err != nil {
-				h.writeErr(w, err)
+			if req.Link == nil && req.OrderedQty == nil {
+				writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "ordered_qty or link required"})
 				return
+			}
+			var order *service.InventoryOrder
+			if req.Link != nil {
+				order, err = h.inventory.UpdateOrderLineProductLink(actor, id, lineID, *req.Link)
+				if err != nil {
+					h.writeErr(w, err)
+					return
+				}
+			}
+			if req.OrderedQty != nil {
+				order, err = h.inventory.UpdateOrderLineOrderedQty(actor, id, lineID, *req.OrderedQty)
+				if err != nil {
+					h.writeErr(w, err)
+					return
+				}
 			}
 			writeJSON(w, http.StatusOK, order)
 			return

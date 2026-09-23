@@ -92,9 +92,9 @@ func (s *AccessService) CanManageInventory(actor Actor) (bool, error) {
 	return n > 0, nil
 }
 
-// CanManageEconomy reports economy/tax access.
+// CanManageEconomy reports economy/tax write access (global admin only).
 func (s *AccessService) CanManageEconomy(actor Actor) (bool, error) {
-	return s.CanManageInventory(actor)
+	return actor.IsAdmin(), nil
 }
 
 // RequireBreweryAccess returns ErrForbidden if the actor cannot access the brewery.

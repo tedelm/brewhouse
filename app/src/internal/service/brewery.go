@@ -100,14 +100,17 @@ func (s *BreweryService) Create(actor Actor, name, contactName, contactEmail, co
 	return s.Get(actor, id)
 }
 
-// Update updates brewery contact fields.
-func (s *BreweryService) Update(actor Actor, id int64, name, contactName, contactEmail, contactPhone string) (*Brewery, error) {
+// Update updates brewery fields. Optionally assigns brewery_admin when breweryAdminUserID > 0.
+func (s *BreweryService) Update(actor Actor, id int64, name, contactName, contactEmail, contactPhone string, breweryAdminUserID *int64) (*Brewery, error) {
 	ok, err := s.access.CanManageBrewery(actor, id)
 	if err != nil {
 		return nil, err
 	}
 	if !ok {
 		return nil, ErrForbidden
+	}
+	if name == "" {
+		return nil, fmt.Errorf("name required")
 	}
 	_, err = s.db.Exec(
 		`UPDATE breweries SET name = ?, contact_name = ?, contact_email = ?, contact_phone = ? WHERE id = ?`,
@@ -116,13 +119,29 @@ func (s *BreweryService) Update(actor Actor, id int64, name, contactName, contac
 	if err != nil {
 		return nil, fmt.Errorf("update brewery: %w", err)
 	}
+	if breweryAdminUserID != nil && *breweryAdminUserID > 0 {
+		if err := s.addMemberTx(nil, *breweryAdminUserID, id, RoleBreweryAdmin); err != nil {
+			return nil, err
+		}
+	}
 	return s.Get(actor, id)
 }
 
-// Delete removes a brewery. Admin only.
+// Delete removes a brewery. Admin only. Refuses if any delivered batches exist.
 func (s *BreweryService) Delete(actor Actor, id int64) error {
 	if !actor.IsAdmin() {
 		return ErrForbidden
+	}
+	var delivered int
+	err := s.db.QueryRow(
+		`SELECT COUNT(*) FROM recipes WHERE brewery_id = ? AND status = ?`,
+		id, StatusDelivered,
+	).Scan(&delivered)
+	if err != nil {
+		return fmt.Errorf("count delivered recipes: %w", err)
+	}
+	if delivered > 0 {
+		return fmt.Errorf("brewery has delivered batches: %w", ErrConflict)
 	}
 	res, err := s.db.Exec(`DELETE FROM breweries WHERE id = ?`, id)
 	if err != nil {

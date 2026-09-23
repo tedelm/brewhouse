@@ -1,0 +1,32 @@
+<section class="panel" data-panel="settings-brand">
+	<header class="panel__header">
+		<h1 class="panel__title">Brand</h1>
+		<p class="panel__lead">Upload logo and favicon used on splash, login, and the sidebar.</p>
+	</header>
+	<div class="panel__form brand-settings">
+		<div class="brand-settings__block">
+			<p class="panel__lead">Logo — max 300×300 px, 500 KB (PNG, JPEG, GIF)</p>
+			<img class="brand-settings__preview" id="settings-logo-preview" src="/logo" alt="Logo preview" width="120" height="120">
+			<label>Upload logo
+				<input id="settings-logo-file" type="file" accept="image/png,image/jpeg,image/gif">
+			</label>
+			<div class="panel__toolbar">
+				<button type="button" class="btn btn--primary" data-action="settings-logo-upload">Upload</button>
+				<button type="button" class="btn" data-action="settings-logo-reset">Reset to default</button>
+			</div>
+			<p class="panel__error" id="settings-logo-error" hidden></p>
+		</div>
+		<div class="brand-settings__block">
+			<p class="panel__lead">Favicon — max 16×16 px, 500 KB (PNG, JPEG, GIF)</p>
+			<img class="brand-settings__preview brand-settings__preview--favicon" id="settings-favicon-preview" src="/favicon" alt="Favicon preview" width="16" height="16">
+			<label>Upload favicon
+				<input id="settings-favicon-file" type="file" accept="image/png,image/jpeg,image/gif">
+			</label>
+			<div class="panel__toolbar">
+				<button type="button" class="btn btn--primary" data-action="settings-favicon-upload">Upload</button>
+				<button type="button" class="btn" data-action="settings-favicon-reset">Reset to default</button>
+			</div>
+			<p class="panel__error" id="settings-favicon-error" hidden></p>
+		</div>
+	</div>
+</section>
