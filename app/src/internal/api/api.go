@@ -216,7 +216,7 @@ func (h *Handler) Logo(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
 		return
 	}
-	h.serveBrandImage(w, h.settings.GetLogo, "images/minus1_logo_white_small.png", "image/png")
+	h.serveBrandImage(w, h.settings.GetLogo, "images/cb.png", "image/png")
 }
 
 // Favicon serves the app favicon (public).
@@ -225,7 +225,7 @@ func (h *Handler) Favicon(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
 		return
 	}
-	h.serveBrandImage(w, h.settings.GetFavicon, "images/favico.png", "image/png")
+	h.serveBrandImage(w, h.settings.GetFavicon, "images/favico_cb.png", "image/png")
 }
 
 func (h *Handler) serveBrandImage(

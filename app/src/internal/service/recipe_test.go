@@ -182,8 +182,14 @@ func TestSchedule_BookingConflict(t *testing.T) {
 	err = schedule.Book(admin, service.BookRequest{
 		RecipeID: r2.Recipe.ID, Date: "2030-01-15", TankID: tank.ID, TankDays: 7,
 	})
-	if err != service.ErrConflict {
+	if !errors.Is(err, service.ErrConflict) {
 		t.Fatalf("expected conflict, got %v", err)
+	}
+	msg := err.Error()
+	for _, want := range []string{"brew day", "2030-01-15", "B3", "A"} {
+		if !strings.Contains(msg, want) {
+			t.Fatalf("expected message to contain %q, got %q", want, msg)
+		}
 	}
 }
 
@@ -200,6 +206,11 @@ func TestSchedule_TankConflictDetails(t *testing.T) {
 	if err != nil {
 		t.Fatalf("tank: %v", err)
 	}
+	freeTank, err := settings.CreateTank(admin, "FVFree", 1000)
+	if err != nil {
+		t.Fatalf("free tank: %v", err)
+	}
+	_ = freeTank
 
 	r1, err := recipes.Create(admin, brewery.ID, "Occupying Batch", []service.IngredientInput{{InventoryItemID: item.ID, Qty: 1}})
 	if err != nil {
@@ -224,10 +235,57 @@ func TestSchedule_TankConflictDetails(t *testing.T) {
 		t.Fatalf("expected ErrConflict, got %v", err)
 	}
 	msg := err.Error()
-	for _, want := range []string{"Conflict Brewery", "Occupying Batch", "2030-07-01", "2030-07-14"} {
+	for _, want := range []string{
+		"FVConflict",
+		"Conflict Brewery",
+		"Occupying Batch",
+		"2030-07-01",
+		"2030-07-14",
+		"Available fermenters: FVFree",
+	} {
 		if !strings.Contains(msg, want) {
 			t.Fatalf("expected message to contain %q, got %q", want, msg)
 		}
+	}
+}
+
+func TestSchedule_TankConflictNoAlternatives(t *testing.T) {
+	_, users, breweries, inventory, settings, recipes, schedule := testDB(t)
+	if err := users.EnsureDemoUser(); err != nil {
+		t.Fatalf("demo: %v", err)
+	}
+	u, _ := users.Authenticate("demo", "demo")
+	admin := service.Actor{UserID: u.ID, Role: service.RoleAdmin}
+	brewery, _ := breweries.Create(admin, "Solo Brewery", "", "", "", nil)
+	item, _ := inventory.Create(admin, service.InventoryItem{Category: service.CategoryYeast, Name: "US-05", Unit: "pack", Qty: 5, CostPrice: 30})
+	tank, err := settings.CreateTank(admin, "OnlyFV", 1000)
+	if err != nil {
+		t.Fatalf("tank: %v", err)
+	}
+
+	r1, err := recipes.Create(admin, brewery.ID, "First", []service.IngredientInput{{InventoryItemID: item.ID, Qty: 1}})
+	if err != nil {
+		t.Fatalf("r1: %v", err)
+	}
+	r2, err := recipes.Create(admin, brewery.ID, "Second", []service.IngredientInput{{InventoryItemID: item.ID, Qty: 1}})
+	if err != nil {
+		t.Fatalf("r2: %v", err)
+	}
+
+	if err := schedule.Book(admin, service.BookRequest{
+		RecipeID: r1.Recipe.ID, Date: "2030-08-01", TankID: tank.ID, TankDays: 14,
+	}); err != nil {
+		t.Fatalf("book1: %v", err)
+	}
+	err = schedule.Book(admin, service.BookRequest{
+		RecipeID: r2.Recipe.ID, Date: "2030-08-05", TankID: tank.ID, TankDays: 7,
+	})
+	if !errors.Is(err, service.ErrConflict) {
+		t.Fatalf("expected ErrConflict, got %v", err)
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "No other fermenters are free for that period.") {
+		t.Fatalf("expected no-alternatives message, got %q", msg)
 	}
 }
 
