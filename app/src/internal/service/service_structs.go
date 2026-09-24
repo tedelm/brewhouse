@@ -10,12 +10,12 @@ const (
 
 // Recipe status constants.
 const (
-	StatusCreated           = "created"
-	StatusScheduled         = "scheduled"
-	StatusBrewday           = "brewday"
-	StatusHygieneDone       = "hygiene_done"
-	StatusReadyForDelivery  = "ready_for_delivery"
-	StatusDelivered         = "delivered"
+	StatusCreated          = "created"
+	StatusScheduled        = "scheduled"
+	StatusBrewday          = "brewday"
+	StatusHygieneDone      = "hygiene_done"
+	StatusReadyForDelivery = "ready_for_delivery"
+	StatusDelivered        = "delivered"
 )
 
 // Inventory category constants.
@@ -26,9 +26,18 @@ const (
 	CategoryMisc  = "misc"
 )
 
+// Ingredient fulfillment status for a recipe or line.
+const (
+	IngredientStatusOK        = "ok"
+	IngredientStatusPartial   = "partial"
+	IngredientStatusShort     = "short"
+	IngredientStatusCompleted = "completed"
+)
+
 // Inventory order status constants.
 const (
 	OrderStatusPlanning  = "planning"
+	OrderStatusPaused    = "paused"
 	OrderStatusOrdered   = "ordered"
 	OrderStatusCompleted = "completed"
 )
@@ -146,6 +155,11 @@ type BrandImageMeta struct {
 	Configured bool `json:"configured"`
 }
 
+// BrandColorConfig holds the welcome logo backdrop color.
+type BrandColorConfig struct {
+	LogoBgHex string `json:"logo_bg_hex"`
+}
+
 // PriceMultiplier scales (cost+tax) to net price.
 type PriceMultiplier struct {
 	ID         int64   `json:"id"`
@@ -177,26 +191,27 @@ type RecipeIngredient struct {
 
 // Recipe is a one-shot brew/batch.
 type Recipe struct {
-	ID              int64              `json:"id"`
-	BreweryID       int64              `json:"brewery_id"`
-	BreweryName     string             `json:"brewery_name,omitempty"`
-	Name            string             `json:"name"`
-	Status          string             `json:"status"`
-	BookedDate      *string            `json:"booked_date,omitempty"`
-	TankID          *int64             `json:"tank_id,omitempty"`
-	OG              *float64           `json:"og,omitempty"`
-	FG              *float64           `json:"fg,omitempty"`
-	BrewVolume      *float64           `json:"brew_volume,omitempty"`
-	DeliveryVolume  *float64           `json:"delivery_volume,omitempty"`
-	Cost            *float64           `json:"cost,omitempty"`
-	Tax             *float64           `json:"tax,omitempty"`
-	Net             *float64           `json:"net,omitempty"`
-	CreatedBy       *int64             `json:"created_by,omitempty"`
-	CreatedAt       string             `json:"created_at"`
-	DeliveredAt     *string            `json:"delivered_at,omitempty"`
-	Active          bool               `json:"active"`
-	Ingredients     []RecipeIngredient `json:"ingredients,omitempty"`
-	HygieneComplete bool               `json:"hygiene_complete,omitempty"`
+	ID               int64              `json:"id"`
+	BreweryID        int64              `json:"brewery_id"`
+	BreweryName      string             `json:"brewery_name,omitempty"`
+	Name             string             `json:"name"`
+	Status           string             `json:"status"`
+	BookedDate       *string            `json:"booked_date,omitempty"`
+	TankID           *int64             `json:"tank_id,omitempty"`
+	OG               *float64           `json:"og,omitempty"`
+	FG               *float64           `json:"fg,omitempty"`
+	BrewVolume       *float64           `json:"brew_volume,omitempty"`
+	DeliveryVolume   *float64           `json:"delivery_volume,omitempty"`
+	Cost             *float64           `json:"cost,omitempty"`
+	Tax              *float64           `json:"tax,omitempty"`
+	Net              *float64           `json:"net,omitempty"`
+	CreatedBy        *int64             `json:"created_by,omitempty"`
+	CreatedAt        string             `json:"created_at"`
+	DeliveredAt      *string            `json:"delivered_at,omitempty"`
+	Active           bool               `json:"active"`
+	Ingredients      []RecipeIngredient `json:"ingredients,omitempty"`
+	IngredientStatus string             `json:"ingredient_status,omitempty"`
+	HygieneComplete  bool               `json:"hygiene_complete,omitempty"`
 }
 
 // IngredientInput is a requested amount for recipe create/update.

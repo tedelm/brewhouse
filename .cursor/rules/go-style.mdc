@@ -74,6 +74,7 @@ Brewhouse a single Go application under `app/src` (module path **`brewhouse`**).
 - Use **Go-compiled WASM** for richer client behavior that belongs in Go.
 - **WASM versioning (required):** the server exposes an app/build version (from config or build metadata). The WASM loader (or a small JS/HTMX hook) compares the locally loaded version against the server version on relevant navigation and/or periodically. When the server version is newer, **reload the WASM (or the full page)** so long-lived tabs never stay on a stale binary. Do **not** rely on browser cache alone.
 - HTML layout: sidebar (Main navigation, minimizable drawer) + topbar (with profile icon on right), should be optimized for mobile devices (small screen)
+- Use web modal for pop ups, never use the native web browser popup confirmation dialog.
 
 ## Layers
 

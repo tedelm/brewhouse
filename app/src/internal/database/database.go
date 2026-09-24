@@ -116,6 +116,10 @@ func migrate(db *sql.DB) error {
 			content_type TEXT NOT NULL,
 			data BLOB NOT NULL
 		)`,
+		`CREATE TABLE IF NOT EXISTS brand_config (
+			id INTEGER PRIMARY KEY CHECK (id = 1),
+			logo_bg_hex TEXT NOT NULL
+		)`,
 		`CREATE TABLE IF NOT EXISTS price_multipliers (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			name TEXT NOT NULL UNIQUE,
@@ -439,6 +443,17 @@ func seedDefaults(db *sql.DB) error {
 		`UPDATE beer_price_config SET min_net_sek_per_liter = 55 WHERE id = 1 AND min_net_sek_per_liter = 0`,
 	); err != nil {
 		return err
+	}
+
+	if err := db.QueryRow(`SELECT COUNT(*) FROM brand_config`).Scan(&count); err != nil {
+		return err
+	}
+	if count == 0 {
+		if _, err := db.Exec(
+			`INSERT INTO brand_config (id, logo_bg_hex) VALUES (1, '#6c704a')`,
+		); err != nil {
+			return err
+		}
 	}
 
 	if _, err := db.Exec(

@@ -60,6 +60,9 @@ func (s *RecipeService) List(actor Actor, breweryID int64, includeHidden bool) (
 	if err := s.attachBreweryNames(out); err != nil {
 		return nil, err
 	}
+	if err := s.attachIngredientsStatus(out); err != nil {
+		return nil, err
+	}
 	return out, nil
 }
 
@@ -105,6 +108,60 @@ func (s *RecipeService) attachBreweryNames(recipes []Recipe) error {
 		recipes[i].BreweryName = names[recipes[i].BreweryID]
 	}
 	return nil
+}
+
+func (s *RecipeService) attachIngredientsStatus(recipes []Recipe) error {
+	for i := range recipes {
+		ings, err := s.loadIngredients(recipes[i].ID)
+		if err != nil {
+			return err
+		}
+		recipes[i].Ingredients = ings
+		recipes[i].IngredientStatus = IngredientStatusForRecipe(recipes[i].Status, ings)
+	}
+	return nil
+}
+
+// IngredientStatusForRecipe derives fulfillment from recipe batch status and lines.
+// Brewday and later always report completed (ingredients already used).
+func IngredientStatusForRecipe(status string, ings []RecipeIngredient) string {
+	switch status {
+	case StatusBrewday, StatusHygieneDone, StatusReadyForDelivery, StatusDelivered:
+		return IngredientStatusCompleted
+	}
+	return IngredientStatusFor(ings)
+}
+
+// IngredientStatusFor derives aggregate fulfillment from recipe ingredient lines.
+func IngredientStatusFor(ings []RecipeIngredient) string {
+	hasShort := false
+	anyCheckedOut := false
+	for _, ing := range ings {
+		if ing.CheckedOut > 0 {
+			anyCheckedOut = true
+		}
+		if ing.CheckedOut < ing.Qty {
+			hasShort = true
+		}
+	}
+	if !hasShort {
+		return IngredientStatusOK
+	}
+	if anyCheckedOut {
+		return IngredientStatusPartial
+	}
+	return IngredientStatusShort
+}
+
+// IngredientLineStatus derives fulfillment for a single ingredient line.
+func IngredientLineStatus(qty, checkedOut float64) string {
+	if checkedOut >= qty {
+		return IngredientStatusOK
+	}
+	if checkedOut > 0 {
+		return IngredientStatusPartial
+	}
+	return IngredientStatusShort
 }
 
 type scannable interface {
@@ -189,6 +246,7 @@ func (s *RecipeService) Get(actor Actor, id int64) (*Recipe, error) {
 		return nil, err
 	}
 	r.Ingredients = ings
+	r.IngredientStatus = IngredientStatusForRecipe(r.Status, ings)
 	return r, nil
 }
 

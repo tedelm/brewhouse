@@ -9,6 +9,7 @@ import (
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
+	"strings"
 )
 
 // SettingsService manages tanks, tax tiers, multipliers, and hygiene routines.
@@ -696,4 +697,68 @@ func validateBrandImage(contentType string, data []byte, maxW, maxH int) error {
 		return fmt.Errorf("image must be at most %dx%d px", maxW, maxH)
 	}
 	return nil
+}
+
+const defaultLogoBgHex = "#6c704a"
+
+// GetLogoBgColor returns the welcome logo backdrop hex color.
+func (s *SettingsService) GetLogoBgColor() (string, error) {
+	var hex string
+	err := s.db.QueryRow(`SELECT logo_bg_hex FROM brand_config WHERE id = 1`).Scan(&hex)
+	if errors.Is(err, sql.ErrNoRows) {
+		return defaultLogoBgHex, nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("get logo bg color: %w", err)
+	}
+	if hex == "" {
+		return defaultLogoBgHex, nil
+	}
+	return hex, nil
+}
+
+// SetLogoBgColor stores the welcome logo backdrop color (admin only).
+// Empty hex resets to the default.
+func (s *SettingsService) SetLogoBgColor(actor Actor, hex string) (string, error) {
+	if err := s.requireAdmin(actor); err != nil {
+		return "", err
+	}
+	hex = strings.TrimSpace(hex)
+	if hex == "" {
+		hex = defaultLogoBgHex
+	} else {
+		normalized, err := normalizeHexColor(hex)
+		if err != nil {
+			return "", err
+		}
+		hex = normalized
+	}
+	_, err := s.db.Exec(
+		`INSERT INTO brand_config (id, logo_bg_hex) VALUES (1, ?)
+		 ON CONFLICT(id) DO UPDATE SET logo_bg_hex = excluded.logo_bg_hex`,
+		hex,
+	)
+	if err != nil {
+		return "", fmt.Errorf("set logo bg color: %w", err)
+	}
+	return hex, nil
+}
+
+func normalizeHexColor(hex string) (string, error) {
+	if len(hex) == 0 || hex[0] != '#' {
+		return "", fmt.Errorf("color must be #RRGGBB")
+	}
+	body := hex[1:]
+	if len(body) != 6 {
+		return "", fmt.Errorf("color must be #RRGGBB")
+	}
+	for i := 0; i < len(body); i++ {
+		c := body[i]
+		switch {
+		case c >= '0' && c <= '9', c >= 'a' && c <= 'f', c >= 'A' && c <= 'F':
+		default:
+			return "", fmt.Errorf("color must be #RRGGBB")
+		}
+	}
+	return "#" + strings.ToLower(body), nil
 }

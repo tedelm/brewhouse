@@ -383,7 +383,7 @@ func (s *InventoryService) UpdateOrderNotes(actor Actor, orderID int64, notes st
 	return s.UpdateOrder(actor, orderID, &notes, nil)
 }
 
-// DeleteOrder deletes an empty order (global admin only).
+// DeleteOrder deletes a non-completed order (global admin only). Lines cascade.
 func (s *InventoryService) DeleteOrder(actor Actor, orderID int64) error {
 	if !actor.IsAdmin() {
 		return ErrForbidden
@@ -392,8 +392,8 @@ func (s *InventoryService) DeleteOrder(actor Actor, orderID int64) error {
 	if err != nil {
 		return err
 	}
-	if len(order.Lines) > 0 {
-		return fmt.Errorf("order has lines")
+	if order.Status == OrderStatusCompleted {
+		return fmt.Errorf("cannot delete completed order")
 	}
 	_, err = s.db.Exec(`DELETE FROM inventory_orders WHERE id = ?`, orderID)
 	if err != nil {
@@ -402,8 +402,30 @@ func (s *InventoryService) DeleteOrder(actor Actor, orderID int64) error {
 	return nil
 }
 
-// SetOrderStatus transitions planning→ordered or ordered→completed (receives stock).
+// SetOrderStatus transitions planning↔paused (admin), planning→ordered, or ordered→completed.
 func (s *InventoryService) SetOrderStatus(actor Actor, orderID int64, status string) (*InventoryOrder, error) {
+	order, err := s.GetOrder(orderID)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+
+	pauseOrResume := (order.Status == OrderStatusPlanning && status == OrderStatusPaused) ||
+		(order.Status == OrderStatusPaused && status == OrderStatusPlanning)
+	if pauseOrResume {
+		if !actor.IsAdmin() {
+			return nil, ErrForbidden
+		}
+		_, err = s.db.Exec(
+			`UPDATE inventory_orders SET status = ?, updated_at = ? WHERE id = ?`,
+			status, now, orderID,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("set status: %w", err)
+		}
+		return s.GetOrder(orderID)
+	}
+
 	ok, err := s.access.CanManageInventory(actor)
 	if err != nil {
 		return nil, err
@@ -411,11 +433,6 @@ func (s *InventoryService) SetOrderStatus(actor Actor, orderID int64, status str
 	if !ok {
 		return nil, ErrForbidden
 	}
-	order, err := s.GetOrder(orderID)
-	if err != nil {
-		return nil, err
-	}
-	now := time.Now().UTC().Format(time.RFC3339)
 	switch {
 	case order.Status == OrderStatusPlanning && status == OrderStatusOrdered:
 		_, err = s.db.Exec(
@@ -697,7 +714,7 @@ func (s *InventoryService) orderLines(orderID int64) ([]InventoryOrderLine, erro
 	return out, rows.Err()
 }
 
-// UpdateOrderLineOrderedQty sets the actual purchase qty on a planning or ordered line.
+// UpdateOrderLineOrderedQty sets the actual purchase qty on a planning, paused, or ordered line.
 func (s *InventoryService) UpdateOrderLineOrderedQty(actor Actor, orderID, lineID int64, orderedQty float64) (*InventoryOrder, error) {
 	ok, err := s.access.CanManageInventory(actor)
 	if err != nil {
@@ -706,14 +723,14 @@ func (s *InventoryService) UpdateOrderLineOrderedQty(actor Actor, orderID, lineI
 	if !ok {
 		return nil, ErrForbidden
 	}
-	if orderedQty <= 0 {
-		return nil, fmt.Errorf("ordered qty must be positive")
+	if orderedQty < 0 {
+		return nil, fmt.Errorf("ordered qty must be zero or positive")
 	}
 	order, err := s.GetOrder(orderID)
 	if err != nil {
 		return nil, err
 	}
-	if order.Status != OrderStatusPlanning && order.Status != OrderStatusOrdered {
+	if order.Status != OrderStatusPlanning && order.Status != OrderStatusOrdered && order.Status != OrderStatusPaused {
 		return nil, fmt.Errorf("order is completed")
 	}
 	var found bool

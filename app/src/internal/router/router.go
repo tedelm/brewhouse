@@ -27,6 +27,7 @@ func New(webHandler *web.Handler, apiHandler *api.Handler, tokens *auth.TokenIss
 
 	protect("/api/me", apiHandler.Me)
 	protect("/api/session/elevate", apiHandler.Elevate)
+	protect("/api/session/refresh", apiHandler.Refresh)
 	protect("/api/users", apiHandler.Users)
 	protect("/api/users/", apiHandler.Users)
 	protect("/api/breweries", apiHandler.Breweries)

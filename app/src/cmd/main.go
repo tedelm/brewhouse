@@ -41,7 +41,7 @@ func main() {
 	recipes := service.NewRecipeService(db, access, inventory, settings)
 	schedule := service.NewScheduleService(db, access)
 
-	tokens := auth.NewTokenIssuer(cfg.JWTSecret, 24*time.Hour)
+	tokens := auth.NewTokenIssuer(cfg.JWTSecret, 10*time.Minute)
 
 	// Initialize web layer
 	webHandler, err := web.New(cfg.AppVersion)

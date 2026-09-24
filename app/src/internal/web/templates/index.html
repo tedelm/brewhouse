@@ -68,7 +68,7 @@
 		<div class="shell-stage">
 			<div class="shell" id="shell">
 				<aside class="shell__sidebar" id="shell-sidebar">
-					<div class="shell__brand">
+					<button type="button" class="shell__brand" id="shell-brand-home" aria-label="Home">
 						<img
 							class="shell__brand-logo"
 							id="shell-brand-logo"
@@ -78,7 +78,7 @@
 							height="36"
 						>
 						<span class="shell__brand-name">Brewhouse</span>
-					</div>
+					</button>
 					<button type="button" class="shell__collapse" id="shell-collapse" aria-label="Collapse navigation" aria-expanded="true">
 						<span class="shell__collapse-icon" aria-hidden="true"></span>
 					</button>
@@ -161,7 +161,10 @@
 				</aside>
 				<div class="shell__main">
 					<header class="shell__topbar">
-						<div class="shell__spacer"></div>
+						<button type="button" class="shell__topbar-brand" id="shell-topbar-brand" aria-label="Home">
+							<img class="shell__brand-logo" src="/logo" alt="" width="36" height="36">
+							<span class="shell__topbar-brand-name">Brewhouse</span>
+						</button>
 						<div class="shell__profile-wrap" id="shell-profile-wrap">
 							<button
 								type="button"
@@ -187,9 +190,15 @@
 					</header>
 					<main class="shell__content" id="main-content">
 						<section class="shell__welcome">
-							<h1 class="shell__welcome-title">Welcome</h1>
-							<p class="shell__welcome-text">Select a section from the navigation to get started. See <strong>Brewery 101</strong> for the recipe-to-delivery pipeline.</p>
-							<p class="shell__welcome-text">Admin accounts: open your profile menu (avatar) and turn on <strong>Admin mode</strong> to unlock Economy, IAM, and Settings.</p>
+							<div class="shell__welcome-logo-wrap">
+								<span class="shell__welcome-logo-bg" aria-hidden="true"></span>
+								<img class="shell__welcome-logo" src="/logo" alt="" width="120" height="120">
+							</div>
+							<p class="shell__welcome-brand">Brewhouse</p>
+							<h1 class="shell__welcome-title">From recipe to the pub</h1>
+							<p class="shell__welcome-text">Pick a section in the navigation, or start with the batch pipeline guide.</p>
+							<a class="btn btn--primary shell__welcome-cta" href="/app/guide" hx-get="/app/guide" hx-target="#main-content" hx-swap="innerHTML">Brewery 101</a>
+							<p class="shell__welcome-tip">Admin accounts: open your profile menu and turn on <strong>Admin mode</strong> for Economy, IAM, and Settings.</p>
 						</section>
 					</main>
 				</div>

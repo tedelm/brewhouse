@@ -6,18 +6,38 @@
 	}
 
 	async function api(path, options = {}) {
-		const headers = Object.assign(
-			{ "Content-Type": "application/json" },
-			options.headers || {},
-			{ Authorization: "Bearer " + token() }
-		);
-		const res = await fetch(path, Object.assign({}, options, { headers }));
-		const text = await res.text();
-		let data = null;
-		try {
-			data = text ? JSON.parse(text) : null;
-		} catch {
-			data = { error: text };
+		if (window.BrewhouseAuth && typeof window.BrewhouseAuth.markActivity === "function") {
+			window.BrewhouseAuth.markActivity();
+		}
+
+		const doFetch = async () => {
+			const headers = Object.assign(
+				{ "Content-Type": "application/json" },
+				options.headers || {},
+				{ Authorization: "Bearer " + token() }
+			);
+			const res = await fetch(path, Object.assign({}, options, { headers }));
+			const text = await res.text();
+			let data = null;
+			try {
+				data = text ? JSON.parse(text) : null;
+			} catch {
+				data = { error: text };
+			}
+			return { res, data };
+		};
+
+		let { res, data } = await doFetch();
+		if (res.status === 401 && path !== "/api/session/refresh") {
+			const auth = window.BrewhouseAuth;
+			if (auth && typeof auth.refreshSession === "function") {
+				const ok = await auth.refreshSession();
+				if (ok) {
+					({ res, data } = await doFetch());
+				} else if (typeof auth.logout === "function") {
+					auth.logout();
+				}
+			}
 		}
 		if (!res.ok) {
 			const err = new Error((data && data.error) || res.statusText);
@@ -127,14 +147,44 @@
 		fieldsEl.innerHTML = fields
 			.map((f) => {
 				const type = f.type || "text";
+				const required = f.required === false ? "" : " required";
+				const label =
+					"<label>" + esc(f.label || f.name) + " ";
+				if (type === "select") {
+					const options = (f.options || [])
+						.map((o) => {
+							const selected =
+								f.value != null && String(f.value) === String(o.value)
+									? " selected"
+									: "";
+							return (
+								'<option value="' +
+								esc(String(o.value)) +
+								'"' +
+								selected +
+								">" +
+								esc(String(o.label != null ? o.label : o.value)) +
+								"</option>"
+							);
+						})
+						.join("");
+					return (
+						label +
+						'<select name="' +
+						esc(f.name) +
+						'"' +
+						required +
+						">" +
+						options +
+						"</select></label>"
+					);
+				}
 				const step = f.step != null ? ' step="' + esc(String(f.step)) + '"' : "";
 				const min = f.min != null ? ' min="' + esc(String(f.min)) + '"' : "";
-				const required = f.required === false ? "" : " required";
 				const value = f.value != null ? esc(String(f.value)) : "";
 				return (
-					"<label>" +
-					esc(f.label || f.name) +
-					' <input name="' +
+					label +
+					'<input name="' +
 					esc(f.name) +
 					'" type="' +
 					esc(type) +
@@ -191,9 +241,27 @@
 	}
 
 	document.body.addEventListener("htmx:configRequest", (event) => {
+		if (window.BrewhouseAuth && typeof window.BrewhouseAuth.markActivity === "function") {
+			window.BrewhouseAuth.markActivity();
+		}
 		const t = token();
 		if (t) {
 			event.detail.headers.Authorization = "Bearer " + t;
+		}
+	});
+
+	document.body.addEventListener("htmx:responseError", async (event) => {
+		const xhr = event.detail.xhr;
+		if (!xhr || xhr.status !== 401) {
+			return;
+		}
+		const auth = window.BrewhouseAuth;
+		if (!auth || typeof auth.refreshSession !== "function") {
+			return;
+		}
+		const ok = await auth.refreshSession();
+		if (!ok && typeof auth.logout === "function") {
+			auth.logout();
 		}
 	});
 
@@ -317,59 +385,140 @@
 					list.innerHTML = "<p class=\"panel__empty\">No recipes yet.</p>";
 					return;
 				}
-				list.innerHTML = table(
-					["ID", "Name", "Brewery", "Status", "Actions"],
-					recipes
-						.map((r) => {
-							let actions = "";
-							if (editableStatus(r.status)) {
-								actions +=
-									'<button type="button" class="btn btn--small" data-edit-recipe="' +
-									r.id +
-									'">Edit</button> ';
-								actions +=
-									'<button type="button" class="btn btn--small" data-del-recipe="' +
-									r.id +
-									'">Delete</button>';
-							}
-							if (r.status === "delivered" && r.active !== false) {
-								actions +=
-									' <button type="button" class="btn btn--small" data-hide-recipe="' +
-									r.id +
-									'">Hide</button>';
-							}
-							if (r.status === "delivered" && r.active === false) {
-								actions +=
-									' <button type="button" class="btn btn--small" data-unhide-recipe="' +
-									r.id +
-									'">Unhide</button>';
-							}
-							if (r.status === "ready_for_delivery") {
-								actions +=
-									' <button type="button" class="btn btn--small" data-deliver="' +
-									r.id +
-									'">Deliver</button>';
-							}
-							const statusLabel =
-								r.status === "delivered" && r.active === false
-									? "delivered (hidden)"
-									: r.status;
+				function ingredientsUsed(status) {
+					return (
+						status === "brewday" ||
+						status === "hygiene_done" ||
+						status === "ready_for_delivery" ||
+						status === "delivered"
+					);
+				}
+				function lineStatus(ing, recipeStatus) {
+					if (ingredientsUsed(recipeStatus)) {
+						return "completed";
+					}
+					const need = Number(ing.qty) || 0;
+					const taken = Number(ing.checked_out) || 0;
+					if (taken >= need) {
+						return "ok";
+					}
+					if (taken > 0) {
+						return "partial";
+					}
+					return "short";
+				}
+				function statusChip(status) {
+					const s = status || "ok";
+					return (
+						'<span class="ingredient-status ingredient-status--' +
+						esc(s) +
+						'">' +
+						esc(s) +
+						"</span>"
+					);
+				}
+				function renderIngDetail(r) {
+					const ings = r.ingredients || [];
+					if (!ings.length) {
+						return '<p class="panel__empty">No ingredients reserved.</p>';
+					}
+					const rows = ings
+						.map((ing) => {
+							const unit = ing.unit ? " " + esc(ing.unit) : "";
 							return (
 								"<tr><td>" +
-								r.id +
+								esc(ing.item_name || "") +
 								"</td><td>" +
-								esc(r.name) +
+								esc(ing.category || "") +
 								"</td><td>" +
-								esc(r.brewery_name || String(r.brewery_id)) +
+								(ing.qty ?? "") +
+								unit +
 								"</td><td>" +
-								esc(statusLabel) +
+								(ing.checked_out ?? "") +
+								unit +
 								"</td><td>" +
-								actions +
+								statusChip(lineStatus(ing, r.status)) +
 								"</td></tr>"
 							);
 						})
-						.join("")
-				);
+						.join("");
+					return (
+						'<table class="data-table data-table--nested"><thead><tr>' +
+						"<th>Ingredient</th><th>Category</th><th>Need</th><th>Checked out</th><th>Status</th>" +
+						"</tr></thead><tbody>" +
+						rows +
+						"</tbody></table>"
+					);
+				}
+				const body = recipes
+					.map((r) => {
+						let actions = "";
+						if (editableStatus(r.status)) {
+							actions +=
+								'<button type="button" class="btn btn--small" data-edit-recipe="' +
+								r.id +
+								'">Edit</button> ';
+							actions +=
+								'<button type="button" class="btn btn--small" data-del-recipe="' +
+								r.id +
+								'">Delete</button>';
+						}
+						if (r.status === "delivered" && r.active !== false) {
+							actions +=
+								' <button type="button" class="btn btn--small" data-hide-recipe="' +
+								r.id +
+								'">Hide</button>';
+						}
+						if (r.status === "delivered" && r.active === false) {
+							actions +=
+								' <button type="button" class="btn btn--small" data-unhide-recipe="' +
+								r.id +
+								'">Unhide</button>';
+						}
+						if (r.status === "ready_for_delivery") {
+							actions +=
+								' <button type="button" class="btn btn--small" data-deliver="' +
+								r.id +
+								'">Deliver</button>';
+						}
+						const statusLabel =
+							r.status === "delivered" && r.active === false
+								? "delivered (hidden)"
+								: r.status;
+						const ingStatus = r.ingredient_status || "ok";
+						const main =
+							'<tr class="recipe-row" data-recipe-id="' +
+							r.id +
+							'"><td>' +
+							r.id +
+							"</td><td>" +
+							esc(r.name) +
+							"</td><td>" +
+							esc(r.brewery_name || String(r.brewery_id)) +
+							"</td><td>" +
+							esc(statusLabel) +
+							'</td><td><button type="button" class="ingredient-status-btn" data-toggle-ingredients="' +
+							r.id +
+							'" aria-expanded="false">' +
+							statusChip(ingStatus) +
+							' <span class="ingredient-status-btn__chevron" aria-hidden="true">▸</span></button></td><td>' +
+							actions +
+							"</td></tr>";
+						const detail =
+							'<tr class="recipe-ings-detail" data-ings-for="' +
+							r.id +
+							'" hidden><td colspan="6">' +
+							renderIngDetail(r) +
+							"</td></tr>";
+						return main + detail;
+					})
+					.join("");
+				list.innerHTML =
+					'<div class="table-scroll"><table class="data-table"><thead><tr>' +
+					"<th>ID</th><th>Name</th><th>Brewery</th><th>Status</th><th>Ingredients</th><th>Actions</th>" +
+					"</tr></thead><tbody>" +
+					body +
+					"</tbody></table></div>";
 			} catch (e) {
 				list.textContent = e.message;
 			}
@@ -406,6 +555,25 @@
 			}
 			if (t.getAttribute("data-action") === "recipe-refresh") {
 				refresh();
+			}
+			const toggleBtn = t.closest("[data-toggle-ingredients]");
+			if (toggleBtn) {
+				const id = toggleBtn.getAttribute("data-toggle-ingredients");
+				const detail = list.querySelector('.recipe-ings-detail[data-ings-for="' + id + '"]');
+				const chevron = toggleBtn.querySelector(".ingredient-status-btn__chevron");
+				if (detail) {
+					const open = detail.hasAttribute("hidden");
+					if (open) {
+						detail.removeAttribute("hidden");
+					} else {
+						detail.setAttribute("hidden", "");
+					}
+					toggleBtn.setAttribute("aria-expanded", open ? "true" : "false");
+					if (chevron) {
+						chevron.textContent = open ? "▾" : "▸";
+					}
+				}
+				return;
 			}
 			if (t.getAttribute("data-action") === "recipe-new") {
 				try {
@@ -1122,8 +1290,39 @@
 				}
 				const id = parseInt(t.getAttribute("data-id"), 10);
 				const name = t.getAttribute("data-name") || "item";
+				let planning = [];
+				let breweries = [];
+				try {
+					const [orders, breweryList] = await Promise.all([
+						api("/api/inventory/orders"),
+						api("/api/breweries"),
+					]);
+					planning = (orders || []).filter((o) => o.status === "planning");
+					breweries = breweryList || [];
+				} catch (e) {
+					alert(e.message);
+					return;
+				}
+				const orderOptions = [{ value: "new", label: "Create new order" }].concat(
+					planning.map((o) => {
+						const lineCount = (o.lines || []).length;
+						const notes = String(o.notes || "").trim();
+						const noteBit = notes ? " — " + notes.slice(0, 40) : "";
+						return {
+							value: String(o.id),
+							label: "#" + o.id + noteBit + " (" + lineCount + " lines)",
+						};
+					})
+				);
+				const breweryOptions = [{ value: "", label: "Unassigned" }].concat(
+					breweries.map((b) => ({
+						value: String(b.id),
+						label: b.name || "Brewery #" + b.id,
+					}))
+				);
+				const defaultBrewery = breweries.length ? String(breweries[0].id) : "";
 				const values = await appPrompt({
-					title: "Order qty",
+					title: "Add to order",
 					fields: [
 						{
 							name: "qty",
@@ -1132,6 +1331,26 @@
 							step: "any",
 							min: "0.01",
 							value: "1",
+						},
+						{
+							name: "brewery_id",
+							label: "Brewery",
+							type: "select",
+							options: breweryOptions,
+							value: defaultBrewery,
+						},
+						{
+							name: "order_id",
+							label: "Order",
+							type: "select",
+							options: orderOptions,
+							value: planning.length ? String(planning[0].id) : "new",
+						},
+						{
+							name: "notes",
+							label: "Notes (for new order)",
+							type: "text",
+							required: false,
 						},
 					],
 				});
@@ -1143,14 +1362,32 @@
 					alert("Qty must be positive");
 					return;
 				}
-				api("/api/inventory/orders/planning/lines", {
-					method: "POST",
-					body: JSON.stringify({ inventory_item_id: id, qty }),
-				})
-					.then((order) => {
-						alert("Added to order #" + order.id);
-					})
-					.catch((e) => alert(e.message));
+				const breweryRaw = String(values.brewery_id || "").trim();
+				const breweryID = breweryRaw ? parseInt(breweryRaw, 10) : null;
+				const line = { inventory_item_id: id, qty };
+				if (breweryID) {
+					line.brewery_id = breweryID;
+				}
+				try {
+					let order;
+					if (values.order_id === "new") {
+						order = await api("/api/inventory/orders", {
+							method: "POST",
+							body: JSON.stringify({
+								notes: String(values.notes || "").trim(),
+								lines: [line],
+							}),
+						});
+					} else {
+						order = await api("/api/inventory/orders/" + values.order_id + "/lines", {
+							method: "POST",
+							body: JSON.stringify(line),
+						});
+					}
+					alert("Added to order #" + order.id);
+				} catch (e) {
+					alert(e.message);
+				}
 			}
 		});
 
@@ -1240,7 +1477,10 @@
 				return "<p class=\"panel__empty\">No lines</p>";
 			}
 			const canEditLines =
-				canManage && (order.status === "planning" || order.status === "ordered");
+				canManage &&
+				(order.status === "planning" ||
+					order.status === "ordered" ||
+					order.status === "paused");
 			return groupLinesByBrewery(lines)
 				.map((g) => {
 					const items = g.lines
@@ -1399,7 +1639,6 @@
 				}
 				list.innerHTML = orders
 					.map((o) => {
-						const lineCount = (o.lines || []).length;
 						let actions =
 							'<button type="button" class="btn btn--small" data-action="order-product-links" data-id="' +
 							o.id +
@@ -1421,13 +1660,25 @@
 								o.id +
 								'" data-status="ordered">Mark ordered</button>';
 						}
+						if (isAdmin && o.status === "planning") {
+							actions +=
+								' <button type="button" class="btn btn--small" data-action="order-status" data-id="' +
+								o.id +
+								'" data-status="paused">Pause</button>';
+						}
+						if (isAdmin && o.status === "paused") {
+							actions +=
+								' <button type="button" class="btn btn--small btn--primary" data-action="order-status" data-id="' +
+								o.id +
+								'" data-status="planning">Resume</button>';
+						}
 						if (canManage && o.status === "ordered") {
 							actions +=
 								' <button type="button" class="btn btn--small btn--primary" data-action="order-status" data-id="' +
 								o.id +
 								'" data-status="completed">Mark completed</button>';
 						}
-						if (isAdmin && o.status === "planning" && lineCount === 0) {
+						if (isAdmin && o.status !== "completed") {
 							actions +=
 								' <button type="button" class="btn btn--small" data-action="order-delete" data-id="' +
 								o.id +
@@ -1562,18 +1813,37 @@
 				orderedQtyDialog.showModal();
 			}
 			if (t.getAttribute("data-action") === "order-status") {
-				if (!canManage) {
+				const status = t.getAttribute("data-status");
+				const card = t.closest("[data-order-id]");
+				const currentStatus =
+					card && card.querySelector(".order-status")
+						? card.querySelector(".order-status").textContent.trim()
+						: "";
+				const isPause = status === "paused";
+				const isResume = status === "planning" && currentStatus === "paused";
+				if ((isPause || isResume) && !isAdmin) {
 					return;
 				}
-				const status = t.getAttribute("data-status");
+				if (!isPause && !isResume && !canManage) {
+					return;
+				}
 				confirmForm.elements.namedItem("action").value = "status";
 				confirmForm.elements.namedItem("order_id").value = t.getAttribute("data-id");
 				confirmForm.elements.namedItem("status").value = status;
-				confirmTitle.textContent = status === "completed" ? "Complete order" : "Mark ordered";
-				confirmMessage.textContent =
-					status === "completed"
-						? "Complete and receive stock into inventory?"
-						: "Mark this order as ordered?";
+				if (isPause) {
+					confirmTitle.textContent = "Pause order";
+					confirmMessage.textContent =
+						"Pause this order? No new lines can be added until it is resumed.";
+				} else if (isResume) {
+					confirmTitle.textContent = "Resume order";
+					confirmMessage.textContent = "Resume this order back to planning?";
+				} else if (status === "completed") {
+					confirmTitle.textContent = "Complete order";
+					confirmMessage.textContent = "Complete and receive stock into inventory?";
+				} else {
+					confirmTitle.textContent = "Mark ordered";
+					confirmMessage.textContent = "Mark this order as ordered?";
+				}
 				confirmDialog.showModal();
 			}
 			if (t.getAttribute("data-action") === "order-delete") {
@@ -1584,7 +1854,8 @@
 				confirmForm.elements.namedItem("order_id").value = t.getAttribute("data-id");
 				confirmForm.elements.namedItem("status").value = "";
 				confirmTitle.textContent = "Delete order";
-				confirmMessage.textContent = "Delete this empty order?";
+				confirmMessage.textContent =
+					"Delete this order and all of its lines? This cannot be undone.";
 				confirmDialog.showModal();
 			}
 		});
@@ -1681,8 +1952,8 @@
 			}
 			const fd = new FormData(orderedQtyForm);
 			const orderedQty = parseFloat(fd.get("ordered_qty"));
-			if (!(orderedQty > 0)) {
-				alert("Ordered qty must be positive");
+			if (Number.isNaN(orderedQty) || orderedQty < 0) {
+				alert("Ordered qty must be zero or positive");
 				return;
 			}
 			try {
@@ -2989,6 +3260,23 @@
 		const faviconPreview = panel.querySelector("#settings-favicon-preview");
 		const logoErr = panel.querySelector("#settings-logo-error");
 		const faviconErr = panel.querySelector("#settings-favicon-error");
+		const bgHexInput = panel.querySelector("#settings-logo-bg-hex");
+		const bgPicker = panel.querySelector("#settings-logo-bg-picker");
+		const bgErr = panel.querySelector("#settings-logo-bg-error");
+		const defaultBg = "#6c704a";
+
+		function applyBgLocal(hex) {
+			const color = hex || defaultBg;
+			if (bgHexInput) {
+				bgHexInput.value = color;
+			}
+			if (bgPicker) {
+				bgPicker.value = color;
+			}
+			if (window.BrewhouseAuth && typeof window.BrewhouseAuth.applyWelcomeLogoBg === "function") {
+				window.BrewhouseAuth.applyWelcomeLogoBg(color);
+			}
+		}
 
 		function bustBrand(kind) {
 			const url = "/" + kind + "?t=" + Date.now();
@@ -2996,7 +3284,7 @@
 				if (logoPreview) {
 					logoPreview.src = url;
 				}
-				document.querySelectorAll(".splash__logo, .login__logo, .shell__brand-logo").forEach((img) => {
+				document.querySelectorAll(".splash__logo, .login__logo, .shell__brand-logo, .shell__welcome-logo").forEach((img) => {
 					img.src = url;
 				});
 			} else {
@@ -3048,6 +3336,25 @@
 		bustBrand("logo");
 		bustBrand("favicon");
 
+		try {
+			const cfg = await api("/api/settings/brand-color");
+			applyBgLocal((cfg && cfg.logo_bg_hex) || defaultBg);
+		} catch (e) {
+			applyBgLocal(defaultBg);
+		}
+
+		if (bgHexInput && bgPicker) {
+			bgHexInput.addEventListener("input", () => {
+				const v = bgHexInput.value.trim();
+				if (/^#[0-9A-Fa-f]{6}$/.test(v)) {
+					bgPicker.value = v.toLowerCase();
+				}
+			});
+			bgPicker.addEventListener("input", () => {
+				bgHexInput.value = bgPicker.value;
+			});
+		}
+
 		panel.addEventListener("click", async (ev) => {
 			const t = ev.target;
 			if (!(t instanceof HTMLElement)) {
@@ -3088,6 +3395,30 @@
 				} catch (e) {
 					faviconErr.hidden = false;
 					faviconErr.textContent = e.message;
+				}
+			}
+			if (action === "settings-logo-bg-save") {
+				bgErr.hidden = true;
+				try {
+					const hex = (bgHexInput && bgHexInput.value.trim()) || "";
+					const cfg = await api("/api/settings/brand-color", {
+						method: "PUT",
+						body: JSON.stringify({ logo_bg_hex: hex }),
+					});
+					applyBgLocal((cfg && cfg.logo_bg_hex) || defaultBg);
+				} catch (e) {
+					bgErr.hidden = false;
+					bgErr.textContent = e.message;
+				}
+			}
+			if (action === "settings-logo-bg-reset") {
+				bgErr.hidden = true;
+				try {
+					const cfg = await api("/api/settings/brand-color", { method: "DELETE" });
+					applyBgLocal((cfg && cfg.logo_bg_hex) || defaultBg);
+				} catch (e) {
+					bgErr.hidden = false;
+					bgErr.textContent = e.message;
 				}
 			}
 		});

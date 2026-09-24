@@ -21,6 +21,8 @@
 	const profileDialog = document.getElementById("profile-dialog");
 	const profileForm = document.getElementById("profile-form");
 	const profileError = document.getElementById("profile-error");
+	const brandHome = document.getElementById("shell-brand-home");
+	const topbarBrand = document.getElementById("shell-topbar-brand");
 	const navFab = document.getElementById("shell-nav-fab");
 	const navBackdrop = document.getElementById("shell-nav-backdrop");
 	const navSheet = document.getElementById("shell-nav-sheet");
@@ -30,12 +32,134 @@
 	let barDone = false;
 	let wasmFailed = false;
 
+	const IDLE_MS = 10 * 60 * 1000;
+	const SESSION_CHECK_MS = 60 * 1000;
+	const REFRESH_AGE_MS = 5 * 60 * 1000;
+	const EXPIRING_SOON_MS = 90 * 1000;
+
+	let lastActivity = Date.now();
+	let sessionTimer = null;
+	let refreshInFlight = null;
+
 	function authHeaders() {
 		const token = sessionStorage.getItem("brewhouse_token") || "";
 		return {
 			"Content-Type": "application/json",
 			Authorization: "Bearer " + token,
 		};
+	}
+
+	function markActivity() {
+		lastActivity = Date.now();
+	}
+
+	function parseTokenClaims() {
+		try {
+			const t = sessionStorage.getItem("brewhouse_token") || "";
+			const part = t.split(".")[1];
+			if (!part) {
+				return null;
+			}
+			const padded = part + "=".repeat((4 - (part.length % 4)) % 4);
+			const json = atob(padded.replace(/-/g, "+").replace(/_/g, "/"));
+			return JSON.parse(json);
+		} catch {
+			return null;
+		}
+	}
+
+	function applySessionData(data) {
+		if (!data || !data.token) {
+			return;
+		}
+		sessionStorage.setItem("brewhouse_token", data.token);
+		if (data.user_id != null) {
+			sessionStorage.setItem("brewhouse_user_id", String(data.user_id));
+		}
+		if (data.role) {
+			sessionStorage.setItem("brewhouse_role", data.role);
+		}
+		sessionStorage.setItem("brewhouse_can_elevate", data.can_elevate ? "1" : "0");
+		if (data.username) {
+			sessionStorage.setItem("brewhouse_username", data.username);
+		}
+	}
+
+	async function refreshSession() {
+		if (refreshInFlight) {
+			return refreshInFlight;
+		}
+		const token = sessionStorage.getItem("brewhouse_token");
+		if (!token) {
+			return false;
+		}
+		refreshInFlight = (async () => {
+			try {
+				const res = await fetch("/api/session/refresh", {
+					method: "POST",
+					headers: authHeaders(),
+				});
+				const data = await res.json().catch(() => ({}));
+				if (!res.ok) {
+					return false;
+				}
+				applySessionData(data);
+				applyNavVisibility(data.role);
+				syncAdminToggle();
+				return true;
+			} catch {
+				return false;
+			} finally {
+				refreshInFlight = null;
+			}
+		})();
+		return refreshInFlight;
+	}
+
+	function tickSession() {
+		const token = sessionStorage.getItem("brewhouse_token");
+		if (!token || !app.classList.contains("is-shell")) {
+			return;
+		}
+		const now = Date.now();
+		if (now - lastActivity > IDLE_MS) {
+			logout();
+			return;
+		}
+		const claims = parseTokenClaims();
+		if (!claims || !claims.exp) {
+			logout();
+			return;
+		}
+		const untilExp = claims.exp * 1000 - now;
+		if (untilExp <= 0) {
+			logout();
+			return;
+		}
+		const age = claims.iat ? now - claims.iat * 1000 : REFRESH_AGE_MS;
+		if (age >= REFRESH_AGE_MS || untilExp <= EXPIRING_SOON_MS) {
+			refreshSession().then((ok) => {
+				if (!ok) {
+					logout();
+				}
+			});
+		}
+	}
+
+	function startSessionWatch() {
+		markActivity();
+		if (sessionTimer) {
+			return;
+		}
+		sessionTimer = setInterval(tickSession, SESSION_CHECK_MS);
+	}
+
+	function stopSessionWatch() {
+		if (sessionTimer) {
+			clearInterval(sessionTimer);
+			sessionTimer = null;
+		}
+		refreshInFlight = null;
 	}
 
 	function currentRole() {
@@ -89,6 +213,10 @@
 			return list.map((s) => s.trim().toLowerCase()).includes(r);
 		},
 		applyNavVisibility,
+		applyWelcomeLogoBg,
+		markActivity,
+		refreshSession,
+		logout: () => logout(),
 	};
 
 	function maybeShowLogin() {
@@ -99,8 +227,17 @@
 			const existing = sessionStorage.getItem("brewhouse_token");
 			const username = sessionStorage.getItem("brewhouse_username");
 			if (existing && username) {
-				showShell(username);
-				return;
+				const claims = parseTokenClaims();
+				if (!claims || !claims.exp || claims.exp * 1000 <= Date.now()) {
+					sessionStorage.removeItem("brewhouse_token");
+					sessionStorage.removeItem("brewhouse_username");
+					sessionStorage.removeItem("brewhouse_user_id");
+					sessionStorage.removeItem("brewhouse_role");
+					sessionStorage.removeItem("brewhouse_can_elevate");
+				} else {
+					showShell(username);
+					return;
+				}
 			}
 			app.classList.add("is-login");
 		}
@@ -142,6 +279,27 @@
 		}
 	}
 
+	function applyWelcomeLogoBg(hex) {
+		const color = hex || "#6c704a";
+		if (shell) {
+			shell.style.setProperty("--welcome-logo-bg", color);
+		}
+		document.documentElement.style.setProperty("--welcome-logo-bg", color);
+	}
+
+	async function loadWelcomeLogoBg() {
+		try {
+			const res = await fetch("/api/settings/brand-color", { headers: authHeaders() });
+			const data = await res.json().catch(() => ({}));
+			if (!res.ok) {
+				return;
+			}
+			applyWelcomeLogoBg(data.logo_bg_hex);
+		} catch (err) {
+			console.error(err);
+		}
+	}
+
 	function showShell(username) {
 		app.classList.remove("is-login");
 		app.classList.add("is-shell");
@@ -149,6 +307,8 @@
 		setProfileMenuOpen(false);
 		applyNavVisibility(currentRole());
 		syncAdminToggle();
+		loadWelcomeLogoBg();
+		startSessionWatch();
 
 		const initial = (username || "?").charAt(0).toUpperCase();
 		shellAvatar.textContent = initial;
@@ -157,6 +317,7 @@
 	}
 
 	function logout() {
+		stopSessionWatch();
 		sessionStorage.removeItem("brewhouse_token");
 		sessionStorage.removeItem("brewhouse_username");
 		sessionStorage.removeItem("brewhouse_user_id");
@@ -174,16 +335,65 @@
 		}
 	}
 
+	function welcomeHTML() {
+		return (
+			'<section class="shell__welcome">' +
+			'<div class="shell__welcome-logo-wrap">' +
+			'<span class="shell__welcome-logo-bg" aria-hidden="true"></span>' +
+			'<img class="shell__welcome-logo" src="/logo" alt="" width="120" height="120">' +
+			"</div>" +
+			'<p class="shell__welcome-brand">Brewhouse</p>' +
+			'<h1 class="shell__welcome-title">From recipe to the pub</h1>' +
+			'<p class="shell__welcome-text">Pick a section in the navigation, or start with the batch pipeline guide.</p>' +
+			'<a class="btn btn--primary shell__welcome-cta" href="/app/guide" hx-get="/app/guide" hx-target="#main-content" hx-swap="innerHTML">Brewery 101</a>' +
+			'<p class="shell__welcome-tip">Admin accounts: open your profile menu and turn on <strong>Admin mode</strong> for Economy, IAM, and Settings.</p>' +
+			"</section>"
+		);
+	}
+
+	function showHome() {
+		const main = document.getElementById("main-content");
+		if (!main) {
+			return;
+		}
+		main.innerHTML = welcomeHTML();
+		if (window.htmx) {
+			window.htmx.process(main);
+		}
+		history.replaceState(null, "", "/");
+		setProfileMenuOpen(false);
+		setSheetOpen(false);
+	}
+
+	function setSidebarCollapsed(collapsed) {
+		if (!shell) {
+			return;
+		}
+		shell.classList.toggle("is-collapsed", !!collapsed);
+		if (shellCollapse) {
+			shellCollapse.setAttribute("aria-expanded", collapsed ? "false" : "true");
+			shellCollapse.setAttribute(
+				"aria-label",
+				collapsed ? "Expand navigation" : "Collapse navigation"
+			);
+		}
+		if (collapsed) {
+			shell.querySelectorAll(".shell__nav-section.is-expanded").forEach((section) => {
+				section.classList.remove("is-expanded");
+				const header = section.querySelector(".shell__nav-header");
+				if (header) {
+					header.setAttribute("aria-expanded", "false");
+				}
+			});
+		}
+	}
+
 	function leaveAdminOnlyPageIfNeeded() {
 		const main = document.getElementById("main-content");
 		const panel = main ? main.querySelector("[data-panel]") : null;
 		const kind = panel ? panel.getAttribute("data-panel") : "";
 		if (kind === "iam" || (kind && kind.startsWith("iam-")) || (kind && kind.startsWith("settings"))) {
-			main.innerHTML =
-				'<section class="shell__welcome"><h1 class="shell__welcome-title">Welcome</h1>' +
-				'<p class="shell__welcome-text">Select a section from the navigation to get started. See <strong>Brewery 101</strong> for the recipe-to-delivery pipeline.</p>' +
-				'<p class="shell__welcome-text">Admin accounts: open your profile menu (avatar) and turn on <strong>Admin mode</strong> to unlock Economy, IAM, and Settings.</p></section>';
-			history.replaceState(null, "", "/");
+			showHome();
 		}
 	}
 
@@ -197,13 +407,10 @@
 		if (!res.ok) {
 			throw new Error(data.error || "Could not change admin mode");
 		}
-		sessionStorage.setItem("brewhouse_token", data.token);
-		if (data.role) {
-			sessionStorage.setItem("brewhouse_role", data.role);
-		}
-		sessionStorage.setItem("brewhouse_can_elevate", data.can_elevate ? "1" : "0");
+		applySessionData(data);
 		applyNavVisibility(data.role);
 		syncAdminToggle();
+		markActivity();
 		if (!elevated) {
 			leaveAdminOnlyPageIfNeeded();
 		}
@@ -250,23 +457,18 @@
 
 	if (shellCollapse) {
 		shellCollapse.addEventListener("click", () => {
-			const collapsed = shell.classList.toggle("is-collapsed");
-			shellCollapse.setAttribute("aria-expanded", collapsed ? "false" : "true");
-			shellCollapse.setAttribute(
-				"aria-label",
-				collapsed ? "Expand navigation" : "Collapse navigation"
-			);
-			if (collapsed) {
-				shell.querySelectorAll(".shell__nav-section.is-expanded").forEach((section) => {
-					section.classList.remove("is-expanded");
-					const header = section.querySelector(".shell__nav-header");
-					if (header) {
-						header.setAttribute("aria-expanded", "false");
-					}
-				});
-			}
+			setSidebarCollapsed(!shell.classList.contains("is-collapsed"));
 		});
 	}
+
+	[brandHome, topbarBrand].forEach((btn) => {
+		if (!btn) {
+			return;
+		}
+		btn.addEventListener("click", () => {
+			showHome();
+		});
+	});
 
 	if (navFab) {
 		navFab.addEventListener("click", () => {
@@ -322,11 +524,21 @@
 	});
 
 	document.addEventListener("keydown", (event) => {
+		markActivity();
 		if (event.key === "Escape") {
 			if (shell.classList.contains("is-sheet-open")) {
 				setSheetOpen(false);
 			}
 			setProfileMenuOpen(false);
+		}
+	});
+
+	["pointerdown", "mousemove", "touchstart", "scroll"].forEach((evt) => {
+		document.addEventListener(evt, markActivity, { passive: true });
+	});
+	document.addEventListener("visibilitychange", () => {
+		if (document.visibilityState === "visible") {
+			markActivity();
 		}
 	});
 
@@ -391,14 +603,43 @@
 		header.setAttribute("aria-expanded", open ? "true" : "false");
 	}
 
-	function bindExclusiveAccordion(root, headerSelector, sectionSelector) {
+	function openNavSection(section, sectionSelector, header) {
+		const root = section.parentElement;
 		if (!root) {
 			return;
 		}
+		root.querySelectorAll(sectionSelector).forEach((other) => {
+			if (other === section) {
+				return;
+			}
+			other.classList.remove("is-expanded");
+			const otherHeader = other.querySelector("[aria-expanded]");
+			if (otherHeader) {
+				otherHeader.setAttribute("aria-expanded", "false");
+			}
+		});
+		section.classList.add("is-expanded");
+		header.setAttribute("aria-expanded", "true");
+	}
+
+	function bindExclusiveAccordion(root, headerSelector, sectionSelector, options) {
+		if (!root) {
+			return;
+		}
+		const expandSidebarWhenCollapsed = !!(options && options.expandSidebarWhenCollapsed);
 		root.querySelectorAll(headerSelector).forEach((header) => {
 			header.addEventListener("click", () => {
 				const section = header.closest(sectionSelector);
 				if (!section) {
+					return;
+				}
+				if (
+					expandSidebarWhenCollapsed &&
+					shell &&
+					shell.classList.contains("is-collapsed")
+				) {
+					setSidebarCollapsed(false);
+					openNavSection(section, sectionSelector, header);
 					return;
 				}
 				expandExclusive(section, sectionSelector, header);
@@ -409,7 +650,8 @@
 	bindExclusiveAccordion(
 		document.querySelector(".shell__nav"),
 		".shell__nav-header",
-		".shell__nav-section"
+		".shell__nav-section",
+		{ expandSidebarWhenCollapsed: true }
 	);
 	bindExclusiveAccordion(navSheet, ".shell__sheet-header", ".shell__sheet-section");
 
@@ -444,14 +686,7 @@
 					return;
 				}
 
-				sessionStorage.setItem("brewhouse_token", data.token);
-				if (data.user_id != null) {
-					sessionStorage.setItem("brewhouse_user_id", String(data.user_id));
-				}
-				if (data.role) {
-					sessionStorage.setItem("brewhouse_role", data.role);
-				}
-				sessionStorage.setItem("brewhouse_can_elevate", data.can_elevate ? "1" : "0");
+				applySessionData(data);
 				showLoginSuccess(data.username);
 			} catch (err) {
 				console.error("Login request failed:", err);

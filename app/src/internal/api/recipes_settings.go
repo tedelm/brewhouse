@@ -360,6 +360,8 @@ func (h *Handler) Settings(w http.ResponseWriter, r *http.Request) {
 		h.settingsLogo(w, r, actor, parts[1:])
 	case "favicon":
 		h.settingsFavicon(w, r, actor, parts[1:])
+	case "brand-color":
+		h.settingsBrandColor(w, r, actor, parts[1:])
 	default:
 		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "not found"})
 	}
@@ -731,6 +733,47 @@ func (h *Handler) settingsFavicon(w http.ResponseWriter, r *http.Request, actor 
 		return
 	}
 	h.settingsBrandImage(w, r, actor, "favicon", h.settings.FaviconConfigured, h.settings.SetFavicon, h.settings.ClearFavicon)
+}
+
+func (h *Handler) settingsBrandColor(w http.ResponseWriter, r *http.Request, actor service.Actor, parts []string) {
+	if len(parts) != 0 {
+		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "not found"})
+		return
+	}
+	switch r.Method {
+	case http.MethodGet:
+		hex, err := h.settings.GetLogoBgColor()
+		if err != nil {
+			h.writeErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, service.BrandColorConfig{LogoBgHex: hex})
+	case http.MethodPut, http.MethodPost:
+		var req BrandColorRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid body"})
+			return
+		}
+		hex, err := h.settings.SetLogoBgColor(actor, req.LogoBgHex)
+		if err != nil {
+			if errors.Is(err, service.ErrForbidden) {
+				h.writeErr(w, err)
+				return
+			}
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, service.BrandColorConfig{LogoBgHex: hex})
+	case http.MethodDelete:
+		hex, err := h.settings.SetLogoBgColor(actor, "")
+		if err != nil {
+			h.writeErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, service.BrandColorConfig{LogoBgHex: hex})
+	default:
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
+	}
 }
 
 func (h *Handler) settingsBrandImage(

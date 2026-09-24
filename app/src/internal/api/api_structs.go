@@ -193,3 +193,8 @@ type HygieneRoutineRequest struct {
 	Description string `json:"description"`
 	SortOrder   int    `json:"sort_order"`
 }
+
+// BrandColorRequest updates the welcome logo backdrop color.
+type BrandColorRequest struct {
+	LogoBgHex string `json:"logo_bg_hex"`
+}

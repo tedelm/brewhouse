@@ -210,6 +210,51 @@ func (h *Handler) Elevate(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Refresh re-issues a JWT after re-checking the account is active.
+func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
+		return
+	}
+	actor, ok := h.actor(r)
+	if !ok {
+		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		return
+	}
+	claims, _ := middleware.ClaimsFromContext(r.Context())
+
+	user, err := h.users.Get(actor.UserID)
+	if err != nil {
+		h.writeErr(w, err)
+		return
+	}
+	if !user.Active {
+		writeJSON(w, http.StatusUnauthorized, ErrorResponse{Error: "unauthorized"})
+		return
+	}
+
+	role, canElevate := sessionRoleForAccount(user.Role)
+	if user.Role == service.RoleAdmin && claims != nil && claims.Role == service.RoleAdmin {
+		role = service.RoleAdmin
+		canElevate = true
+	}
+
+	token, err := h.tokens.Issue(user.ID, user.Username, role, canElevate)
+	if err != nil {
+		h.logger.Println("Failed to issue token:", err)
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "internal error"})
+		return
+	}
+
+	writeJSON(w, http.StatusOK, LoginResponse{
+		Token:      token,
+		Username:   user.Username,
+		Role:       role,
+		UserID:     user.ID,
+		CanElevate: canElevate,
+	})
+}
+
 // Logo serves the app brand logo (public).
 func (h *Handler) Logo(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {

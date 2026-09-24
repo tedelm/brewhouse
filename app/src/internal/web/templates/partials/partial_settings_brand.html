@@ -1,7 +1,7 @@
 <section class="panel" data-panel="settings-brand">
 	<header class="panel__header">
 		<h1 class="panel__title">Brand</h1>
-		<p class="panel__lead">Upload logo and favicon used on splash, login, and the sidebar.</p>
+		<p class="panel__lead">Upload logo and favicon used on splash, login, and the sidebar. Set the welcome-page logo circle color.</p>
 	</header>
 	<div class="panel__form brand-settings">
 		<div class="brand-settings__block">
@@ -15,6 +15,22 @@
 				<button type="button" class="btn" data-action="settings-logo-reset">Reset to default</button>
 			</div>
 			<p class="panel__error" id="settings-logo-error" hidden></p>
+		</div>
+		<div class="brand-settings__block">
+			<p class="panel__lead">Welcome logo circle color</p>
+			<div class="brand-settings__color-row">
+				<label>Hex
+					<input id="settings-logo-bg-hex" name="logo_bg_hex" type="text" value="#6c704a" placeholder="#6c704a" pattern="#[0-9A-Fa-f]{6}" maxlength="7">
+				</label>
+				<label>Picker
+					<input id="settings-logo-bg-picker" type="color" value="#6c704a">
+				</label>
+			</div>
+			<div class="panel__toolbar">
+				<button type="button" class="btn btn--primary" data-action="settings-logo-bg-save">Save color</button>
+				<button type="button" class="btn" data-action="settings-logo-bg-reset">Reset to default</button>
+			</div>
+			<p class="panel__error" id="settings-logo-bg-error" hidden></p>
 		</div>
 		<div class="brand-settings__block">
 			<p class="panel__lead">Favicon — max 16×16 px, 500 KB (PNG, JPEG, GIF)</p>
