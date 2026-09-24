@@ -21,7 +21,7 @@ func Load() *Config {
 
 	appVersion := os.Getenv("APP_VERSION")
 	if appVersion == "" {
-		appVersion = "dev"
+		appVersion = "0.5.1"
 	}
 
 	databasePath := os.Getenv("DATABASE_PATH")

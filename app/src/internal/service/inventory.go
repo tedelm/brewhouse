@@ -474,6 +474,42 @@ func (s *InventoryService) completeOrder(order *InventoryOrder) error {
 		if err != nil {
 			return fmt.Errorf("receive stock: %w", err)
 		}
+		if line.RecipeID == nil || receive <= 0 {
+			continue
+		}
+		var need, checkedOut float64
+		err = tx.QueryRow(
+			`SELECT qty, checked_out FROM recipe_ingredients WHERE recipe_id = ? AND inventory_item_id = ?`,
+			*line.RecipeID, *line.InventoryItemID,
+		).Scan(&need, &checkedOut)
+		if errors.Is(err, sql.ErrNoRows) {
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("load recipe ingredient: %w", err)
+		}
+		missing := need - checkedOut
+		if missing <= 0 {
+			continue
+		}
+		allocate := receive
+		if allocate > missing {
+			allocate = missing
+		}
+		_, err = tx.Exec(
+			`UPDATE recipe_ingredients SET checked_out = checked_out + ? WHERE recipe_id = ? AND inventory_item_id = ?`,
+			allocate, *line.RecipeID, *line.InventoryItemID,
+		)
+		if err != nil {
+			return fmt.Errorf("allocate to recipe: %w", err)
+		}
+		_, err = tx.Exec(
+			`UPDATE inventory_items SET qty = qty - ? WHERE id = ?`,
+			allocate, *line.InventoryItemID,
+		)
+		if err != nil {
+			return fmt.Errorf("deduct allocated stock: %w", err)
+		}
 	}
 	_, err = tx.Exec(
 		`UPDATE inventory_orders SET status = ?, updated_at = ? WHERE id = ?`,

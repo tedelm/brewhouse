@@ -126,6 +126,15 @@ body {
 	}
 }
 
+.splash__version {
+	margin: 0.75rem 0 0;
+	color: rgba(255, 255, 255, 0.65);
+	font-size: 0.75rem;
+	font-family: ui-monospace, "Cascadia Code", "Segoe UI Mono", monospace;
+	letter-spacing: 0.04em;
+	text-align: center;
+}
+
 .splash__error {
 	margin: 0;
 	color: #fff;
@@ -366,6 +375,23 @@ body {
 	flex-direction: column;
 	gap: 0.25rem;
 	margin-top: 0.5rem;
+	flex: 1;
+}
+
+.shell__version {
+	margin: auto 0 0;
+	padding: 0.5rem 0.85rem 0.25rem;
+	color: rgba(255, 255, 255, 0.65);
+	font-size: 0.7rem;
+	font-family: ui-monospace, "Cascadia Code", "Segoe UI Mono", monospace;
+	letter-spacing: 0.04em;
+	text-align: left;
+}
+
+.shell__version--sheet {
+	margin-top: auto;
+	padding-top: 0.75rem;
+	text-align: center;
 }
 
 .shell__nav-section {
@@ -1324,66 +1350,97 @@ body {
 	font-size: 0.85em;
 }
 
-.order-status {
+.status-pill,
+.order-status,
+.ingredient-status {
+	display: inline-block;
 	font-size: 0.75rem;
 	font-weight: 700;
 	text-transform: uppercase;
 	letter-spacing: 0.03em;
-	padding: 0.15rem 0.45rem;
-	border-radius: 0.25rem;
+	padding: 0.2rem 0.65rem;
+	border-radius: 999px;
 	background: #e5e7eb;
 	color: #374151;
+	line-height: 1.2;
+	white-space: nowrap;
 }
 
+.status-pill--planning,
 .order-status--planning {
 	background: #fef3c7;
 	color: #92400e;
 }
 
+.status-pill--paused,
 .order-status--paused {
 	background: #e5e7eb;
 	color: #4b5563;
 }
 
+.status-pill--ordered,
 .order-status--ordered {
 	background: #dbeafe;
 	color: #1e40af;
 }
 
-.order-status--completed {
-	background: #d1fae5;
-	color: #065f46;
-}
-
-.ingredient-status {
-	font-size: 0.75rem;
-	font-weight: 700;
-	text-transform: uppercase;
-	letter-spacing: 0.03em;
-	padding: 0.15rem 0.45rem;
-	border-radius: 0.25rem;
-	background: #e5e7eb;
-	color: #374151;
-}
-
+.status-pill--ok,
 .ingredient-status--ok {
 	background: #d1fae5;
 	color: #065f46;
 }
 
+.status-pill--partial,
 .ingredient-status--partial {
 	background: #fef3c7;
 	color: #92400e;
 }
 
+.status-pill--short,
 .ingredient-status--short {
 	background: #fee2e2;
 	color: #991b1b;
 }
 
+.status-pill--completed,
+.order-status--completed {
+	background: #d1fae5;
+	color: #065f46;
+}
+
 .ingredient-status--completed {
 	background: #e0e7ff;
 	color: #3730a3;
+}
+
+.status-pill--created {
+	background: #e5e7eb;
+	color: #374151;
+}
+
+.status-pill--scheduled {
+	background: #dbeafe;
+	color: #1e40af;
+}
+
+.status-pill--brewday {
+	background: #ffedd5;
+	color: #9a3412;
+}
+
+.status-pill--hygiene_done {
+	background: #fce7f3;
+	color: #9d174d;
+}
+
+.status-pill--ready_for_delivery {
+	background: #e0e7ff;
+	color: #3730a3;
+}
+
+.status-pill--delivered {
+	background: #d1fae5;
+	color: #065f46;
 }
 
 .ingredient-status-btn {

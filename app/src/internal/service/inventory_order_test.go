@@ -216,3 +216,75 @@ func TestOrderedQtyZeroOnComplete(t *testing.T) {
 		t.Fatalf("expected stock unchanged at 10, got %v", got.Qty)
 	}
 }
+
+func TestCompleteOrderAllocatesToRecipeShortfall(t *testing.T) {
+	_, users, breweries, inventory, _, recipes, _ := testDB(t)
+	if err := users.EnsureDemoUser(); err != nil {
+		t.Fatalf("demo: %v", err)
+	}
+	u, err := users.Authenticate("demo", "demo")
+	if err != nil {
+		t.Fatalf("auth: %v", err)
+	}
+	admin := service.Actor{UserID: u.ID, Role: service.RoleAdmin}
+	brewery, err := breweries.Create(admin, "Alloc Brewery", "", "", "", nil)
+	if err != nil {
+		t.Fatalf("brewery: %v", err)
+	}
+	item, err := inventory.Create(admin, service.InventoryItem{
+		Category: service.CategoryHops, Name: "Alloc Hop", Unit: "g", Qty: 40, CostPrice: 1,
+	})
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+
+	result, err := recipes.Create(admin, brewery.ID, "Short Batch", []service.IngredientInput{
+		{InventoryItemID: item.ID, Qty: 100, Unit: "g"},
+	})
+	if err != nil {
+		t.Fatalf("create recipe: %v", err)
+	}
+	if len(result.Shortfalls) != 1 || result.Shortfalls[0].Missing != 60 {
+		t.Fatalf("expected shortfall 60, got %+v", result.Shortfalls)
+	}
+	if result.Recipe == nil || len(result.Recipe.Ingredients) != 1 {
+		t.Fatal("expected recipe with one ingredient")
+	}
+	if result.Recipe.Ingredients[0].CheckedOut != 40 {
+		t.Fatalf("expected checked_out 40, got %v", result.Recipe.Ingredients[0].CheckedOut)
+	}
+	order, err := inventory.GetOrder(result.OrderID)
+	if err != nil {
+		t.Fatalf("get order: %v", err)
+	}
+	if order.Lines[0].RecipeID == nil || *order.Lines[0].RecipeID != result.Recipe.ID {
+		t.Fatalf("expected recipe_id on order line, got %+v", order.Lines[0].RecipeID)
+	}
+
+	// Receive more than the shortfall so surplus stays free.
+	if _, err := inventory.UpdateOrderLineOrderedQty(admin, order.ID, order.Lines[0].ID, 80); err != nil {
+		t.Fatalf("ordered qty: %v", err)
+	}
+	if _, err := inventory.SetOrderStatus(admin, order.ID, service.OrderStatusOrdered); err != nil {
+		t.Fatalf("mark ordered: %v", err)
+	}
+	if _, err := inventory.SetOrderStatus(admin, order.ID, service.OrderStatusCompleted); err != nil {
+		t.Fatalf("complete: %v", err)
+	}
+
+	got, err := recipes.Get(admin, result.Recipe.ID)
+	if err != nil {
+		t.Fatalf("get recipe: %v", err)
+	}
+	if got.Ingredients[0].CheckedOut != 100 {
+		t.Fatalf("expected checked_out 100 after allocate, got %v", got.Ingredients[0].CheckedOut)
+	}
+	stock, err := inventory.Get(item.ID)
+	if err != nil {
+		t.Fatalf("get item: %v", err)
+	}
+	// Stock was 0 after checkout; receive 80, allocate 60 → free 20.
+	if stock.Qty != 20 {
+		t.Fatalf("expected free stock 20, got %v", stock.Qty)
+	}
+}

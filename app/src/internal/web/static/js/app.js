@@ -56,6 +56,18 @@
 			.replace(/"/g, "&quot;");
 	}
 
+	function statusPill(status, label) {
+		const s = String(status || "").trim();
+		const cls = s.toLowerCase().replace(/\s+/g, "_");
+		return (
+			'<span class="status-pill status-pill--' +
+			esc(cls) +
+			'">' +
+			esc(label != null ? label : s) +
+			"</span>"
+		);
+	}
+
 	function table(headers, rowsHtml) {
 		return (
 			'<div class="table-scroll"><table class="data-table"><thead><tr>' +
@@ -410,7 +422,9 @@
 				function statusChip(status) {
 					const s = status || "ok";
 					return (
-						'<span class="ingredient-status ingredient-status--' +
+						'<span class="status-pill status-pill--' +
+						esc(s) +
+						" ingredient-status ingredient-status--" +
 						esc(s) +
 						'">' +
 						esc(s) +
@@ -485,6 +499,8 @@
 							r.status === "delivered" && r.active === false
 								? "delivered (hidden)"
 								: r.status;
+						const statusKey =
+							r.status === "delivered" && r.active === false ? "delivered" : r.status;
 						const ingStatus = r.ingredient_status || "ok";
 						const main =
 							'<tr class="recipe-row" data-recipe-id="' +
@@ -496,7 +512,7 @@
 							"</td><td>" +
 							esc(r.brewery_name || String(r.brewery_id)) +
 							"</td><td>" +
-							esc(statusLabel) +
+							statusPill(statusKey, statusLabel) +
 							'</td><td><button type="button" class="ingredient-status-btn" data-toggle-ingredients="' +
 							r.id +
 							'" aria-expanded="false">' +
@@ -998,7 +1014,7 @@
 								"</td><td>" +
 								esc(r.brewery_name || "") +
 								"</td><td>" +
-								esc(r.status) +
+								statusPill(r.status) +
 								"</td><td>" +
 								fmtSG(r.og, "") +
 								"</td><td>" +
@@ -1702,11 +1718,9 @@
 							o.id +
 							'"><div class="panel__card-head"><strong>#' +
 							o.id +
-							'</strong> <span class="order-status order-status--' +
-							esc(o.status) +
-							'">' +
-							esc(o.status) +
-							"</span></div>" +
+							'</strong> ' +
+							statusPill(o.status) +
+							"</div>" +
 							dates +
 							ext +
 							(o.notes ? "<p>" + esc(o.notes) + "</p>" : "") +
@@ -1816,8 +1830,8 @@
 				const status = t.getAttribute("data-status");
 				const card = t.closest("[data-order-id]");
 				const currentStatus =
-					card && card.querySelector(".order-status")
-						? card.querySelector(".order-status").textContent.trim()
+					card && card.querySelector(".status-pill")
+						? card.querySelector(".status-pill").textContent.trim()
 						: "";
 				const isPause = status === "paused";
 				const isResume = status === "planning" && currentStatus === "paused";
@@ -2599,7 +2613,7 @@
 								"</td><td>" +
 								esc(r.brewery_name || "") +
 								"</td><td>" +
-								esc(r.status) +
+								statusPill(r.status) +
 								"</td><td>" +
 								esc(r.booked_date || "") +
 								"</td><td>" +

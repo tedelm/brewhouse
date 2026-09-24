@@ -23,6 +23,7 @@
 			<div class="splash__progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-label="Loading">
 				<div class="splash__progress-fill is-loading"></div>
 			</div>
+			<p class="splash__version">{{.AppVersion}}</p>
 			<p class="splash__error" id="splash-error" hidden></p>
 		</div>
 
@@ -158,6 +159,7 @@
 							</div>
 						</section>
 					</nav>
+					<p class="shell__version">{{.AppVersion}}</p>
 				</aside>
 				<div class="shell__main">
 					<header class="shell__topbar">
@@ -313,6 +315,7 @@
 							<a class="shell__sheet-link" href="/app/settings/hygiene" hx-get="/app/settings/hygiene" hx-target="#main-content" hx-swap="innerHTML">Hygiene routines</a>
 						</div>
 					</section>
+					<p class="shell__version shell__version--sheet">{{.AppVersion}}</p>
 				</nav>
 			</div>
 		</div>
