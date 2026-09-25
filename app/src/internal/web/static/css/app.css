@@ -1264,6 +1264,29 @@ body {
 	padding-left: 1.2rem;
 }
 
+.calc-block {
+	margin: 0 0 1.5rem;
+	padding: 0 0 1.25rem;
+	border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.calc-block:last-child {
+	border-bottom: none;
+	margin-bottom: 0;
+	padding-bottom: 0;
+}
+
+.calc-block__title {
+	margin: 0 0 0.35rem;
+	font-size: 1.05rem;
+	font-weight: 600;
+}
+
+.calc-block__result {
+	margin: 0.75rem 0 0;
+	font-size: 0.95rem;
+}
+
 .iam-brewery-card__logo {
 	width: 48px;
 	height: 48px;

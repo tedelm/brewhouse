@@ -389,6 +389,7 @@
 			inventory: loadInventory,
 			orders: loadOrders,
 			hygiene: loadHygiene,
+			"tools-calculators": loadToolsCalculators,
 			economy: loadEconomy,
 			"economy-deliveries": loadEconomyDeliveries,
 			delivery: loadDelivery,
@@ -2259,6 +2260,161 @@
 			}
 		});
 		refresh();
+	}
+
+	async function loadToolsCalculators(panel) {
+		// Metric yield: points·L/kg (DME ≈ 44 PPG → ~370; LME ≈ 36 PPG → ~300).
+		const YIELD = { dme: 370, lme: 300 };
+
+		function extractYield(type) {
+			return YIELD[type] || YIELD.dme;
+		}
+
+		function abvFromSG(og, fg) {
+			return (og - fg) * 131.25;
+		}
+
+		function num(form, name) {
+			return parseFloat(form.querySelector('[name="' + name + '"]').value);
+		}
+
+		let taxCfg = { rate_sek: 2.28, free_max_abv: 2.8, discount: 1.0 };
+		const taxCfgEl = panel.querySelector("#calc-tax-config");
+
+		function updateABV() {
+			const form = panel.querySelector("#calc-abv-form");
+			const out = panel.querySelector("#calc-abv-result");
+			const og = num(form, "og");
+			const fg = num(form, "fg");
+			if (Number.isNaN(og) || Number.isNaN(fg)) {
+				out.textContent = "—";
+				return;
+			}
+			out.textContent = abvFromSG(og, fg).toFixed(1) + " %";
+		}
+
+		function updateTax() {
+			const form = panel.querySelector("#calc-tax-form");
+			const og = num(form, "og");
+			const fg = num(form, "fg");
+			const vol = num(form, "volume");
+			const abvEl = panel.querySelector("#calc-tax-abv");
+			const perEl = panel.querySelector("#calc-tax-per-l");
+			const totEl = panel.querySelector("#calc-tax-total");
+			if (Number.isNaN(og) || Number.isNaN(fg) || Number.isNaN(vol) || vol <= 0) {
+				abvEl.textContent = "—";
+				perEl.textContent = "—";
+				totEl.textContent = "—";
+				return;
+			}
+			const abv = abvFromSG(og, fg);
+			const perL =
+				abv <= taxCfg.free_max_abv ? 0 : abv * taxCfg.rate_sek * taxCfg.discount;
+			abvEl.textContent = abv.toFixed(1) + " %";
+			perEl.textContent = fmtMoney(perL);
+			totEl.textContent = fmtMoney(vol * perL);
+		}
+
+		function updateExtract() {
+			const form = panel.querySelector("#calc-extract-form");
+			const out = panel.querySelector("#calc-extract-result");
+			const cur = num(form, "current_sg");
+			const target = num(form, "target_sg");
+			const vol = num(form, "volume");
+			const type = form.querySelector('[name="extract_type"]').value;
+			if (
+				Number.isNaN(cur) ||
+				Number.isNaN(target) ||
+				Number.isNaN(vol) ||
+				vol <= 0 ||
+				target <= cur
+			) {
+				out.textContent = "—";
+				return;
+			}
+			const points = (target - cur) * 1000;
+			const kg = (points * vol) / extractYield(type);
+			out.textContent = kg.toFixed(3) + " kg (" + Math.round(kg * 1000) + " g)";
+		}
+
+		function updateDilute() {
+			const form = panel.querySelector("#calc-dilute-form");
+			const waterEl = panel.querySelector("#calc-dilute-water");
+			const finalEl = panel.querySelector("#calc-dilute-final");
+			const cur = num(form, "current_sg");
+			const vol = num(form, "volume");
+			const wanted = num(form, "wanted_sg");
+			if (
+				Number.isNaN(cur) ||
+				Number.isNaN(vol) ||
+				Number.isNaN(wanted) ||
+				vol <= 0 ||
+				wanted <= 1 ||
+				wanted >= cur
+			) {
+				waterEl.textContent = "—";
+				finalEl.textContent = "—";
+				return;
+			}
+			const finalVol = (vol * (cur - 1)) / (wanted - 1);
+			const water = finalVol - vol;
+			waterEl.textContent = water.toFixed(2) + " L";
+			finalEl.textContent = finalVol.toFixed(2) + " L";
+		}
+
+		function refreshAll() {
+			updateABV();
+			updateTax();
+			updateExtract();
+			updateDilute();
+		}
+
+		panel.addEventListener("input", (ev) => {
+			const t = ev.target;
+			if (!(t instanceof HTMLElement)) {
+				return;
+			}
+			if (t.closest("#calc-abv-form")) {
+				updateABV();
+			}
+			if (t.closest("#calc-tax-form")) {
+				updateTax();
+			}
+			if (t.closest("#calc-extract-form")) {
+				updateExtract();
+			}
+			if (t.closest("#calc-dilute-form")) {
+				updateDilute();
+			}
+		});
+		panel.addEventListener("change", (ev) => {
+			const t = ev.target;
+			if (!(t instanceof HTMLElement)) {
+				return;
+			}
+			if (t.closest("#calc-extract-form")) {
+				updateExtract();
+			}
+		});
+
+		try {
+			taxCfg = (await api("/api/settings/tax-config")) || taxCfg;
+			if (taxCfgEl) {
+				taxCfgEl.textContent =
+					"Config: rate " +
+					taxCfg.rate_sek +
+					" SEK/%/L, free max ABV " +
+					taxCfg.free_max_abv +
+					" %, discount " +
+					Math.round(taxCfg.discount * 100) +
+					"%.";
+			}
+		} catch (e) {
+			if (taxCfgEl) {
+				taxCfgEl.textContent = "Could not load tax config; using defaults. " + e.message;
+			}
+		}
+		refreshAll();
 	}
 
 	async function loadEconomy(panel) {

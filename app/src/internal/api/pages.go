@@ -41,6 +41,8 @@ func (h *Handler) Pages(w http.ResponseWriter, r *http.Request) {
 		h.web.RenderPartial(w, "partial_orders.html", nil)
 	case "hygiene":
 		h.web.RenderPartial(w, "partial_hygiene.html", nil)
+	case "tools/calculators":
+		h.web.RenderPartial(w, "partial_tools_calculators.html", nil)
 	case "economy":
 		h.web.RenderPartial(w, "partial_economy.html", nil)
 	case "economy/deliveries":

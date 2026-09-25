@@ -1,0 +1,85 @@
+<section class="panel" data-panel="tools-calculators">
+	<header class="panel__header">
+		<h1 class="panel__title">Calculators</h1>
+		<p class="panel__lead">Quick brewing helpers for ABV, Swedish alcohol tax, extract additions, and dilution. Results update as you type.</p>
+	</header>
+
+	<div class="calc-block">
+		<h2 class="calc-block__title">ABV from SG</h2>
+		<p class="panel__lead">ABV = (OG − FG) × 131.25</p>
+		<form class="panel__form panel__form--inline" id="calc-abv-form">
+			<label>OG
+				<input name="og" type="number" step="0.001" min="1" value="1.050" required>
+			</label>
+			<label>FG
+				<input name="fg" type="number" step="0.001" min="0.990" value="1.010" required>
+			</label>
+		</form>
+		<p class="calc-block__result">ABV: <strong id="calc-abv-result">—</strong></p>
+	</div>
+
+	<div class="calc-block">
+		<h2 class="calc-block__title">Alcohol tax</h2>
+		<p class="panel__lead">Uses current tax settings. Free up to the free-max ABV; otherwise ABV × rate × discount (SEK/L) × volume.</p>
+		<p class="panel__lead" id="calc-tax-config">Loading tax config…</p>
+		<form class="panel__form panel__form--inline" id="calc-tax-form">
+			<label>OG
+				<input name="og" type="number" step="0.001" min="1" value="1.050" required>
+			</label>
+			<label>FG
+				<input name="fg" type="number" step="0.001" min="0.990" value="1.010" required>
+			</label>
+			<label>Volume (L)
+				<input name="volume" type="number" step="0.1" min="0.1" value="100" required>
+			</label>
+		</form>
+		<p class="calc-block__result">
+			ABV: <strong id="calc-tax-abv">—</strong>
+			· SEK/L: <strong id="calc-tax-per-l">—</strong>
+			· Total tax: <strong id="calc-tax-total">—</strong>
+		</p>
+	</div>
+
+	<div class="calc-block">
+		<h2 class="calc-block__title">Extract to raise SG</h2>
+		<p class="panel__lead">How much DME or LME to add to reach a higher SG. DME ≈ 370 points·L/kg (~44 PPG); LME ≈ 300. Volume is assumed unchanged after dissolving. Rule of thumb: ~27 g DME per +0.001 SG in 10 L.</p>
+		<form class="panel__form panel__form--inline" id="calc-extract-form">
+			<label>Current SG
+				<input name="current_sg" type="number" step="0.001" min="1" value="1.040" required>
+			</label>
+			<label>Target SG
+				<input name="target_sg" type="number" step="0.001" min="1" value="1.050" required>
+			</label>
+			<label>Volume (L)
+				<input name="volume" type="number" step="0.1" min="0.1" value="20" required>
+			</label>
+			<label>Extract
+				<select name="extract_type">
+					<option value="dme" selected>DME (dry)</option>
+					<option value="lme">LME (liquid)</option>
+				</select>
+			</label>
+		</form>
+		<p class="calc-block__result">Need: <strong id="calc-extract-result">—</strong></p>
+	</div>
+
+	<div class="calc-block">
+		<h2 class="calc-block__title">Water to lower SG</h2>
+		<p class="panel__lead">Dilution by gravity-point conservation: final volume = current × (current SG − 1) / (wanted SG − 1).</p>
+		<form class="panel__form panel__form--inline" id="calc-dilute-form">
+			<label>Current SG
+				<input name="current_sg" type="number" step="0.001" min="1.001" value="1.060" required>
+			</label>
+			<label>Current volume (L)
+				<input name="volume" type="number" step="0.1" min="0.1" value="20" required>
+			</label>
+			<label>Wanted SG
+				<input name="wanted_sg" type="number" step="0.001" min="1.001" value="1.050" required>
+			</label>
+		</form>
+		<p class="calc-block__result">
+			Water to add: <strong id="calc-dilute-water">—</strong>
+			· Final volume: <strong id="calc-dilute-final">—</strong>
+		</p>
+	</div>
+</section>

@@ -133,6 +133,16 @@
 								<a class="shell__nav-sublink" href="/app/hygiene" hx-get="/app/hygiene" hx-target="#main-content" hx-swap="innerHTML">Routines</a>
 							</div>
 						</section>
+						<section class="shell__nav-section" data-nav-roles="user,superuser,admin">
+							<button type="button" class="shell__nav-header" aria-expanded="false">
+								<span class="material-symbols-outlined" aria-hidden="true">build</span>
+								<span class="shell__nav-label">Tools</span>
+								<span class="material-symbols-outlined shell__nav-chevron" aria-hidden="true">expand_more</span>
+							</button>
+							<div class="shell__nav-panel">
+								<a class="shell__nav-sublink" href="/app/tools/calculators" hx-get="/app/tools/calculators" hx-target="#main-content" hx-swap="innerHTML">Calculators</a>
+							</div>
+						</section>
 						<section class="shell__nav-section" data-nav-roles="admin">
 							<button type="button" class="shell__nav-header" aria-expanded="false">
 								<span class="material-symbols-outlined" aria-hidden="true">payments</span>
@@ -306,6 +316,16 @@
 						</button>
 						<div class="shell__sheet-panel">
 							<a class="shell__sheet-link" href="/app/hygiene" hx-get="/app/hygiene" hx-target="#main-content" hx-swap="innerHTML">Routines</a>
+						</div>
+					</section>
+					<section class="shell__sheet-section" data-nav-roles="user,superuser,admin">
+						<button type="button" class="shell__sheet-header" aria-expanded="false">
+							<span class="material-symbols-outlined" aria-hidden="true">build</span>
+							<span class="shell__nav-label">Tools</span>
+							<span class="material-symbols-outlined shell__sheet-chevron" aria-hidden="true">expand_more</span>
+						</button>
+						<div class="shell__sheet-panel">
+							<a class="shell__sheet-link" href="/app/tools/calculators" hx-get="/app/tools/calculators" hx-target="#main-content" hx-swap="innerHTML">Calculators</a>
 						</div>
 					</section>
 					<section class="shell__sheet-section" data-nav-roles="admin">
