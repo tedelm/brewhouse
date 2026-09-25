@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-const breweriesCSVHeader = "name,contact_name,contact_email,contact_phone"
+const breweriesCSVHeader = "name,contact_name,contact_email,contact_phone,instagram"
 
 // ExportBreweriesCSV returns breweries visible to the actor as CSV.
 func (s *BreweryService) ExportBreweriesCSV(actor Actor) ([]byte, error) {
@@ -23,7 +23,7 @@ func (s *BreweryService) ExportBreweriesCSV(actor Actor) ([]byte, error) {
 		return nil, fmt.Errorf("write breweries csv header: %w", err)
 	}
 	for _, b := range list {
-		if err := w.Write([]string{b.Name, b.ContactName, b.ContactEmail, b.ContactPhone}); err != nil {
+		if err := w.Write([]string{b.Name, b.ContactName, b.ContactEmail, b.ContactPhone, b.Instagram}); err != nil {
 			return nil, fmt.Errorf("write breweries csv row: %w", err)
 		}
 	}
@@ -46,7 +46,7 @@ func (s *BreweryService) ImportBreweriesCSV(actor Actor, data []byte) (ImportRes
 	if len(records) == 0 {
 		return ImportResult{}, fmt.Errorf("empty csv")
 	}
-	idx, err := mapCSVHeader(records[0], []string{"name", "contact_name", "contact_email", "contact_phone"})
+	idx, err := mapCSVHeader(records[0], []string{"name", "contact_name", "contact_email", "contact_phone", "instagram"})
 	if err != nil {
 		return ImportResult{}, err
 	}
@@ -75,13 +75,14 @@ func (s *BreweryService) importBreweryRow(actor Actor, idx map[string]int, rec [
 	contactName := strings.TrimSpace(csvCol(rec, idx, "contact_name"))
 	contactEmail := strings.TrimSpace(csvCol(rec, idx, "contact_email"))
 	contactPhone := strings.TrimSpace(csvCol(rec, idx, "contact_phone"))
+	instagram := strings.TrimSpace(csvCol(rec, idx, "instagram"))
 	if name == "" {
 		return "", fmt.Errorf("name required")
 	}
 
 	existing, err := s.getByName(name)
 	if errors.Is(err, ErrNotFound) {
-		if _, err := s.Create(actor, name, contactName, contactEmail, contactPhone, nil); err != nil {
+		if _, err := s.Create(actor, name, contactName, contactEmail, contactPhone, instagram, nil); err != nil {
 			return "", err
 		}
 		return "created", nil
@@ -89,7 +90,7 @@ func (s *BreweryService) importBreweryRow(actor Actor, idx map[string]int, rec [
 	if err != nil {
 		return "", err
 	}
-	if _, err := s.Update(actor, existing.ID, name, contactName, contactEmail, contactPhone, nil); err != nil {
+	if _, err := s.Update(actor, existing.ID, name, contactName, contactEmail, contactPhone, instagram, nil); err != nil {
 		return "", err
 	}
 	return "updated", nil
@@ -98,9 +99,9 @@ func (s *BreweryService) importBreweryRow(actor Actor, idx map[string]int, rec [
 func (s *BreweryService) getByName(name string) (*Brewery, error) {
 	b := &Brewery{}
 	err := s.db.QueryRow(
-		`SELECT id, name, contact_name, contact_email, contact_phone, created_at FROM breweries WHERE name = ?`,
+		`SELECT id, name, contact_name, contact_email, contact_phone, instagram, created_at FROM breweries WHERE name = ?`,
 		name,
-	).Scan(&b.ID, &b.Name, &b.ContactName, &b.ContactEmail, &b.ContactPhone, &b.CreatedAt)
+	).Scan(&b.ID, &b.Name, &b.ContactName, &b.ContactEmail, &b.ContactPhone, &b.Instagram, &b.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}

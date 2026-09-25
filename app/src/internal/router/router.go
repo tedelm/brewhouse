@@ -20,6 +20,7 @@ func New(webHandler *web.Handler, apiHandler *api.Handler, tokens *auth.TokenIss
 	mux.HandleFunc("/api/bootstrap", apiHandler.Bootstrap)
 	mux.HandleFunc("/logo", apiHandler.Logo)
 	mux.HandleFunc("/favicon", apiHandler.Favicon)
+	mux.HandleFunc("/brewery/", apiHandler.BreweryLogo)
 
 	authMW := middleware.Auth(tokens)
 	protect := func(pattern string, h http.HandlerFunc) {

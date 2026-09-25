@@ -1,20 +1,20 @@
 <section class="panel" data-panel="iam-breweries">
 	<header class="panel__header">
 		<h1 class="panel__title">Breweries</h1>
-		<p class="panel__lead">Create and edit breweries, contacts, and members. Remove a brewery only if it has no delivered batches.</p>
+		<p class="panel__lead">Create and edit breweries, contacts, logo, and members. Remove a brewery only if it has no delivered batches.</p>
 	</header>
 	<div class="panel__toolbar">
 		<button type="button" class="btn" data-action="iam-breweries-refresh">Refresh</button>
-		<button type="button" class="btn" data-action="iam-breweries-export">Export CSV</button>
-		<button type="button" class="btn" data-action="iam-breweries-import">Import CSV</button>
+		<button type="button" class="btn" data-action="iam-breweries-export" data-require-roles="admin">Export CSV</button>
+		<button type="button" class="btn" data-action="iam-breweries-import" data-require-roles="admin">Import CSV</button>
 		<input type="file" id="iam-breweries-import-file" accept=".csv,text/csv" hidden>
-		<button type="button" class="btn" data-action="iam-members-export">Export members CSV</button>
-		<button type="button" class="btn" data-action="iam-members-import">Import members CSV</button>
+		<button type="button" class="btn" data-action="iam-members-export" data-require-roles="admin">Export members CSV</button>
+		<button type="button" class="btn" data-action="iam-members-import" data-require-roles="admin">Import members CSV</button>
 		<input type="file" id="iam-members-import-file" accept=".csv,text/csv" hidden>
-		<button type="button" class="btn btn--primary" data-action="iam-brewery-new">New brewery</button>
+		<button type="button" class="btn btn--primary" data-action="iam-brewery-new" data-require-roles="admin">New brewery</button>
 	</div>
 	<div class="panel__body" id="iam-breweries">Loading…</div>
-	<dialog class="panel__dialog" id="iam-brewery-dialog">
+	<dialog class="panel__dialog panel__dialog--wide" id="iam-brewery-dialog">
 		<form method="dialog" class="panel__form" id="iam-brewery-form">
 			<h2 id="iam-brewery-title">Brewery</h2>
 			<input type="hidden" name="brewery_id" value="">
@@ -22,11 +22,24 @@
 			<label>Contact name <input name="contact_name"></label>
 			<label>Contact email <input name="contact_email"></label>
 			<label>Contact phone <input name="contact_phone"></label>
-			<label>Brewery admin
+			<label>Instagram <input name="instagram" type="url" placeholder="https://instagram.com/…" autocomplete="url"></label>
+			<label id="iam-brewery-admin-label" data-require-roles="admin">Brewery admin
 				<select name="brewery_admin_user_id">
 					<option value="">None</option>
 				</select>
 			</label>
+			<div class="iam-brewery-logo" id="iam-brewery-logo-block" hidden>
+				<p class="panel__lead">Logo — max 300×300 px, 1 MB (PNG, JPEG, GIF)</p>
+				<img class="iam-brewery-logo__preview" id="iam-brewery-logo-preview" alt="Brewery logo preview" width="96" height="96" hidden>
+				<label>Upload logo
+					<input id="iam-brewery-logo-file" type="file" accept="image/png,image/jpeg,image/gif">
+				</label>
+				<div class="panel__toolbar">
+					<button type="button" class="btn btn--primary" data-action="iam-brewery-logo-upload">Upload</button>
+					<button type="button" class="btn" data-action="iam-brewery-logo-reset">Remove logo</button>
+				</div>
+				<p class="panel__error" id="iam-brewery-logo-error" hidden></p>
+			</div>
 			<div class="panel__dialog-actions">
 				<button type="submit" class="btn btn--primary" value="save">Save</button>
 				<button type="submit" class="btn" value="cancel" formnovalidate>Cancel</button>
@@ -55,7 +68,7 @@
 			</div>
 		</form>
 	</dialog>
-	<dialog class="panel__dialog" id="iam-members-dialog">
+	<dialog class="panel__dialog panel__dialog--wide" id="iam-members-dialog">
 		<div class="panel__form">
 			<h2 id="iam-members-title">Members</h2>
 			<input type="hidden" id="iam-members-brewery-id">

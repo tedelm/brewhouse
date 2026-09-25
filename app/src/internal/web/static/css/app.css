@@ -1264,6 +1264,31 @@ body {
 	padding-left: 1.2rem;
 }
 
+.iam-brewery-card__logo {
+	width: 48px;
+	height: 48px;
+	object-fit: contain;
+	border-radius: 0.35rem;
+	background: rgba(0, 0, 0, 0.04);
+	flex-shrink: 0;
+}
+
+.iam-brewery-logo {
+	margin-top: 0.75rem;
+	padding-top: 0.75rem;
+	border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.iam-brewery-logo__preview {
+	display: block;
+	width: 96px;
+	height: 96px;
+	object-fit: contain;
+	margin: 0.5rem 0;
+	border-radius: 0.35rem;
+	background: rgba(0, 0, 0, 0.04);
+}
+
 .order-brewery-group {
 	margin-top: 0.55rem;
 }

@@ -643,7 +643,7 @@ func (s *SettingsService) setBrandImage(actor Actor, table, contentType string, 
 	if err := s.requireAdmin(actor); err != nil {
 		return err
 	}
-	if err := validateBrandImage(contentType, data, maxW, maxH); err != nil {
+	if err := validateImage(contentType, data, maxBrandImageBytes, maxW, maxH); err != nil {
 		return err
 	}
 	_, err := s.db.Exec(
@@ -668,12 +668,16 @@ func (s *SettingsService) clearBrandImage(actor Actor, table string) error {
 	return nil
 }
 
-func validateBrandImage(contentType string, data []byte, maxW, maxH int) error {
+// validateImage checks content type, byte size, and pixel dimensions.
+func validateImage(contentType string, data []byte, maxBytes, maxW, maxH int) error {
 	if len(data) == 0 {
 		return fmt.Errorf("image is empty")
 	}
-	if len(data) > maxBrandImageBytes {
-		return fmt.Errorf("image must be at most 500 KB")
+	if len(data) > maxBytes {
+		if maxBytes >= 1024*1024 {
+			return fmt.Errorf("image must be at most %d MB", maxBytes/(1024*1024))
+		}
+		return fmt.Errorf("image must be at most %d KB", maxBytes/1024)
 	}
 	switch contentType {
 	case "image/png", "image/jpeg", "image/gif":

@@ -288,6 +288,12 @@
 		});
 	}
 
+	window.BrewhouseUI = {
+		info: appInfo,
+		confirm: appConfirm,
+		prompt: appPrompt,
+	};
+
 	function canRoles(roles) {
 		if (window.BrewhouseAuth && typeof window.BrewhouseAuth.can === "function") {
 			return window.BrewhouseAuth.can(roles);
@@ -315,7 +321,8 @@
 	}
 
 	function showForbidden(panel) {
-		panel.innerHTML = '<p class="panel__empty">Forbidden</p>';
+		panel.innerHTML =
+			'<p class="panel__empty">Please elevate to admin to access this page.</p>';
 	}
 
 	document.body.addEventListener("htmx:configRequest", (event) => {
@@ -359,7 +366,15 @@
 		}
 		applyRequireRoles(panel);
 		const kind = panel.getAttribute("data-panel");
-		if ((kind === "iam" || (kind && kind.startsWith("iam-")) || (kind && kind.startsWith("settings"))) && !canRoles("admin")) {
+		if (kind === "iam-users" && !canRoles("admin")) {
+			showForbidden(panel);
+			return;
+		}
+		if ((kind === "iam" || (kind && kind.startsWith("iam-"))) && kind !== "iam-breweries" && !canRoles("admin")) {
+			showForbidden(panel);
+			return;
+		}
+		if ((kind && kind.startsWith("settings")) && !canRoles("admin")) {
 			showForbidden(panel);
 			return;
 		}
@@ -661,7 +676,7 @@
 				try {
 					await openRecipeDialog(null);
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 			}
 			if (t.getAttribute("data-action") === "recipe-add-ing") {
@@ -679,7 +694,7 @@
 					const recipe = await api("/api/recipes/" + id);
 					await openRecipeDialog(recipe);
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 			}
 			if (t.hasAttribute("data-del-recipe")) {
@@ -695,7 +710,7 @@
 					await api("/api/recipes/" + id, { method: "DELETE" });
 					refresh();
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 			}
 			if (t.hasAttribute("data-hide-recipe")) {
@@ -707,7 +722,7 @@
 					});
 					refresh();
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 			}
 			if (t.hasAttribute("data-unhide-recipe")) {
@@ -719,7 +734,7 @@
 					});
 					refresh();
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 			}
 			if (t.hasAttribute("data-deliver")) {
@@ -728,7 +743,7 @@
 					await api("/api/recipes/" + id + "/deliver", { method: "POST" });
 					refresh();
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 			}
 		});
@@ -962,7 +977,7 @@
 				await api("/api/recipes/" + recipeId + "/schedule", { method: "DELETE" });
 				refresh();
 			} catch (e) {
-				alert(e.message);
+				await appInfo({ title: "Notice", message: e.message });
 			}
 		});
 		form.addEventListener("submit", async (ev) => {
@@ -1124,7 +1139,7 @@
 					}
 					selectRecipeForEdit(key);
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 				return;
 			}
@@ -1143,7 +1158,7 @@
 					await api("/api/recipes/" + id + "/brewday/revoke", { method: "POST" });
 					refresh();
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 				return;
 			}
@@ -1162,7 +1177,7 @@
 					await api("/api/recipes/" + id + "/hygiene/revoke", { method: "POST" });
 					refresh(id);
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 				return;
 			}
@@ -1180,7 +1195,7 @@
 				await api("/api/recipes/" + id + "/hygiene/complete", { method: "POST" });
 				refresh();
 			} catch (e) {
-				alert(e.message);
+				await appInfo({ title: "Notice", message: e.message });
 			}
 		});
 		form.addEventListener("submit", async (ev) => {
@@ -1466,15 +1481,15 @@
 						fillForm(item);
 						dialog.showModal();
 					})
-					.catch((e) => alert(e.message));
+					.catch((e) => { appInfo({ title: "Notice", message: e.message }); });
 			}
 			if (t.getAttribute("data-action") === "inventory-log") {
 				const id = parseInt(t.getAttribute("data-id"), 10);
 				const name = t.getAttribute("data-name") || "item";
-				openLog(id, name).catch((e) => alert(e.message));
+				openLog(id, name).catch((e) => { appInfo({ title: "Notice", message: e.message }); });
 			}
 			if (t.id === "inventory-log-more" || t.getAttribute("data-action") === "inventory-log-more") {
-				loadLogPage(false).catch((e) => alert(e.message));
+				loadLogPage(false).catch((e) => { appInfo({ title: "Notice", message: e.message }); });
 			}
 			if (t.getAttribute("data-action") === "inventory-order") {
 				if (!canEdit) {
@@ -1492,7 +1507,7 @@
 					planning = (orders || []).filter((o) => o.status === "planning");
 					breweries = breweryList || [];
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 					return;
 				}
 				const orderOptions = [{ value: "new", label: "Create new order" }].concat(
@@ -1551,7 +1566,7 @@
 				}
 				const qty = parseFloat(values.qty);
 				if (!(qty > 0)) {
-					alert("Qty must be positive");
+					await appInfo({ title: "Notice", message: "Qty must be positive" });
 					return;
 				}
 				const breweryRaw = String(values.brewery_id || "").trim();
@@ -1576,9 +1591,9 @@
 							body: JSON.stringify(line),
 						});
 					}
-					alert("Added to order #" + order.id);
+					await appInfo({ title: "Notice", message: "Added to order #" + order.id });
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 			}
 		});
@@ -1604,7 +1619,7 @@
 				form.reset();
 				refresh();
 			} catch (e) {
-				alert(e.message);
+				await appInfo({ title: "Notice", message: e.message });
 			}
 		});
 		refresh();
@@ -1932,7 +1947,7 @@
 				try {
 					await openLinksModal(t.getAttribute("data-id"));
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 			}
 			if (t.getAttribute("data-action") === "order-link-open") {
@@ -1940,7 +1955,7 @@
 				const input = row && row.querySelector('input[name="link"]');
 				const url = input ? String(input.value || "").trim() : "";
 				if (!url) {
-					alert("No product URL set");
+					await appInfo({ title: "Notice", message: "No product URL set" });
 					return;
 				}
 				window.open(url, "_blank", "noopener,noreferrer");
@@ -1967,7 +1982,7 @@
 					renderLinksModal(updated);
 					refresh();
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 			}
 			if (t.getAttribute("data-action") === "order-add-line") {
@@ -1980,7 +1995,7 @@
 					lineForm.elements.namedItem("order_id").value = t.getAttribute("data-id");
 					lineDialog.showModal();
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 			}
 			if (t.getAttribute("data-action") === "order-edit-external") {
@@ -2064,10 +2079,10 @@
 						lines: [],
 					}),
 				});
-				alert("Created order #" + order.id);
+				await appInfo({ title: "Notice", message: "Created order #" + order.id });
 				refresh();
 			} catch (e) {
-				alert(e.message);
+				await appInfo({ title: "Notice", message: e.message });
 			}
 		});
 
@@ -2092,7 +2107,7 @@
 				});
 				refresh();
 			} catch (e) {
-				alert(e.message);
+				await appInfo({ title: "Notice", message: e.message });
 			}
 		});
 
@@ -2114,7 +2129,7 @@
 				}
 				refresh();
 			} catch (e) {
-				alert(e.message);
+				await appInfo({ title: "Notice", message: e.message });
 			}
 		});
 
@@ -2132,7 +2147,7 @@
 				});
 				refresh();
 			} catch (e) {
-				alert(e.message);
+				await appInfo({ title: "Notice", message: e.message });
 			}
 		});
 
@@ -2143,7 +2158,7 @@
 			const fd = new FormData(orderedQtyForm);
 			const orderedQty = parseFloat(fd.get("ordered_qty"));
 			if (Number.isNaN(orderedQty) || orderedQty < 0) {
-				alert("Ordered qty must be zero or positive");
+				await appInfo({ title: "Notice", message: "Ordered qty must be zero or positive" });
 				return;
 			}
 			try {
@@ -2156,7 +2171,7 @@
 				);
 				refresh();
 			} catch (e) {
-				alert(e.message);
+				await appInfo({ title: "Notice", message: e.message });
 			}
 		});
 
@@ -2836,7 +2851,7 @@
 					});
 					refresh();
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 				return;
 			}
@@ -2856,7 +2871,7 @@
 					await api("/api/recipes/" + id + "/delivery/revoke", { method: "POST" });
 					refresh();
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 			}
 		});
@@ -2954,7 +2969,7 @@
 				try {
 					await downloadCSVAuth("/api/users/export", "users.csv");
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 			}
 			if (action === "iam-users-import") {
@@ -3005,7 +3020,7 @@
 					hint.hidden = !editingSelfAdmin;
 					dlg.showModal();
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 			}
 			if (t.hasAttribute("data-set-active")) {
@@ -3018,7 +3033,7 @@
 					});
 					refreshUsers();
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 			}
 			if (t.hasAttribute("data-reset-password")) {
@@ -3040,7 +3055,7 @@
 					form.querySelector('[name="password"]').value = "";
 					dlg.showModal();
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 			}
 		});
@@ -3076,7 +3091,7 @@
 				userForm.reset();
 				refreshUsers();
 			} catch (e) {
-				alert(e.message);
+				await appInfo({ title: "Notice", message: e.message });
 			}
 		});
 
@@ -3092,7 +3107,7 @@
 			const role = roleSel.disabled ? "admin" : fd.get("role");
 			const selfID = sessionStorage.getItem("brewhouse_user_id") || "";
 			if (String(id) === selfID && role !== "admin") {
-				alert("cannot change your own role away from admin");
+				await appInfo({ title: "Notice", message: "cannot change your own role away from admin" });
 				return;
 			}
 			try {
@@ -3115,7 +3130,7 @@
 				panel.querySelector("#iam-edit-role-hint").hidden = true;
 				refreshUsers();
 			} catch (e) {
-				alert(e.message);
+				await appInfo({ title: "Notice", message: e.message });
 			}
 		});
 
@@ -3144,9 +3159,9 @@
 					}),
 				});
 				resetForm.reset();
-				alert("Password updated");
+				await appInfo({ title: "Notice", message: "Password updated" });
 			} catch (e) {
-				alert(e.message);
+				await appInfo({ title: "Notice", message: e.message });
 			}
 		});
 
@@ -3165,7 +3180,7 @@
 					});
 					refreshUsers();
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				} finally {
 					usersImportFile.value = "";
 				}
@@ -3177,39 +3192,91 @@
 
 	async function loadIAMBreweries(panel) {
 		const brewEl = panel.querySelector("#iam-breweries");
+		const isAdmin = canRoles("admin");
+		applyRequireRoles(panel);
+
+		function breweryLogoURL(id) {
+			return "/brewery/" + id + "/logo?t=" + Date.now();
+		}
+
+		function setBreweryLogoPreview(breweryID, configured) {
+			const preview = panel.querySelector("#iam-brewery-logo-preview");
+			if (!preview) {
+				return;
+			}
+			if (configured && breweryID) {
+				preview.hidden = false;
+				preview.src = breweryLogoURL(breweryID);
+			} else {
+				preview.hidden = true;
+				preview.removeAttribute("src");
+			}
+		}
 
 		async function refreshBreweries() {
 			try {
 				const list = await api("/api/breweries");
 				brewEl.innerHTML = (list || [])
-					.map(
-						(b) =>
-							'<div class="panel__card"><strong>#' +
+					.map((b) => {
+						const logo = b.logo_configured
+							? '<img class="iam-brewery-card__logo" src="' +
+								breweryLogoURL(b.id) +
+								'" alt="" width="48" height="48">'
+							: "";
+						const editBtn = b.can_manage
+							? '<button type="button" class="btn btn--small" data-edit-brewery="' +
+								b.id +
+								'">Edit</button> '
+							: "";
+						const delBtn = isAdmin
+							? '<button type="button" class="btn btn--small" data-del-brewery="' +
+								b.id +
+								'" data-brewery-name="' +
+								esc(b.name) +
+								'">Remove</button> '
+							: "";
+						const addBtn = b.can_manage
+							? '<button type="button" class="btn btn--small" data-add-member="' +
+								b.id +
+								'" data-brewery-name="' +
+								esc(b.name) +
+								'">Add member</button> '
+							: "";
+						const membersBtn =
+							'<button type="button" class="btn btn--small" data-list-members="' +
+							b.id +
+							'" data-brewery-name="' +
+							esc(b.name) +
+							'">Members</button>';
+						const ig = b.instagram
+							? ' <a href="' +
+								esc(b.instagram) +
+								'" target="_blank" rel="noopener noreferrer">' +
+								esc(b.instagram) +
+								"</a>"
+							: "";
+						return (
+							'<div class="panel__card"><div class="panel__card-head">' +
+							logo +
+							"<strong>#" +
 							b.id +
 							" " +
 							esc(b.name) +
-							"</strong><br>" +
+							"</strong></div>" +
 							esc(b.contact_name) +
 							" " +
 							esc(b.contact_email) +
 							" " +
 							esc(b.contact_phone || "") +
-							'<br><button type="button" class="btn btn--small" data-edit-brewery="' +
-							b.id +
-							'">Edit</button> <button type="button" class="btn btn--small" data-del-brewery="' +
-							b.id +
-							'" data-brewery-name="' +
-							esc(b.name) +
-							'">Remove</button> <button type="button" class="btn btn--small" data-add-member="' +
-							b.id +
-							'" data-brewery-name="' +
-							esc(b.name) +
-							'">Add member</button> <button type="button" class="btn btn--small" data-list-members="' +
-							b.id +
-							'" data-brewery-name="' +
-							esc(b.name) +
-							'">Members</button></div>'
-					)
+							ig +
+							'<div class="panel__card-actions">' +
+							editBtn +
+							delBtn +
+							addBtn +
+							membersBtn +
+							"</div></div>"
+						);
+					})
 					.join("") || '<p class="panel__empty">No breweries.</p>';
 			} catch (e) {
 				brewEl.textContent = e.message;
@@ -3245,9 +3312,20 @@
 			const form = panel.querySelector("#iam-brewery-form");
 			const title = panel.querySelector("#iam-brewery-title");
 			const adminSel = form.querySelector('[name="brewery_admin_user_id"]');
+			const logoBlock = panel.querySelector("#iam-brewery-logo-block");
+			const logoErr = panel.querySelector("#iam-brewery-logo-error");
+			const logoFile = panel.querySelector("#iam-brewery-logo-file");
 			form.reset();
 			form.querySelector('[name="brewery_id"]').value = breweryID ? String(breweryID) : "";
+			if (logoErr) {
+				logoErr.hidden = true;
+				logoErr.textContent = "";
+			}
+			if (logoFile) {
+				logoFile.value = "";
+			}
 			let adminID = "";
+			let logoConfigured = false;
 			if (breweryID) {
 				title.textContent = "Edit brewery";
 				const [brewery, members] = await Promise.all([
@@ -3258,14 +3336,27 @@
 				form.querySelector('[name="contact_name"]').value = brewery.contact_name || "";
 				form.querySelector('[name="contact_email"]').value = brewery.contact_email || "";
 				form.querySelector('[name="contact_phone"]').value = brewery.contact_phone || "";
+				form.querySelector('[name="instagram"]').value = brewery.instagram || "";
+				logoConfigured = !!brewery.logo_configured;
 				const admin = (members || []).find((m) => m.role === "brewery_admin");
 				if (admin) {
 					adminID = String(admin.user_id);
 				}
+				if (logoBlock) {
+					logoBlock.hidden = false;
+				}
+				setBreweryLogoPreview(breweryID, logoConfigured);
 			} else {
 				title.textContent = "New brewery";
+				if (logoBlock) {
+					logoBlock.hidden = true;
+				}
+				setBreweryLogoPreview(null, false);
 			}
-			await fillBreweryAdminSelect(adminSel, adminID);
+			if (isAdmin) {
+				await fillBreweryAdminSelect(adminSel, adminID);
+			}
+			applyRequireRoles(form);
 			dlg.showModal();
 		}
 
@@ -3303,6 +3394,8 @@
 								esc(m.username) +
 								'</td><td><select data-member-role="' +
 								m.user_id +
+								'" data-prev-role="' +
+								esc(m.role) +
 								'">' +
 								opts +
 								'</select></td><td><button type="button" class="btn btn--small" data-remove-member="' +
@@ -3339,11 +3432,71 @@
 			if (action === "iam-breweries-refresh") {
 				refreshBreweries();
 			}
+			if (action === "iam-brewery-logo-upload") {
+				const breweryID = panel.querySelector('#iam-brewery-form [name="brewery_id"]').value;
+				const fileInput = panel.querySelector("#iam-brewery-logo-file");
+				const errEl = panel.querySelector("#iam-brewery-logo-error");
+				errEl.hidden = true;
+				const file = fileInput && fileInput.files && fileInput.files[0];
+				if (!breweryID) {
+					errEl.hidden = false;
+					errEl.textContent = "Save the brewery before uploading a logo";
+					return;
+				}
+				if (!file) {
+					errEl.hidden = false;
+					errEl.textContent = "Choose a file first";
+					return;
+				}
+				try {
+					const fd = new FormData();
+					fd.append("logo", file);
+					const res = await fetch("/api/breweries/" + breweryID + "/logo", {
+						method: "PUT",
+						headers: { Authorization: "Bearer " + token() },
+						body: fd,
+					});
+					const text = await res.text();
+					let data = null;
+					try {
+						data = text ? JSON.parse(text) : null;
+					} catch {
+						data = { error: text };
+					}
+					if (!res.ok) {
+						throw new Error((data && data.error) || res.statusText);
+					}
+					fileInput.value = "";
+					setBreweryLogoPreview(breweryID, true);
+					refreshBreweries();
+				} catch (e) {
+					errEl.hidden = false;
+					errEl.textContent = e.message;
+				}
+				return;
+			}
+			if (action === "iam-brewery-logo-reset") {
+				const breweryID = panel.querySelector('#iam-brewery-form [name="brewery_id"]').value;
+				const errEl = panel.querySelector("#iam-brewery-logo-error");
+				errEl.hidden = true;
+				if (!breweryID) {
+					return;
+				}
+				try {
+					await api("/api/breweries/" + breweryID + "/logo", { method: "DELETE" });
+					setBreweryLogoPreview(breweryID, false);
+					refreshBreweries();
+				} catch (e) {
+					errEl.hidden = false;
+					errEl.textContent = e.message;
+				}
+				return;
+			}
 			if (action === "iam-breweries-export") {
 				try {
 					await downloadCSVAuth("/api/breweries/export", "breweries.csv");
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 			}
 			if (action === "iam-breweries-import") {
@@ -3357,7 +3510,7 @@
 				try {
 					await downloadCSVAuth("/api/breweries/members/export", "members.csv");
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 			}
 			if (action === "iam-members-import") {
@@ -3371,14 +3524,14 @@
 				try {
 					await openBreweryDialog(null);
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 			}
 			if (t.hasAttribute("data-edit-brewery")) {
 				try {
 					await openBreweryDialog(t.getAttribute("data-edit-brewery"));
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 				return;
 			}
@@ -3401,7 +3554,7 @@
 					await api("/api/breweries/" + id, { method: "DELETE" });
 					refreshBreweries();
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 				return;
 			}
@@ -3432,7 +3585,7 @@
 							)
 							.join("");
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 					return;
 				}
 				dlg.showModal();
@@ -3458,7 +3611,7 @@
 					});
 					await refreshMembersList(breweryID);
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 			}
 		});
@@ -3473,13 +3626,27 @@
 			}
 			const breweryID = panel.querySelector("#iam-members-brewery-id").value;
 			const userID = parseInt(t.getAttribute("data-member-role"), 10);
+			const prevRole = t.getAttribute("data-prev-role") || "";
+			const newRole = t.value;
+			if (newRole === prevRole) {
+				return;
+			}
+			const ok = await appConfirm({
+				title: "Change role",
+				message: "Change this member's role to " + newRole + "?",
+			});
+			if (!ok) {
+				t.value = prevRole;
+				return;
+			}
 			try {
 				await api("/api/breweries/" + breweryID + "/members", {
 					method: "POST",
-					body: JSON.stringify({ user_id: userID, role: t.value }),
+					body: JSON.stringify({ user_id: userID, role: newRole }),
 				});
+				t.setAttribute("data-prev-role", newRole);
 			} catch (e) {
-				alert(e.message);
+				await appInfo({ title: "Notice", message: e.message });
 				await refreshMembersList(breweryID);
 			}
 		});
@@ -3499,8 +3666,9 @@
 				contact_name: fd.get("contact_name"),
 				contact_email: fd.get("contact_email"),
 				contact_phone: fd.get("contact_phone"),
+				instagram: fd.get("instagram"),
 			};
-			if (adminID) {
+			if (isAdmin && adminID) {
 				body.brewery_admin_user_id = parseInt(adminID, 10);
 			}
 			try {
@@ -3515,7 +3683,7 @@
 				breweryForm.reset();
 				refreshBreweries();
 			} catch (e) {
-				alert(e.message);
+				await appInfo({ title: "Notice", message: e.message });
 			}
 		});
 
@@ -3526,6 +3694,13 @@
 				return;
 			}
 			const fd = new FormData(memberForm);
+			const ok = await appConfirm({
+				title: "Add member",
+				message: "Add this user to the brewery?",
+			});
+			if (!ok) {
+				return;
+			}
 			try {
 				await api("/api/breweries/" + fd.get("brewery_id") + "/members", {
 					method: "POST",
@@ -3534,9 +3709,9 @@
 						role: fd.get("role"),
 					}),
 				});
-				alert("Member added");
+				await appInfo({ title: "Notice", message: "Member added" });
 			} catch (e) {
-				alert(e.message);
+				await appInfo({ title: "Notice", message: e.message });
 			}
 		});
 
@@ -3555,7 +3730,7 @@
 					});
 					refreshBreweries();
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				} finally {
 					breweriesImportFile.value = "";
 				}
@@ -3577,7 +3752,7 @@
 					});
 					refreshBreweries();
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				} finally {
 					membersImportFile.value = "";
 				}
@@ -3838,7 +4013,7 @@
 					});
 					refresh();
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 				return;
 			}
@@ -3850,7 +4025,7 @@
 					});
 					refresh();
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 				return;
 			}
@@ -3867,7 +4042,7 @@
 					await api("/api/settings/tanks/" + id, { method: "DELETE" });
 					refresh();
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 				return;
 			}
@@ -3894,7 +4069,7 @@
 				});
 				refresh();
 			} catch (e) {
-				alert(e.message);
+				await appInfo({ title: "Notice", message: e.message });
 			}
 		});
 		refresh();
@@ -3982,7 +4157,7 @@
 					});
 					refresh();
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 				return;
 			}
@@ -3997,7 +4172,7 @@
 					);
 					refresh();
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 				return;
 			}
@@ -4014,7 +4189,7 @@
 					await api("/api/settings/multipliers/" + id, { method: "DELETE" });
 					refresh();
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 				return;
 			}
@@ -4041,7 +4216,7 @@
 				});
 				refresh();
 			} catch (e) {
-				alert(e.message);
+				await appInfo({ title: "Notice", message: e.message });
 			}
 		});
 		refresh();
@@ -4163,7 +4338,7 @@
 					});
 					refresh();
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 				return;
 			}
@@ -4180,7 +4355,7 @@
 					await api("/api/settings/hygiene-routines/" + id, { method: "DELETE" });
 					refresh();
 				} catch (e) {
-					alert(e.message);
+					await appInfo({ title: "Notice", message: e.message });
 				}
 				return;
 			}
@@ -4213,7 +4388,7 @@
 				});
 				refresh();
 			} catch (e) {
-				alert(e.message);
+				await appInfo({ title: "Notice", message: e.message });
 			}
 		});
 		refresh();

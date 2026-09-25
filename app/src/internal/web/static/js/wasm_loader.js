@@ -482,7 +482,12 @@
 			const res = await fetch("/api/me", { headers: authHeaders() });
 			const data = await res.json().catch(() => ({}));
 			if (!res.ok) {
-				alert(data.error || "Could not load profile");
+				if (window.BrewhouseUI && typeof window.BrewhouseUI.info === "function") {
+					await window.BrewhouseUI.info({
+						title: "Notice",
+						message: data.error || "Could not load profile",
+					});
+				}
 				return;
 			}
 			profileForm.username.value = data.username || "";
@@ -496,7 +501,12 @@
 			profileDialog.showModal();
 		} catch (err) {
 			console.error(err);
-			alert("Could not load profile");
+			if (window.BrewhouseUI && typeof window.BrewhouseUI.info === "function") {
+				await window.BrewhouseUI.info({
+					title: "Notice",
+					message: "Could not load profile",
+				});
+			}
 		}
 	}
 
@@ -572,7 +582,12 @@
 				setProfileMenuOpen(false);
 			} catch (err) {
 				profileAdminToggle.checked = !want;
-				alert(err.message || "Could not change admin mode");
+				if (window.BrewhouseUI && typeof window.BrewhouseUI.info === "function") {
+					await window.BrewhouseUI.info({
+						title: "Notice",
+						message: err.message || "Could not change admin mode",
+					});
+				}
 			}
 		});
 	}

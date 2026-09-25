@@ -71,12 +71,15 @@ type UserContact struct {
 
 // Brewery is a sub-brewery under the shared inventory umbrella.
 type Brewery struct {
-	ID           int64  `json:"id"`
-	Name         string `json:"name"`
-	ContactName  string `json:"contact_name"`
-	ContactEmail string `json:"contact_email"`
-	ContactPhone string `json:"contact_phone"`
-	CreatedAt    string `json:"created_at,omitempty"`
+	ID             int64  `json:"id"`
+	Name           string `json:"name"`
+	ContactName    string `json:"contact_name"`
+	ContactEmail   string `json:"contact_email"`
+	ContactPhone   string `json:"contact_phone"`
+	Instagram      string `json:"instagram"`
+	CreatedAt      string `json:"created_at,omitempty"`
+	CanManage      bool   `json:"can_manage"`
+	LogoConfigured bool   `json:"logo_configured"`
 }
 
 // BreweryMember links a user to a brewery with a membership role.

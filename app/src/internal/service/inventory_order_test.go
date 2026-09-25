@@ -185,7 +185,7 @@ func TestOrderedQtyZeroOnComplete(t *testing.T) {
 func TestCompleteOrderAllocatesToRecipeShortfall(t *testing.T) {
 	_, users, breweries, inventory, _, recipes, _ := testDB(t)
 	_, admin := ensureAdminUser(t, users)
-	brewery, err := breweries.Create(admin, "Alloc Brewery", "", "", "", nil)
+	brewery, err := breweries.Create(admin, "Alloc Brewery", "", "", "", "", nil)
 	if err != nil {
 		t.Fatalf("brewery: %v", err)
 	}

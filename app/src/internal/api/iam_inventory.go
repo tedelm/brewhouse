@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -210,7 +211,7 @@ func (h *Handler) Breweries(w http.ResponseWriter, r *http.Request) {
 				writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid body"})
 				return
 			}
-			b, err := h.breweries.Create(actor, req.Name, req.ContactName, req.ContactEmail, req.ContactPhone, req.BreweryAdminUserID)
+			b, err := h.breweries.Create(actor, req.Name, req.ContactName, req.ContactEmail, req.ContactPhone, req.Instagram, req.BreweryAdminUserID)
 			if err != nil {
 				h.writeErr(w, err)
 				return
@@ -313,7 +314,7 @@ func (h *Handler) Breweries(w http.ResponseWriter, r *http.Request) {
 				writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid body"})
 				return
 			}
-			b, err := h.breweries.Update(actor, id, req.Name, req.ContactName, req.ContactEmail, req.ContactPhone, req.BreweryAdminUserID)
+			b, err := h.breweries.Update(actor, id, req.Name, req.ContactName, req.ContactEmail, req.ContactPhone, req.Instagram, req.BreweryAdminUserID)
 			if err != nil {
 				h.writeErr(w, err)
 				return
@@ -369,7 +370,61 @@ func (h *Handler) Breweries(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if parts[1] == "logo" && len(parts) == 2 {
+		h.breweryLogoAPI(w, r, actor, id)
+		return
+	}
+
 	writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "not found"})
+}
+
+func (h *Handler) breweryLogoAPI(w http.ResponseWriter, r *http.Request, actor service.Actor, breweryID int64) {
+	switch r.Method {
+	case http.MethodGet:
+		ok, err := h.breweries.LogoConfigured(breweryID)
+		if err != nil {
+			h.writeErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, service.BrandImageMeta{Configured: ok})
+	case http.MethodPut, http.MethodPost:
+		if err := r.ParseMultipartForm(1200 << 10); err != nil {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid multipart form"})
+			return
+		}
+		file, header, err := r.FormFile("logo")
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "missing logo file"})
+			return
+		}
+		defer file.Close()
+		data, err := io.ReadAll(io.LimitReader(file, (1<<20)+1))
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "failed to read file"})
+			return
+		}
+		contentType := header.Header.Get("Content-Type")
+		if contentType == "" || contentType == "application/octet-stream" {
+			contentType = http.DetectContentType(data)
+		}
+		if err := h.breweries.SetLogo(actor, breweryID, contentType, data); err != nil {
+			if errors.Is(err, service.ErrForbidden) || errors.Is(err, service.ErrNotFound) {
+				h.writeErr(w, err)
+				return
+			}
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, service.BrandImageMeta{Configured: true})
+	case http.MethodDelete:
+		if err := h.breweries.ClearLogo(actor, breweryID); err != nil {
+			h.writeErr(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	default:
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
+	}
 }
 
 func splitPath(path string) []string {

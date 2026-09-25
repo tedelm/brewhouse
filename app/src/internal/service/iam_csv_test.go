@@ -80,8 +80,8 @@ func TestBreweriesCSV_ExportImportUpsert(t *testing.T) {
 	_, users, breweries, _, _, _, _ := testDB(t)
 	_, admin := ensureAdminUser(t, users)
 
-	csv1 := "name,contact_name,contact_email,contact_phone\n" +
-		"Alpha Brew,Ann,ann@a.test,111\n"
+	csv1 := "name,contact_name,contact_email,contact_phone,instagram\n" +
+		"Alpha Brew,Ann,ann@a.test,111,https://instagram.com/alpha\n"
 	res, err := breweries.ImportBreweriesCSV(admin, []byte(csv1))
 	if err != nil {
 		t.Fatalf("import create: %v", err)
@@ -90,9 +90,9 @@ func TestBreweriesCSV_ExportImportUpsert(t *testing.T) {
 		t.Fatalf("unexpected create: %+v", res)
 	}
 
-	csv2 := "name,contact_name,contact_email,contact_phone\n" +
-		"Alpha Brew,Bob,bob@a.test,222\n" +
-		"Beta Brew,Bea,bea@b.test,333\n"
+	csv2 := "name,contact_name,contact_email,contact_phone,instagram\n" +
+		"Alpha Brew,Bob,bob@a.test,222,https://instagram.com/bob\n" +
+		"Beta Brew,Bea,bea@b.test,333,\n"
 	res, err = breweries.ImportBreweriesCSV(admin, []byte(csv2))
 	if err != nil {
 		t.Fatalf("import upsert: %v", err)
@@ -114,7 +114,7 @@ func TestBreweriesCSV_ExportImportUpsert(t *testing.T) {
 			beta = &list[i]
 		}
 	}
-	if alpha == nil || alpha.ContactName != "Bob" || alpha.ContactEmail != "bob@a.test" || alpha.ContactPhone != "222" {
+	if alpha == nil || alpha.ContactName != "Bob" || alpha.ContactEmail != "bob@a.test" || alpha.ContactPhone != "222" || alpha.Instagram != "https://instagram.com/bob" {
 		t.Fatalf("alpha not updated: %+v", alpha)
 	}
 	if beta == nil || beta.ContactName != "Bea" {
@@ -126,7 +126,7 @@ func TestBreweriesCSV_ExportImportUpsert(t *testing.T) {
 		t.Fatalf("export: %v", err)
 	}
 	text := string(exported)
-	if !strings.Contains(text, "name,contact_name,contact_email,contact_phone") {
+	if !strings.Contains(text, "name,contact_name,contact_email,contact_phone,instagram") {
 		t.Fatalf("missing header")
 	}
 	if !strings.Contains(text, "Alpha Brew") || !strings.Contains(text, "Beta Brew") {
@@ -143,7 +143,7 @@ func TestMembersCSV_ExportImportAddUpdateNoDelete(t *testing.T) {
 	_, users, breweries, _, _, _, _ := testDB(t)
 	_, admin := ensureAdminUser(t, users)
 
-	brewery, err := breweries.Create(admin, "Gamma Brew", "", "", "", nil)
+	brewery, err := breweries.Create(admin, "Gamma Brew", "", "", "", "", nil)
 	if err != nil {
 		t.Fatalf("create brewery: %v", err)
 	}

@@ -4,7 +4,14 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
+)
+
+const (
+	maxBreweryLogoBytes  = 1 << 20 // 1 MB
+	maxBreweryLogoWidth  = 300
+	maxBreweryLogoHeight = 300
 )
 
 // BreweryService manages breweries and memberships.
@@ -24,12 +31,12 @@ func (s *BreweryService) List(actor Actor) ([]Brewery, error) {
 	var err error
 	if actor.IsAdmin() {
 		rows, err = s.db.Query(
-			`SELECT id, name, contact_name, contact_email, contact_phone, created_at
+			`SELECT id, name, contact_name, contact_email, contact_phone, instagram, created_at
 			 FROM breweries ORDER BY name`,
 		)
 	} else {
 		rows, err = s.db.Query(
-			`SELECT b.id, b.name, b.contact_name, b.contact_email, b.contact_phone, b.created_at
+			`SELECT b.id, b.name, b.contact_name, b.contact_email, b.contact_phone, b.instagram, b.created_at
 			 FROM breweries b
 			 INNER JOIN brewery_members m ON m.brewery_id = b.id
 			 WHERE m.user_id = ?
@@ -45,8 +52,11 @@ func (s *BreweryService) List(actor Actor) ([]Brewery, error) {
 	var out []Brewery
 	for rows.Next() {
 		var b Brewery
-		if err := rows.Scan(&b.ID, &b.Name, &b.ContactName, &b.ContactEmail, &b.ContactPhone, &b.CreatedAt); err != nil {
+		if err := rows.Scan(&b.ID, &b.Name, &b.ContactName, &b.ContactEmail, &b.ContactPhone, &b.Instagram, &b.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan brewery: %w", err)
+		}
+		if err := s.enrichBrewery(actor, &b); err != nil {
+			return nil, err
 		}
 		out = append(out, b)
 	}
@@ -60,30 +70,51 @@ func (s *BreweryService) Get(actor Actor, id int64) (*Brewery, error) {
 	}
 	b := &Brewery{}
 	err := s.db.QueryRow(
-		`SELECT id, name, contact_name, contact_email, contact_phone, created_at FROM breweries WHERE id = ?`,
+		`SELECT id, name, contact_name, contact_email, contact_phone, instagram, created_at FROM breweries WHERE id = ?`,
 		id,
-	).Scan(&b.ID, &b.Name, &b.ContactName, &b.ContactEmail, &b.ContactPhone, &b.CreatedAt)
+	).Scan(&b.ID, &b.Name, &b.ContactName, &b.ContactEmail, &b.ContactPhone, &b.Instagram, &b.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get brewery: %w", err)
 	}
+	if err := s.enrichBrewery(actor, b); err != nil {
+		return nil, err
+	}
 	return b, nil
 }
 
+func (s *BreweryService) enrichBrewery(actor Actor, b *Brewery) error {
+	ok, err := s.access.CanManageBrewery(actor, b.ID)
+	if err != nil {
+		return err
+	}
+	b.CanManage = ok
+	configured, err := s.LogoConfigured(b.ID)
+	if err != nil {
+		return err
+	}
+	b.LogoConfigured = configured
+	return nil
+}
+
 // Create inserts a brewery. Admin only. Optionally assigns brewery_admin.
-func (s *BreweryService) Create(actor Actor, name, contactName, contactEmail, contactPhone string, breweryAdminUserID *int64) (*Brewery, error) {
+func (s *BreweryService) Create(actor Actor, name, contactName, contactEmail, contactPhone, instagram string, breweryAdminUserID *int64) (*Brewery, error) {
 	if !actor.IsAdmin() {
 		return nil, ErrForbidden
 	}
 	if name == "" {
 		return nil, fmt.Errorf("name required")
 	}
+	instagram = strings.TrimSpace(instagram)
+	if err := validateInstagramURL(instagram); err != nil {
+		return nil, err
+	}
 	createdAt := time.Now().UTC().Format(time.RFC3339)
 	res, err := s.db.Exec(
-		`INSERT INTO breweries (name, contact_name, contact_email, contact_phone, created_at) VALUES (?, ?, ?, ?, ?)`,
-		name, contactName, contactEmail, contactPhone, createdAt,
+		`INSERT INTO breweries (name, contact_name, contact_email, contact_phone, instagram, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+		name, contactName, contactEmail, contactPhone, instagram, createdAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("insert brewery: %w", err)
@@ -101,7 +132,7 @@ func (s *BreweryService) Create(actor Actor, name, contactName, contactEmail, co
 }
 
 // Update updates brewery fields. Optionally assigns brewery_admin when breweryAdminUserID > 0.
-func (s *BreweryService) Update(actor Actor, id int64, name, contactName, contactEmail, contactPhone string, breweryAdminUserID *int64) (*Brewery, error) {
+func (s *BreweryService) Update(actor Actor, id int64, name, contactName, contactEmail, contactPhone, instagram string, breweryAdminUserID *int64) (*Brewery, error) {
 	ok, err := s.access.CanManageBrewery(actor, id)
 	if err != nil {
 		return nil, err
@@ -112,9 +143,13 @@ func (s *BreweryService) Update(actor Actor, id int64, name, contactName, contac
 	if name == "" {
 		return nil, fmt.Errorf("name required")
 	}
+	instagram = strings.TrimSpace(instagram)
+	if err := validateInstagramURL(instagram); err != nil {
+		return nil, err
+	}
 	_, err = s.db.Exec(
-		`UPDATE breweries SET name = ?, contact_name = ?, contact_email = ?, contact_phone = ? WHERE id = ?`,
-		name, contactName, contactEmail, contactPhone, id,
+		`UPDATE breweries SET name = ?, contact_name = ?, contact_email = ?, contact_phone = ?, instagram = ? WHERE id = ?`,
+		name, contactName, contactEmail, contactPhone, instagram, id,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("update brewery: %w", err)
@@ -235,6 +270,78 @@ func (s *BreweryService) RemoveMember(actor Actor, breweryID, userID int64) erro
 	n, _ := res.RowsAffected()
 	if n == 0 {
 		return ErrNotFound
+	}
+	return nil
+}
+
+// GetLogo returns the stored brewery logo bytes when configured.
+func (s *BreweryService) GetLogo(breweryID int64) (contentType string, data []byte, ok bool, err error) {
+	err = s.db.QueryRow(
+		`SELECT content_type, data FROM brewery_logos WHERE brewery_id = ?`,
+		breweryID,
+	).Scan(&contentType, &data)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil, false, nil
+	}
+	if err != nil {
+		return "", nil, false, fmt.Errorf("get brewery logo: %w", err)
+	}
+	return contentType, data, true, nil
+}
+
+// LogoConfigured reports whether a brewery logo is stored.
+func (s *BreweryService) LogoConfigured(breweryID int64) (bool, error) {
+	var n int
+	err := s.db.QueryRow(`SELECT COUNT(*) FROM brewery_logos WHERE brewery_id = ?`, breweryID).Scan(&n)
+	if err != nil {
+		return false, fmt.Errorf("count brewery logo: %w", err)
+	}
+	return n > 0, nil
+}
+
+// SetLogo stores a brewery logo (brewery_admin or global admin).
+func (s *BreweryService) SetLogo(actor Actor, breweryID int64, contentType string, data []byte) error {
+	ok, err := s.access.CanManageBrewery(actor, breweryID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrForbidden
+	}
+	var exists int
+	err = s.db.QueryRow(`SELECT COUNT(*) FROM breweries WHERE id = ?`, breweryID).Scan(&exists)
+	if err != nil {
+		return fmt.Errorf("check brewery: %w", err)
+	}
+	if exists == 0 {
+		return ErrNotFound
+	}
+	if err := validateImage(contentType, data, maxBreweryLogoBytes, maxBreweryLogoWidth, maxBreweryLogoHeight); err != nil {
+		return err
+	}
+	_, err = s.db.Exec(
+		`INSERT INTO brewery_logos (brewery_id, content_type, data) VALUES (?, ?, ?)
+		 ON CONFLICT(brewery_id) DO UPDATE SET content_type = excluded.content_type, data = excluded.data`,
+		breweryID, contentType, data,
+	)
+	if err != nil {
+		return fmt.Errorf("set brewery logo: %w", err)
+	}
+	return nil
+}
+
+// ClearLogo removes a brewery logo (brewery_admin or global admin).
+func (s *BreweryService) ClearLogo(actor Actor, breweryID int64) error {
+	ok, err := s.access.CanManageBrewery(actor, breweryID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrForbidden
+	}
+	_, err = s.db.Exec(`DELETE FROM brewery_logos WHERE brewery_id = ?`, breweryID)
+	if err != nil {
+		return fmt.Errorf("clear brewery logo: %w", err)
 	}
 	return nil
 }

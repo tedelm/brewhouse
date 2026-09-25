@@ -84,6 +84,7 @@ type CreateBreweryRequest struct {
 	ContactName        string `json:"contact_name"`
 	ContactEmail       string `json:"contact_email"`
 	ContactPhone       string `json:"contact_phone"`
+	Instagram          string `json:"instagram"`
 	BreweryAdminUserID *int64 `json:"brewery_admin_user_id"`
 }
 

@@ -55,7 +55,7 @@ func TestRecipe_CreateCheckoutAndDeleteRestoresStock(t *testing.T) {
 	_, users, breweries, inventory, _, recipes, _ := testDB(t)
 	_, admin := ensureAdminUser(t, users)
 
-	brewery, err := breweries.Create(admin, "Test Brewery", "A", "a@t.com", "", nil)
+	brewery, err := breweries.Create(admin, "Test Brewery", "A", "a@t.com", "", "", nil)
 	if err != nil {
 		t.Fatalf("create brewery: %v", err)
 	}
@@ -106,7 +106,7 @@ func TestRecipe_CreateCheckoutAndDeleteRestoresStock(t *testing.T) {
 func TestRecipe_PartialCheckoutAddsPlanningOrder(t *testing.T) {
 	_, users, breweries, inventory, _, recipes, _ := testDB(t)
 	_, admin := ensureAdminUser(t, users)
-	brewery, _ := breweries.Create(admin, "B2", "", "", "", nil)
+	brewery, _ := breweries.Create(admin, "B2", "", "", "", "", nil)
 	item, err := inventory.Create(admin, service.InventoryItem{Category: service.CategoryHops, Name: "Test Cascade Shortfall", Unit: "g", Qty: 50, CostPrice: 1})
 	if err != nil {
 		t.Fatalf("create item: %v", err)
@@ -163,7 +163,7 @@ func TestABVAndPricing(t *testing.T) {
 func TestSchedule_BookingConflict(t *testing.T) {
 	_, users, breweries, inventory, settings, recipes, schedule := testDB(t)
 	_, admin := ensureAdminUser(t, users)
-	brewery, _ := breweries.Create(admin, "B3", "", "", "", nil)
+	brewery, _ := breweries.Create(admin, "B3", "", "", "", "", nil)
 	item, _ := inventory.Create(admin, service.InventoryItem{Category: service.CategoryYeast, Name: "US-05", Unit: "pack", Qty: 5, CostPrice: 30})
 	tank, err := settings.CreateTank(admin, "FV1", 1000)
 	if err != nil {
@@ -202,7 +202,7 @@ func TestSchedule_BookingConflict(t *testing.T) {
 func TestSchedule_TankConflictDetails(t *testing.T) {
 	_, users, breweries, inventory, settings, recipes, schedule := testDB(t)
 	_, admin := ensureAdminUser(t, users)
-	brewery, _ := breweries.Create(admin, "Conflict Brewery", "", "", "", nil)
+	brewery, _ := breweries.Create(admin, "Conflict Brewery", "", "", "", "", nil)
 	item, _ := inventory.Create(admin, service.InventoryItem{Category: service.CategoryYeast, Name: "US-05", Unit: "pack", Qty: 5, CostPrice: 30})
 	tank, err := settings.CreateTank(admin, "FVConflict", 1000)
 	if err != nil {
@@ -254,7 +254,7 @@ func TestSchedule_TankConflictDetails(t *testing.T) {
 func TestSchedule_TankConflictNoAlternatives(t *testing.T) {
 	_, users, breweries, inventory, settings, recipes, schedule := testDB(t)
 	_, admin := ensureAdminUser(t, users)
-	brewery, _ := breweries.Create(admin, "Solo Brewery", "", "", "", nil)
+	brewery, _ := breweries.Create(admin, "Solo Brewery", "", "", "", "", nil)
 	item, _ := inventory.Create(admin, service.InventoryItem{Category: service.CategoryYeast, Name: "US-05", Unit: "pack", Qty: 5, CostPrice: 30})
 	tank, err := settings.CreateTank(admin, "OnlyFV", 1000)
 	if err != nil {
@@ -290,7 +290,7 @@ func TestSchedule_TankConflictNoAlternatives(t *testing.T) {
 func TestSchedule_Unbook(t *testing.T) {
 	_, users, breweries, inventory, settings, recipes, schedule := testDB(t)
 	_, admin := ensureAdminUser(t, users)
-	brewery, _ := breweries.Create(admin, "BUnbook", "", "", "", nil)
+	brewery, _ := breweries.Create(admin, "BUnbook", "", "", "", "", nil)
 	item, _ := inventory.Create(admin, service.InventoryItem{Category: service.CategoryYeast, Name: "US-05", Unit: "pack", Qty: 5, CostPrice: 30})
 	tank, err := settings.CreateTank(admin, "FVUnbook", 1000)
 	if err != nil {
@@ -348,7 +348,7 @@ func TestSchedule_Unbook(t *testing.T) {
 func TestPipeline_GatesAndRevokeHygiene(t *testing.T) {
 	_, users, breweries, inventory, settings, recipes, schedule := testDB(t)
 	_, admin := ensureAdminUser(t, users)
-	brewery, _ := breweries.Create(admin, "BPipe", "", "", "", nil)
+	brewery, _ := breweries.Create(admin, "BPipe", "", "", "", "", nil)
 	item, _ := inventory.Create(admin, service.InventoryItem{Category: service.CategoryMalt, Name: "Pale", Unit: "kg", Qty: 20, CostPrice: 10})
 	tank, _ := settings.CreateTank(admin, "FVPipe", 500)
 	defaultMultID := multiplierIDByName(t, settings, "default")
@@ -422,7 +422,7 @@ func TestPipeline_GatesAndRevokeHygiene(t *testing.T) {
 func TestRevokeBrewday(t *testing.T) {
 	_, users, breweries, inventory, settings, recipes, schedule := testDB(t)
 	_, admin := ensureAdminUser(t, users)
-	brewery, _ := breweries.Create(admin, "BRevBrew", "", "", "", nil)
+	brewery, _ := breweries.Create(admin, "BRevBrew", "", "", "", "", nil)
 	item, _ := inventory.Create(admin, service.InventoryItem{Category: service.CategoryMalt, Name: "Pale", Unit: "kg", Qty: 20, CostPrice: 10})
 	tank, _ := settings.CreateTank(admin, "FVRevBrew", 500)
 
@@ -485,7 +485,7 @@ func multiplierIDByName(t *testing.T, settings *service.SettingsService, name st
 func TestDelivery_ComputesTaxCostNet(t *testing.T) {
 	_, users, breweries, inventory, settings, recipes, schedule := testDB(t)
 	_, admin := ensureAdminUser(t, users)
-	brewery, _ := breweries.Create(admin, "B4", "", "", "", nil)
+	brewery, _ := breweries.Create(admin, "B4", "", "", "", "", nil)
 	item, _ := inventory.Create(admin, service.InventoryItem{Category: service.CategoryMalt, Name: "Pale", Unit: "kg", Qty: 20, CostPrice: 10})
 	tank, _ := settings.CreateTank(admin, "FV2", 500)
 	defaultMultID := multiplierIDByName(t, settings, "default")
@@ -537,7 +537,7 @@ func TestDelivery_ComputesTaxCostNet(t *testing.T) {
 func TestDelivered_HideAndList(t *testing.T) {
 	_, users, breweries, inventory, settings, recipes, schedule := testDB(t)
 	_, admin := ensureAdminUser(t, users)
-	brewery, _ := breweries.Create(admin, "BHide", "", "", "", nil)
+	brewery, _ := breweries.Create(admin, "BHide", "", "", "", "", nil)
 	item, _ := inventory.Create(admin, service.InventoryItem{Category: service.CategoryMalt, Name: "Pale", Unit: "kg", Qty: 20, CostPrice: 10})
 	tank, _ := settings.CreateTank(admin, "FVHide", 500)
 	defaultMultID := multiplierIDByName(t, settings, "default")
@@ -626,7 +626,7 @@ func TestDelivered_HideAndList(t *testing.T) {
 func TestDelivery_Revoke(t *testing.T) {
 	_, users, breweries, inventory, settings, recipes, schedule := testDB(t)
 	_, admin := ensureAdminUser(t, users)
-	brewery, _ := breweries.Create(admin, "B6", "", "", "", nil)
+	brewery, _ := breweries.Create(admin, "B6", "", "", "", "", nil)
 	item, _ := inventory.Create(admin, service.InventoryItem{Category: service.CategoryMalt, Name: "Pale", Unit: "kg", Qty: 20, CostPrice: 10})
 	tank, _ := settings.CreateTank(admin, "FV4", 500)
 	defaultMultID := multiplierIDByName(t, settings, "default")
@@ -675,7 +675,7 @@ func TestDelivery_Revoke(t *testing.T) {
 func TestDelivery_NetIsBeerNetTimesMult(t *testing.T) {
 	_, users, breweries, inventory, settings, recipes, schedule := testDB(t)
 	_, admin := ensureAdminUser(t, users)
-	brewery, _ := breweries.Create(admin, "B5", "", "", "", nil)
+	brewery, _ := breweries.Create(admin, "B5", "", "", "", "", nil)
 	item, _ := inventory.Create(admin, service.InventoryItem{Category: service.CategoryMalt, Name: "Pale", Unit: "kg", Qty: 20, CostPrice: 10})
 	tank, _ := settings.CreateTank(admin, "FV3", 500)
 	defaultMultID := multiplierIDByName(t, settings, "default")
@@ -721,7 +721,7 @@ func TestDelivery_NetIsBeerNetTimesMult(t *testing.T) {
 func TestDelivery_HigherMultiplierRaisesNet(t *testing.T) {
 	_, users, breweries, inventory, settings, recipes, schedule := testDB(t)
 	_, admin := ensureAdminUser(t, users)
-	brewery, _ := breweries.Create(admin, "B7", "", "", "", nil)
+	brewery, _ := breweries.Create(admin, "B7", "", "", "", "", nil)
 	item, _ := inventory.Create(admin, service.InventoryItem{Category: service.CategoryMalt, Name: "Pale", Unit: "kg", Qty: 40, CostPrice: 10})
 	tank, _ := settings.CreateTank(admin, "FV5", 500)
 	defaultMultID := multiplierIDByName(t, settings, "default")

@@ -55,6 +55,7 @@ func migrate(db *sql.DB) error {
 			contact_name TEXT NOT NULL DEFAULT '',
 			contact_email TEXT NOT NULL DEFAULT '',
 			contact_phone TEXT NOT NULL DEFAULT '',
+			instagram TEXT NOT NULL DEFAULT '',
 			created_at TEXT NOT NULL
 		)`,
 		`CREATE TABLE IF NOT EXISTS brewery_members (
@@ -63,6 +64,12 @@ func migrate(db *sql.DB) error {
 			role TEXT NOT NULL,
 			PRIMARY KEY (user_id, brewery_id),
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+			FOREIGN KEY (brewery_id) REFERENCES breweries(id) ON DELETE CASCADE
+		)`,
+		`CREATE TABLE IF NOT EXISTS brewery_logos (
+			brewery_id INTEGER PRIMARY KEY,
+			content_type TEXT NOT NULL,
+			data BLOB NOT NULL,
 			FOREIGN KEY (brewery_id) REFERENCES breweries(id) ON DELETE CASCADE
 		)`,
 		`CREATE TABLE IF NOT EXISTS inventory_items (
@@ -264,6 +271,9 @@ func migrate(db *sql.DB) error {
 	if err := ensureRecipeActiveColumn(db); err != nil {
 		return fmt.Errorf("ensure recipes.active: %w", err)
 	}
+	if err := ensureBreweryInstagramColumn(db); err != nil {
+		return fmt.Errorf("ensure breweries.instagram: %w", err)
+	}
 
 	if err := seedDefaults(db); err != nil {
 		return fmt.Errorf("seed defaults: %w", err)
@@ -283,6 +293,11 @@ func ensureTankAndMultiplierActiveColumns(db *sql.DB) error {
 func ensureRecipeActiveColumn(db *sql.DB) error {
 	return addColumnIfMissing(db, "recipes", "active",
 		`ALTER TABLE recipes ADD COLUMN active INTEGER NOT NULL DEFAULT 1`)
+}
+
+func ensureBreweryInstagramColumn(db *sql.DB) error {
+	return addColumnIfMissing(db, "breweries", "instagram",
+		`ALTER TABLE breweries ADD COLUMN instagram TEXT NOT NULL DEFAULT ''`)
 }
 
 func ensureUserEmailColumn(db *sql.DB) error {

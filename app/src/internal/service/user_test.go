@@ -11,7 +11,7 @@ func TestUser_CreateWithEmailAndBreweryMembership(t *testing.T) {
 	_, users, breweries, _, _, _, _ := testDB(t)
 	_, admin := ensureAdminUser(t, users)
 
-	brewery, err := breweries.Create(admin, "Member Brew", "C", "c@t.com", "", nil)
+	brewery, err := breweries.Create(admin, "Member Brew", "C", "c@t.com", "", "", nil)
 	if err != nil {
 		t.Fatalf("brewery: %v", err)
 	}
@@ -74,7 +74,7 @@ func TestUser_CreateAdminWithoutBrewery(t *testing.T) {
 	_, users, breweries, _, _, _, _ := testDB(t)
 	_, admin := ensureAdminUser(t, users)
 
-	brewery, err := breweries.Create(admin, "Other Brew", "", "", "", nil)
+	brewery, err := breweries.Create(admin, "Other Brew", "", "", "", "", nil)
 	if err != nil {
 		t.Fatalf("brewery: %v", err)
 	}

@@ -298,6 +298,39 @@ func (h *Handler) Favicon(w http.ResponseWriter, r *http.Request) {
 	h.serveBrandImage(w, h.settings.GetFavicon, "images/favico_cb.png", "image/png")
 }
 
+// BreweryLogo serves a brewery logo by id (public). Returns 404 when not configured.
+func (h *Handler) BreweryLogo(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
+		return
+	}
+	path := strings.TrimPrefix(r.URL.Path, "/brewery/")
+	path = strings.Trim(path, "/")
+	parts := strings.Split(path, "/")
+	if len(parts) != 2 || parts[1] != "logo" {
+		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "not found"})
+		return
+	}
+	id, err := strconv.ParseInt(parts[0], 10, 64)
+	if err != nil || id <= 0 {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid id"})
+		return
+	}
+	contentType, data, ok, err := h.breweries.GetLogo(id)
+	if err != nil {
+		h.writeErr(w, err)
+		return
+	}
+	if !ok {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Cache-Control", "no-cache")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(data)
+}
+
 func (h *Handler) serveBrandImage(
 	w http.ResponseWriter,
 	get func() (string, []byte, bool, error),

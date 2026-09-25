@@ -136,7 +136,7 @@ func TestInventoryItemLog_RecipeCheckoutAndRestore(t *testing.T) {
 	_, users, breweries, inventory, _, recipes, _ := testDB(t)
 	_, admin := ensureAdminUser(t, users)
 
-	brewery, err := breweries.Create(admin, "Log Brewery", "A", "a@t.com", "", nil)
+	brewery, err := breweries.Create(admin, "Log Brewery", "A", "a@t.com", "", "", nil)
 	if err != nil {
 		t.Fatalf("brewery: %v", err)
 	}
