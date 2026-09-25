@@ -116,6 +116,9 @@ func (s *InventoryService) Create(actor Actor, in InventoryItem) (*InventoryItem
 		return nil, fmt.Errorf("insert inventory: %w", err)
 	}
 	id, _ := res.LastInsertId()
+	if err := s.appendItemLog(s.db, &id, in.Name, actor, inventoryCreateSummary(in)); err != nil {
+		return nil, err
+	}
 	return s.Get(id)
 }
 
@@ -134,6 +137,10 @@ func (s *InventoryService) Update(actor Actor, id int64, in InventoryItem) (*Inv
 	if in.Unit == "" {
 		in.Unit = "kg"
 	}
+	before, err := s.Get(id)
+	if err != nil {
+		return nil, err
+	}
 	_, err = s.db.Exec(
 		`UPDATE inventory_items SET name = ?, unit = ?, qty = ?, cost_price = ?,
 		 producer = ?, item_type = ?, min_ebc = ?, max_ebc = ?, link = ? WHERE id = ?`,
@@ -143,7 +150,16 @@ func (s *InventoryService) Update(actor Actor, id int64, in InventoryItem) (*Inv
 	if err != nil {
 		return nil, fmt.Errorf("update inventory: %w", err)
 	}
-	return s.Get(id)
+	after, err := s.Get(id)
+	if err != nil {
+		return nil, err
+	}
+	if summary := inventoryUpdateSummary(*before, *after); summary != "" {
+		if err := s.appendItemLog(s.db, &id, after.Name, actor, summary); err != nil {
+			return nil, err
+		}
+	}
+	return after, nil
 }
 
 // Delete removes an inventory item.
@@ -154,6 +170,13 @@ func (s *InventoryService) Delete(actor Actor, id int64) error {
 	}
 	if !ok {
 		return ErrForbidden
+	}
+	item, err := s.Get(id)
+	if err != nil {
+		return err
+	}
+	if err := s.appendItemLog(s.db, &id, item.Name, actor, "deleted item"); err != nil {
+		return err
 	}
 	res, err := s.db.Exec(`DELETE FROM inventory_items WHERE id = ?`, id)
 	if err != nil {
@@ -443,7 +466,7 @@ func (s *InventoryService) SetOrderStatus(actor Actor, orderID int64, status str
 			return nil, fmt.Errorf("set ordered: %w", err)
 		}
 	case order.Status == OrderStatusOrdered && status == OrderStatusCompleted:
-		if err := s.completeOrder(order); err != nil {
+		if err := s.completeOrder(actor, order); err != nil {
 			return nil, err
 		}
 	default:
@@ -452,7 +475,7 @@ func (s *InventoryService) SetOrderStatus(actor Actor, orderID int64, status str
 	return s.GetOrder(orderID)
 }
 
-func (s *InventoryService) completeOrder(order *InventoryOrder) error {
+func (s *InventoryService) completeOrder(actor Actor, order *InventoryOrder) error {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
@@ -463,16 +486,35 @@ func (s *InventoryService) completeOrder(order *InventoryOrder) error {
 		if line.InventoryItemID == nil {
 			continue
 		}
+		itemID := *line.InventoryItemID
 		receive := line.Qty
 		if line.OrderedQty != nil {
 			receive = *line.OrderedQty
 		}
-		_, err := tx.Exec(
+		var qtyBefore float64
+		var itemName string
+		err := tx.QueryRow(
+			`SELECT qty, name FROM inventory_items WHERE id = ?`, itemID,
+		).Scan(&qtyBefore, &itemName)
+		if err != nil {
+			return fmt.Errorf("load item for receive: %w", err)
+		}
+		_, err = tx.Exec(
 			`UPDATE inventory_items SET qty = qty + ? WHERE id = ?`,
-			receive, *line.InventoryItemID,
+			receive, itemID,
 		)
 		if err != nil {
 			return fmt.Errorf("receive stock: %w", err)
+		}
+		qtyAfterReceive := qtyBefore + receive
+		if receive != 0 {
+			summary := fmt.Sprintf(
+				"received +%s from order #%d (qty: %s → %s)",
+				formatLogQty(receive), order.ID, formatLogQty(qtyBefore), formatLogQty(qtyAfterReceive),
+			)
+			if err := s.appendItemLog(tx, &itemID, itemName, actor, summary); err != nil {
+				return err
+			}
 		}
 		if line.RecipeID == nil || receive <= 0 {
 			continue
@@ -480,7 +522,7 @@ func (s *InventoryService) completeOrder(order *InventoryOrder) error {
 		var need, checkedOut float64
 		err = tx.QueryRow(
 			`SELECT qty, checked_out FROM recipe_ingredients WHERE recipe_id = ? AND inventory_item_id = ?`,
-			*line.RecipeID, *line.InventoryItemID,
+			*line.RecipeID, itemID,
 		).Scan(&need, &checkedOut)
 		if errors.Is(err, sql.ErrNoRows) {
 			continue
@@ -498,17 +540,25 @@ func (s *InventoryService) completeOrder(order *InventoryOrder) error {
 		}
 		_, err = tx.Exec(
 			`UPDATE recipe_ingredients SET checked_out = checked_out + ? WHERE recipe_id = ? AND inventory_item_id = ?`,
-			allocate, *line.RecipeID, *line.InventoryItemID,
+			allocate, *line.RecipeID, itemID,
 		)
 		if err != nil {
 			return fmt.Errorf("allocate to recipe: %w", err)
 		}
 		_, err = tx.Exec(
 			`UPDATE inventory_items SET qty = qty - ? WHERE id = ?`,
-			allocate, *line.InventoryItemID,
+			allocate, itemID,
 		)
 		if err != nil {
 			return fmt.Errorf("deduct allocated stock: %w", err)
+		}
+		qtyAfterAlloc := qtyAfterReceive - allocate
+		summary := fmt.Sprintf(
+			"recipe allocate −%s for recipe #%d (qty: %s → %s)",
+			formatLogQty(allocate), *line.RecipeID, formatLogQty(qtyAfterReceive), formatLogQty(qtyAfterAlloc),
+		)
+		if err := s.appendItemLog(tx, &itemID, itemName, actor, summary); err != nil {
+			return err
 		}
 	}
 	_, err = tx.Exec(
@@ -815,9 +865,19 @@ func (s *InventoryService) UpdateOrderLineProductLink(actor Actor, orderID, line
 	if itemID == nil {
 		return nil, ErrNotFound
 	}
+	before, err := s.Get(*itemID)
+	if err != nil {
+		return nil, err
+	}
 	_, err = s.db.Exec(`UPDATE inventory_items SET link = ? WHERE id = ?`, link, *itemID)
 	if err != nil {
 		return nil, fmt.Errorf("update product link: %w", err)
+	}
+	if before.Link != link {
+		summary := fmt.Sprintf("link: %q → %q", before.Link, link)
+		if err := s.appendItemLog(s.db, itemID, before.Name, actor, summary); err != nil {
+			return nil, err
+		}
 	}
 	return s.GetOrder(orderID)
 }

@@ -31,9 +31,13 @@ func main() {
 	// Initialize services
 	access := service.NewAccessService(db)
 	users := service.NewUserService(db)
-	if err := users.EnsureDemoUser(); err != nil {
-		logger.Println("Failed to ensure demo user:", err)
+	plain, created, err := users.EnsureDefaultAdmin()
+	if err != nil {
+		logger.Println("Failed to ensure default admin:", err)
 		return
+	}
+	if created {
+		logger.Println("Default admin created. Username: admin. Save the generated password shown on the login page securely. (length:", len(plain), ")")
 	}
 	breweries := service.NewBreweryService(db, access)
 	inventory := service.NewInventoryService(db, access)

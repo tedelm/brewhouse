@@ -114,6 +114,28 @@ func (h *Handler) Version(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, VersionResponse{Version: h.appVersion})
 }
 
+// Bootstrap returns one-time first-boot admin credentials when still pending.
+func (h *Handler) Bootstrap(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
+		return
+	}
+	username, password, pending, err := h.users.BootstrapCredentials()
+	if err != nil {
+		h.writeErr(w, err)
+		return
+	}
+	if !pending {
+		writeJSON(w, http.StatusOK, BootstrapResponse{Pending: false})
+		return
+	}
+	writeJSON(w, http.StatusOK, BootstrapResponse{
+		Pending:  true,
+		Username: username,
+		Password: password,
+	})
+}
+
 // Login authenticates credentials and returns a JWT.
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -135,6 +157,9 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.writeErr(w, err)
 		return
+	}
+	if err := h.users.ClearBootstrapCredentialsIfMatch(user.Username); err != nil {
+		h.logger.Println("Failed to clear bootstrap credentials:", err)
 	}
 
 	role, canElevate := sessionRoleForAccount(user.Role)

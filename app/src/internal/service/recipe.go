@@ -311,7 +311,7 @@ func (s *RecipeService) Create(actor Actor, breweryID int64, name string, ingred
 	}
 	recipeID, _ := res.LastInsertId()
 
-	shortfalls, err := s.checkoutIngredients(tx, recipeID, breweryID, ingredients, nil)
+	shortfalls, err := s.checkoutIngredients(tx, actor, recipeID, breweryID, ingredients, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -362,11 +362,25 @@ func (s *RecipeService) Update(actor Actor, id int64, name string, ingredients [
 		if ing.CheckedOut <= 0 {
 			continue
 		}
-		_, err := tx.Exec(
+		var qtyBefore float64
+		err := tx.QueryRow(`SELECT qty FROM inventory_items WHERE id = ?`, ing.InventoryItemID).Scan(&qtyBefore)
+		if err != nil {
+			return nil, err
+		}
+		_, err = tx.Exec(
 			`UPDATE inventory_items SET qty = qty + ? WHERE id = ?`,
 			ing.CheckedOut, ing.InventoryItemID,
 		)
 		if err != nil {
+			return nil, err
+		}
+		itemID := ing.InventoryItemID
+		qtyAfter := qtyBefore + ing.CheckedOut
+		summary := fmt.Sprintf(
+			"recipe restore +%s (qty: %s → %s)",
+			formatLogQty(ing.CheckedOut), formatLogQty(qtyBefore), formatLogQty(qtyAfter),
+		)
+		if err := s.inventory.appendItemLog(tx, &itemID, ing.ItemName, actor, summary); err != nil {
 			return nil, err
 		}
 	}
@@ -375,7 +389,7 @@ func (s *RecipeService) Update(actor Actor, id int64, name string, ingredients [
 		return nil, err
 	}
 
-	shortfalls, err := s.checkoutIngredients(tx, id, recipe.BreweryID, ingredients, nil)
+	shortfalls, err := s.checkoutIngredients(tx, actor, id, recipe.BreweryID, ingredients, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -405,7 +419,7 @@ func (s *RecipeService) Update(actor Actor, id int64, name string, ingredients [
 
 // checkoutIngredients deducts available stock and inserts BOM lines (full requested qty).
 // Returns shortfalls for amounts not checked out. needQty is in inventory item units.
-func (s *RecipeService) checkoutIngredients(tx *sql.Tx, recipeID, breweryID int64, ingredients []IngredientInput, _ map[int64]float64) ([]StockShortfall, error) {
+func (s *RecipeService) checkoutIngredients(tx *sql.Tx, actor Actor, recipeID, breweryID int64, ingredients []IngredientInput, _ map[int64]float64) ([]StockShortfall, error) {
 	var shortfalls []StockShortfall
 	var breweryPtr *int64
 	if breweryID > 0 {
@@ -443,6 +457,14 @@ func (s *RecipeService) checkoutIngredients(tx *sql.Tx, recipeID, breweryID int6
 				take, itemID, take,
 			)
 			if err != nil {
+				return nil, err
+			}
+			qtyAfter := stockQty - take
+			summary := fmt.Sprintf(
+				"recipe checkout −%s (qty: %s → %s)",
+				formatLogQty(take), formatLogQty(stockQty), formatLogQty(qtyAfter),
+			)
+			if err := s.inventory.appendItemLog(tx, &itemID, itemName, actor, summary); err != nil {
 				return nil, err
 			}
 		}
@@ -494,11 +516,25 @@ func (s *RecipeService) Delete(actor Actor, id int64) error {
 		if ing.CheckedOut <= 0 {
 			continue
 		}
-		_, err := tx.Exec(
+		var qtyBefore float64
+		err := tx.QueryRow(`SELECT qty FROM inventory_items WHERE id = ?`, ing.InventoryItemID).Scan(&qtyBefore)
+		if err != nil {
+			return err
+		}
+		_, err = tx.Exec(
 			`UPDATE inventory_items SET qty = qty + ? WHERE id = ?`,
 			ing.CheckedOut, ing.InventoryItemID,
 		)
 		if err != nil {
+			return err
+		}
+		itemID := ing.InventoryItemID
+		qtyAfter := qtyBefore + ing.CheckedOut
+		summary := fmt.Sprintf(
+			"recipe restore +%s (qty: %s → %s)",
+			formatLogQty(ing.CheckedOut), formatLogQty(qtyBefore), formatLogQty(qtyAfter),
+		)
+		if err := s.inventory.appendItemLog(tx, &itemID, ing.ItemName, actor, summary); err != nil {
 			return err
 		}
 	}

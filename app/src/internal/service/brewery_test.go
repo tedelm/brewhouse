@@ -9,11 +9,7 @@ import (
 
 func TestBrewery_UpdateFields(t *testing.T) {
 	_, users, breweries, _, _, _, _ := testDB(t)
-	if err := users.EnsureDemoUser(); err != nil {
-		t.Fatalf("demo: %v", err)
-	}
-	u, _ := users.Authenticate("demo", "demo")
-	admin := service.Actor{UserID: u.ID, Role: service.RoleAdmin}
+	u, admin := ensureAdminUser(t, users)
 
 	created, err := breweries.Create(admin, "Old Name", "Old Contact", "old@ex.com", "111", nil)
 	if err != nil {
@@ -45,11 +41,7 @@ func TestBrewery_UpdateFields(t *testing.T) {
 
 func TestBrewery_DeleteBlockedWhenDelivered(t *testing.T) {
 	_, users, breweries, inventory, settings, recipes, schedule := testDB(t)
-	if err := users.EnsureDemoUser(); err != nil {
-		t.Fatalf("demo: %v", err)
-	}
-	u, _ := users.Authenticate("demo", "demo")
-	admin := service.Actor{UserID: u.ID, Role: service.RoleAdmin}
+	_, admin := ensureAdminUser(t, users)
 	brewery, err := breweries.Create(admin, "Delivered Brewery", "", "", "", nil)
 	if err != nil {
 		t.Fatalf("create brewery: %v", err)
@@ -95,11 +87,7 @@ func TestBrewery_DeleteBlockedWhenDelivered(t *testing.T) {
 
 func TestBrewery_DeleteAllowedWithoutDelivered(t *testing.T) {
 	_, users, breweries, inventory, _, recipes, _ := testDB(t)
-	if err := users.EnsureDemoUser(); err != nil {
-		t.Fatalf("demo: %v", err)
-	}
-	u, _ := users.Authenticate("demo", "demo")
-	admin := service.Actor{UserID: u.ID, Role: service.RoleAdmin}
+	_, admin := ensureAdminUser(t, users)
 	brewery, err := breweries.Create(admin, "Empty Brewery", "", "", "", nil)
 	if err != nil {
 		t.Fatalf("create brewery: %v", err)

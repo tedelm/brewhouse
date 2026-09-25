@@ -48,9 +48,25 @@ type User struct {
 	Username     string `json:"username"`
 	PasswordHash string `json:"-"`
 	Email        string `json:"email"`
+	FirstName    string `json:"first_name"`
+	LastName     string `json:"last_name"`
+	AddressLine1 string `json:"address_line1"`
+	AddressLine2 string `json:"address_line2"`
+	Phone        string `json:"phone"`
+	Instagram    string `json:"instagram"`
 	Role         string `json:"role"`
 	Active       bool   `json:"active"`
 	CreatedAt    string `json:"created_at,omitempty"`
+}
+
+// UserContact holds optional user contact/profile fields.
+type UserContact struct {
+	FirstName    string
+	LastName     string
+	AddressLine1 string
+	AddressLine2 string
+	Phone        string
+	Instagram    string
 }
 
 // Brewery is a sub-brewery under the shared inventory umbrella.
@@ -84,6 +100,17 @@ type InventoryItem struct {
 	MinEBC    float64 `json:"min_ebc"`
 	MaxEBC    float64 `json:"max_ebc"`
 	Link      string  `json:"link"`
+}
+
+// InventoryLogEntry is one change-history row for an inventory item.
+type InventoryLogEntry struct {
+	ID              int64  `json:"id"`
+	InventoryItemID *int64 `json:"inventory_item_id,omitempty"`
+	ItemName        string `json:"item_name"`
+	CreatedAt       string `json:"created_at"`
+	Username        string `json:"username"`
+	Email           string `json:"email"`
+	Summary         string `json:"summary"`
 }
 
 // InventoryOrder is a purchase / wishlist order.

@@ -1,5 +1,7 @@
 package api
 
+import "brewhouse/internal/service"
+
 // LoginRequest is the JSON body for POST /api/login.
 type LoginRequest struct {
 	Username string `json:"username"`
@@ -32,19 +34,31 @@ type VersionResponse struct {
 
 // CreateUserRequest is the body for user create.
 type CreateUserRequest struct {
-	Username  string `json:"username"`
-	Password  string `json:"password"`
-	Email     string `json:"email"`
-	Role      string `json:"role"`
-	BreweryID *int64 `json:"brewery_id"`
+	Username     string `json:"username"`
+	Password     string `json:"password"`
+	Email        string `json:"email"`
+	FirstName    string `json:"first_name"`
+	LastName     string `json:"last_name"`
+	AddressLine1 string `json:"address_line1"`
+	AddressLine2 string `json:"address_line2"`
+	Phone        string `json:"phone"`
+	Instagram    string `json:"instagram"`
+	Role         string `json:"role"`
+	BreweryID    *int64 `json:"brewery_id"`
 }
 
 // UpdateUserRequest is the body for user update.
 type UpdateUserRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Email    string `json:"email"`
-	Role     string `json:"role"`
+	Username     string `json:"username"`
+	Password     string `json:"password"`
+	Email        string `json:"email"`
+	FirstName    string `json:"first_name"`
+	LastName     string `json:"last_name"`
+	AddressLine1 string `json:"address_line1"`
+	AddressLine2 string `json:"address_line2"`
+	Phone        string `json:"phone"`
+	Instagram    string `json:"instagram"`
+	Role         string `json:"role"`
 }
 
 // SetActiveRequest is the body for PATCH /api/users/{id}/active.
@@ -54,8 +68,14 @@ type SetActiveRequest struct {
 
 // UpdateProfileRequest is the body for PATCH /api/me.
 type UpdateProfileRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
+	Email        string `json:"email"`
+	Password     string `json:"password"`
+	FirstName    string `json:"first_name"`
+	LastName     string `json:"last_name"`
+	AddressLine1 string `json:"address_line1"`
+	AddressLine2 string `json:"address_line2"`
+	Phone        string `json:"phone"`
+	Instagram    string `json:"instagram"`
 }
 
 // CreateBreweryRequest is the body for brewery create.
@@ -85,6 +105,14 @@ type InventoryItemRequest struct {
 	MinEBC    float64 `json:"min_ebc"`
 	MaxEBC    float64 `json:"max_ebc"`
 	Link      string  `json:"link"`
+}
+
+// InventoryLogResponse is a paginated change-history page for one inventory item.
+type InventoryLogResponse struct {
+	Items   []service.InventoryLogEntry `json:"items"`
+	Limit   int                         `json:"limit"`
+	Offset  int                         `json:"offset"`
+	HasMore bool                        `json:"has_more"`
 }
 
 // WishlistRequest creates a wishlist from shortfalls.
@@ -197,4 +225,11 @@ type HygieneRoutineRequest struct {
 // BrandColorRequest updates the welcome logo backdrop color.
 type BrandColorRequest struct {
 	LogoBgHex string `json:"logo_bg_hex"`
+}
+
+// BootstrapResponse is returned by GET /api/bootstrap (public).
+type BootstrapResponse struct {
+	Pending  bool   `json:"pending"`
+	Username string `json:"username,omitempty"`
+	Password string `json:"password,omitempty"`
 }

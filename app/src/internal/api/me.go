@@ -3,6 +3,8 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+
+	"brewhouse/internal/service"
 )
 
 // Me handles GET/PATCH /api/me for the authenticated user.
@@ -27,7 +29,14 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid body"})
 			return
 		}
-		user, err := h.users.UpdateProfile(actor.UserID, req.Email, req.Password)
+		user, err := h.users.UpdateProfile(actor.UserID, req.Email, req.Password, service.UserContact{
+			FirstName:    req.FirstName,
+			LastName:     req.LastName,
+			AddressLine1: req.AddressLine1,
+			AddressLine2: req.AddressLine2,
+			Phone:        req.Phone,
+			Instagram:    req.Instagram,
+		})
 		if err != nil {
 			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 			return

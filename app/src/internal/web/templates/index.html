@@ -63,6 +63,17 @@
 				<p class="login__error" id="login-error" hidden></p>
 				<button class="login__button" type="submit">Login</button>
 			</form>
+			<div class="login__bootstrap" id="bootstrap-credentials" hidden>
+				<p class="login__bootstrap-lead">First-time admin credentials. Save this password in a secure place — it will disappear after your first login.</p>
+				<label class="login__label">
+					<span class="visually-hidden">Bootstrap username</span>
+					<input class="login__input" id="bootstrap-username" type="text" readonly placeholder="Username">
+				</label>
+				<label class="login__label">
+					<span class="visually-hidden">Bootstrap password</span>
+					<input class="login__input" id="bootstrap-password" type="text" readonly placeholder="Generated password">
+				</label>
+			</div>
 			<p class="login__success" id="login-success" hidden></p>
 		</div>
 
@@ -200,7 +211,7 @@
 							<h1 class="shell__welcome-title">From recipe to the pub</h1>
 							<p class="shell__welcome-text">Pick a section in the navigation, or start with the batch pipeline guide.</p>
 							<a class="btn btn--primary shell__welcome-cta" href="/app/guide" hx-get="/app/guide" hx-target="#main-content" hx-swap="innerHTML">Brewery 101</a>
-							<p class="shell__welcome-tip">Admin accounts: open your profile menu and turn on <strong>Admin mode</strong> for Economy, IAM, and Settings.</p>
+							<p class="shell__welcome-tip" id="shell-welcome-admin-tip" hidden>Admin accounts: open your profile menu and turn on <strong>Admin mode</strong> for Economy, IAM, and Settings.</p>
 						</section>
 					</main>
 				</div>
@@ -213,6 +224,24 @@
 						</label>
 						<label>Email
 							<input name="email" id="profile-email" type="email" required autocomplete="email">
+						</label>
+						<label>First name
+							<input name="first_name" id="profile-first-name" autocomplete="given-name">
+						</label>
+						<label>Last name
+							<input name="last_name" id="profile-last-name" autocomplete="family-name">
+						</label>
+						<label>Address line 1
+							<input name="address_line1" id="profile-address-line1" autocomplete="address-line1">
+						</label>
+						<label>Address line 2
+							<input name="address_line2" id="profile-address-line2" autocomplete="address-line2">
+						</label>
+						<label>Phone
+							<input name="phone" id="profile-phone" type="tel" autocomplete="tel">
+						</label>
+						<label>Instagram
+							<input name="instagram" id="profile-instagram" type="url" placeholder="https://instagram.com/…" autocomplete="url">
 						</label>
 						<label>New password
 							<input name="password" id="profile-password" type="password" autocomplete="new-password" placeholder="Leave blank to keep current">

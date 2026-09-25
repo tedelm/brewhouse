@@ -39,7 +39,14 @@ func (h *Handler) Users(w http.ResponseWriter, r *http.Request) {
 				writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid body"})
 				return
 			}
-			user, err := h.users.Create(req.Username, req.Password, req.Email, req.Role)
+			user, err := h.users.Create(req.Username, req.Password, req.Email, req.Role, service.UserContact{
+				FirstName:    req.FirstName,
+				LastName:     req.LastName,
+				AddressLine1: req.AddressLine1,
+				AddressLine2: req.AddressLine2,
+				Phone:        req.Phone,
+				Instagram:    req.Instagram,
+			})
 			if err != nil {
 				writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 				return
@@ -118,9 +125,16 @@ func (h *Handler) Users(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		user, err := h.users.Update(id, req.Username, req.Password, req.Email, req.Role)
+		user, err := h.users.Update(id, req.Username, req.Password, req.Email, req.Role, service.UserContact{
+			FirstName:    req.FirstName,
+			LastName:     req.LastName,
+			AddressLine1: req.AddressLine1,
+			AddressLine2: req.AddressLine2,
+			Phone:        req.Phone,
+			Instagram:    req.Instagram,
+		})
 		if err != nil {
-			h.writeErr(w, err)
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 			return
 		}
 		writeJSON(w, http.StatusOK, user)
@@ -334,6 +348,55 @@ func (h *Handler) Inventory(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid id"})
 		return
 	}
+
+	if len(parts) == 2 && parts[1] == "log" {
+		if r.Method != http.MethodGet {
+			writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
+			return
+		}
+		limit := 5
+		offset := 0
+		if v := r.URL.Query().Get("limit"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				limit = n
+			}
+		}
+		if v := r.URL.Query().Get("offset"); v != "" {
+			if n, err := strconv.Atoi(v); err == nil {
+				offset = n
+			}
+		}
+		items, hasMore, err := h.inventory.ListItemLogs(id, limit, offset)
+		if err != nil {
+			h.writeErr(w, err)
+			return
+		}
+		if items == nil {
+			items = []service.InventoryLogEntry{}
+		}
+		if limit <= 0 {
+			limit = 5
+		}
+		if limit > 100 {
+			limit = 100
+		}
+		if offset < 0 {
+			offset = 0
+		}
+		writeJSON(w, http.StatusOK, InventoryLogResponse{
+			Items:   items,
+			Limit:   limit,
+			Offset:  offset,
+			HasMore: hasMore,
+		})
+		return
+	}
+
+	if len(parts) != 1 {
+		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "not found"})
+		return
+	}
+
 	switch r.Method {
 	case http.MethodGet:
 		item, err := h.inventory.Get(id)

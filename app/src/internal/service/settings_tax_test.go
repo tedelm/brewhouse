@@ -10,14 +10,7 @@ import (
 
 func TestTaxForABV_SwedishBeerFormula(t *testing.T) {
 	_, users, _, _, settings, _, _ := testDB(t)
-	if err := users.EnsureDemoUser(); err != nil {
-		t.Fatalf("demo: %v", err)
-	}
-	u, err := users.Authenticate("demo", "demo")
-	if err != nil {
-		t.Fatalf("auth: %v", err)
-	}
-	admin := service.Actor{UserID: u.ID, Role: service.RoleAdmin}
+	_, admin := ensureAdminUser(t, users)
 
 	cfg, err := settings.GetAlcoholTaxConfig()
 	if err != nil {
@@ -57,9 +50,7 @@ func TestTaxForABV_SwedishBeerFormula(t *testing.T) {
 
 func TestUpdateAlcoholTaxConfig_ForbiddenForSuperuser(t *testing.T) {
 	_, users, _, _, settings, _, _ := testDB(t)
-	if err := users.EnsureDemoUser(); err != nil {
-		t.Fatalf("demo: %v", err)
-	}
+	_ = ensureAdminActor(t, users)
 	su := service.Actor{UserID: 1, Role: service.RoleSuperuser}
 	_, err := settings.UpdateAlcoholTaxConfig(su, 2.28, 2.8, 1.0)
 	if !errors.Is(err, service.ErrForbidden) {
@@ -69,14 +60,7 @@ func TestUpdateAlcoholTaxConfig_ForbiddenForSuperuser(t *testing.T) {
 
 func TestDeleteTank_BlockedWhenBooked(t *testing.T) {
 	_, users, breweries, inventory, settings, recipes, schedule := testDB(t)
-	if err := users.EnsureDemoUser(); err != nil {
-		t.Fatalf("demo: %v", err)
-	}
-	u, err := users.Authenticate("demo", "demo")
-	if err != nil {
-		t.Fatalf("auth: %v", err)
-	}
-	admin := service.Actor{UserID: u.ID, Role: service.RoleAdmin}
+	_, admin := ensureAdminUser(t, users)
 	brewery, err := breweries.Create(admin, "Tank Guard Brewery", "", "", "", nil)
 	if err != nil {
 		t.Fatalf("brewery: %v", err)

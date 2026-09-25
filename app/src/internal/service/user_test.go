@@ -1,6 +1,7 @@
 package service_test
 
 import (
+	"strings"
 	"testing"
 
 	"brewhouse/internal/service"
@@ -8,29 +9,46 @@ import (
 
 func TestUser_CreateWithEmailAndBreweryMembership(t *testing.T) {
 	_, users, breweries, _, _, _, _ := testDB(t)
-	if err := users.EnsureDemoUser(); err != nil {
-		t.Fatalf("demo: %v", err)
-	}
-	u, err := users.Authenticate("demo", "demo")
-	if err != nil {
-		t.Fatalf("auth: %v", err)
-	}
-	admin := service.Actor{UserID: u.ID, Role: service.RoleAdmin}
+	_, admin := ensureAdminUser(t, users)
 
 	brewery, err := breweries.Create(admin, "Member Brew", "C", "c@t.com", "", nil)
 	if err != nil {
 		t.Fatalf("brewery: %v", err)
 	}
 
-	created, err := users.Create("alice", "secret", "alice@brew.test", service.RoleUser)
+	created, err := users.Create("alice", "secret", "alice@brew.test", service.RoleUser, service.UserContact{
+		FirstName:    "Alice",
+		LastName:     "Brewer",
+		AddressLine1: "Street 1",
+		AddressLine2: "Apt 2",
+		Phone:        "+46701234567",
+		Instagram:    "https://instagram.com/alice",
+	})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
 	if created.Email != "alice@brew.test" {
 		t.Fatalf("email=%q", created.Email)
 	}
+	if created.FirstName != "Alice" || created.LastName != "Brewer" {
+		t.Fatalf("name=%q %q", created.FirstName, created.LastName)
+	}
+	if created.AddressLine1 != "Street 1" || created.AddressLine2 != "Apt 2" {
+		t.Fatalf("address=%q %q", created.AddressLine1, created.AddressLine2)
+	}
+	if created.Phone != "+46701234567" || created.Instagram != "https://instagram.com/alice" {
+		t.Fatalf("phone/instagram=%q %q", created.Phone, created.Instagram)
+	}
 	if created.Role != service.RoleUser {
 		t.Fatalf("role=%q", created.Role)
+	}
+
+	got, err := users.Get(created.ID)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if got.Instagram != "https://instagram.com/alice" {
+		t.Fatalf("get instagram=%q", got.Instagram)
 	}
 
 	memberRole := service.MembershipRoleForCreate(created.Role)
@@ -54,18 +72,14 @@ func TestUser_CreateWithEmailAndBreweryMembership(t *testing.T) {
 
 func TestUser_CreateAdminWithoutBrewery(t *testing.T) {
 	_, users, breweries, _, _, _, _ := testDB(t)
-	if err := users.EnsureDemoUser(); err != nil {
-		t.Fatalf("demo: %v", err)
-	}
-	u, _ := users.Authenticate("demo", "demo")
-	admin := service.Actor{UserID: u.ID, Role: service.RoleAdmin}
+	_, admin := ensureAdminUser(t, users)
 
 	brewery, err := breweries.Create(admin, "Other Brew", "", "", "", nil)
 	if err != nil {
 		t.Fatalf("brewery: %v", err)
 	}
 
-	created, err := users.Create("boss", "secret", "boss@brew.test", service.RoleAdmin)
+	created, err := users.Create("boss", "secret", "boss@brew.test", service.RoleAdmin, service.UserContact{})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -98,26 +112,55 @@ func TestMembershipRoleForCreate(t *testing.T) {
 
 func TestUser_CreateRequiresEmailAndValidRole(t *testing.T) {
 	_, users, _, _, _, _, _ := testDB(t)
-	if _, err := users.Create("x", "y", "", service.RoleUser); err == nil {
+	if _, err := users.Create("x", "y", "", service.RoleUser, service.UserContact{}); err == nil {
 		t.Fatal("expected email required")
 	}
-	if _, err := users.Create("x", "y", "x@y.z", "brewery_admin"); err == nil {
+	if _, err := users.Create("x", "y", "x@y.z", "brewery_admin", service.UserContact{}); err == nil {
 		t.Fatal("expected invalid role")
+	}
+}
+
+func TestUser_CreateRejectsInvalidInstagram(t *testing.T) {
+	_, users, _, _, _, _, _ := testDB(t)
+	invalid := []string{"@handle", "instagram.com/x", "ftp://instagram.com/x", "not a url"}
+	for _, ig := range invalid {
+		if _, err := users.Create("iguser", "secret", "ig@brew.test", service.RoleUser, service.UserContact{Instagram: ig}); err == nil {
+			t.Fatalf("expected invalid instagram %q", ig)
+		} else if !strings.Contains(err.Error(), "instagram") {
+			t.Fatalf("expected instagram error for %q, got %v", ig, err)
+		}
+	}
+	if _, err := users.Create("igok", "secret", "igok@brew.test", service.RoleUser, service.UserContact{
+		Instagram: "https://www.instagram.com/brewhouse",
+	}); err != nil {
+		t.Fatalf("valid instagram: %v", err)
 	}
 }
 
 func TestUser_UpdateProfile(t *testing.T) {
 	_, users, _, _, _, _, _ := testDB(t)
-	created, err := users.Create("cara", "oldpass", "cara@old.test", service.RoleUser)
+	created, err := users.Create("cara", "oldpass", "cara@old.test", service.RoleUser, service.UserContact{
+		FirstName: "Cara",
+		Phone:     "111",
+	})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	updated, err := users.UpdateProfile(created.ID, "cara@new.test", "newpass")
+	updated, err := users.UpdateProfile(created.ID, "cara@new.test", "newpass", service.UserContact{
+		FirstName:    "Caroline",
+		LastName:     "Lager",
+		AddressLine1: "Brew St 3",
+		Phone:        "222",
+		Instagram:    "http://instagram.com/cara",
+	})
 	if err != nil {
 		t.Fatalf("update profile: %v", err)
 	}
 	if updated.Email != "cara@new.test" {
 		t.Fatalf("email=%q", updated.Email)
+	}
+	if updated.FirstName != "Caroline" || updated.LastName != "Lager" || updated.Instagram != "http://instagram.com/cara" {
+		t.Fatalf("contact=%#v", updated)
 	}
 	if _, err := users.Authenticate("cara", "oldpass"); err != service.ErrInvalidCredentials {
 		t.Fatalf("old password should fail, got %v", err)
@@ -125,21 +168,56 @@ func TestUser_UpdateProfile(t *testing.T) {
 	if _, err := users.Authenticate("cara", "newpass"); err != nil {
 		t.Fatalf("new password auth: %v", err)
 	}
-	emailOnly, err := users.UpdateProfile(created.ID, "cara@keep.test", "")
+	emailOnly, err := users.UpdateProfile(created.ID, "cara@keep.test", "", service.UserContact{
+		FirstName: "Caroline",
+		LastName:  "Lager",
+		Instagram: "http://instagram.com/cara",
+	})
 	if err != nil {
 		t.Fatalf("email only: %v", err)
 	}
 	if emailOnly.Email != "cara@keep.test" {
 		t.Fatalf("email=%q", emailOnly.Email)
 	}
+	if emailOnly.Phone != "" {
+		t.Fatalf("phone should be cleared, got %q", emailOnly.Phone)
+	}
 	if _, err := users.Authenticate("cara", "newpass"); err != nil {
 		t.Fatalf("password should be unchanged: %v", err)
+	}
+	if _, err := users.UpdateProfile(created.ID, "cara@keep.test", "", service.UserContact{Instagram: "@bad"}); err == nil {
+		t.Fatal("expected invalid instagram on profile update")
+	}
+}
+
+func TestUser_UpdateContact(t *testing.T) {
+	_, users, _, _, _, _, _ := testDB(t)
+	created, err := users.Create("dave", "secret", "dave@brew.test", service.RoleUser, service.UserContact{})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	updated, err := users.Update(created.ID, "dave", "", "dave@brew.test", service.RoleUser, service.UserContact{
+		FirstName: "Dave",
+		LastName:  "Malt",
+		Phone:     "333",
+		Instagram: "https://instagram.com/dave",
+	})
+	if err != nil {
+		t.Fatalf("update: %v", err)
+	}
+	if updated.FirstName != "Dave" || updated.Instagram != "https://instagram.com/dave" {
+		t.Fatalf("updated=%#v", updated)
+	}
+	if _, err := users.Update(created.ID, "dave", "", "dave@brew.test", service.RoleUser, service.UserContact{
+		Instagram: "not-a-url",
+	}); err == nil {
+		t.Fatal("expected invalid instagram on update")
 	}
 }
 
 func TestUser_SetActiveBlocksLogin(t *testing.T) {
 	_, users, _, _, _, _, _ := testDB(t)
-	created, err := users.Create("bob", "secret", "bob@brew.test", service.RoleUser)
+	created, err := users.Create("bob", "secret", "bob@brew.test", service.RoleUser, service.UserContact{})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}

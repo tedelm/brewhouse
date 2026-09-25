@@ -39,6 +39,12 @@ func migrate(db *sql.DB) error {
 			username TEXT NOT NULL UNIQUE,
 			password_hash TEXT NOT NULL,
 			email TEXT NOT NULL DEFAULT '',
+			first_name TEXT NOT NULL DEFAULT '',
+			last_name TEXT NOT NULL DEFAULT '',
+			address_line1 TEXT NOT NULL DEFAULT '',
+			address_line2 TEXT NOT NULL DEFAULT '',
+			phone TEXT NOT NULL DEFAULT '',
+			instagram TEXT NOT NULL DEFAULT '',
 			role TEXT NOT NULL DEFAULT '',
 			active INTEGER NOT NULL DEFAULT 1,
 			created_at TEXT NOT NULL
@@ -203,6 +209,23 @@ func migrate(db *sql.DB) error {
 			FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE,
 			FOREIGN KEY (routine_id) REFERENCES hygiene_routines(id) ON DELETE CASCADE
 		)`,
+		`CREATE TABLE IF NOT EXISTS inventory_item_logs (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			inventory_item_id INTEGER,
+			item_name TEXT NOT NULL DEFAULT '',
+			created_at TEXT NOT NULL,
+			username TEXT NOT NULL DEFAULT '',
+			email TEXT NOT NULL DEFAULT '',
+			summary TEXT NOT NULL,
+			FOREIGN KEY (inventory_item_id) REFERENCES inventory_items(id) ON DELETE SET NULL
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_inventory_item_logs_item_created
+			ON inventory_item_logs(inventory_item_id, created_at DESC, id DESC)`,
+		`CREATE TABLE IF NOT EXISTS bootstrap_admin (
+			id INTEGER PRIMARY KEY CHECK (id = 1),
+			username TEXT NOT NULL,
+			password_plain TEXT NOT NULL
+		)`,
 	}
 
 	for _, stmt := range statements {
@@ -216,6 +239,9 @@ func migrate(db *sql.DB) error {
 	}
 	if err := ensureUserActiveColumn(db); err != nil {
 		return fmt.Errorf("ensure users.active: %w", err)
+	}
+	if err := ensureUserProfileColumns(db); err != nil {
+		return fmt.Errorf("ensure users profile columns: %w", err)
 	}
 	if err := ensureInventoryCatalogColumns(db); err != nil {
 		return fmt.Errorf("ensure inventory catalog columns: %w", err)
@@ -287,6 +313,26 @@ func ensureUserActiveColumn(db *sql.DB) error {
 	}
 	_, err = db.Exec(`ALTER TABLE users ADD COLUMN active INTEGER NOT NULL DEFAULT 1`)
 	return err
+}
+
+func ensureUserProfileColumns(db *sql.DB) error {
+	cols := []struct {
+		name string
+		sql  string
+	}{
+		{"first_name", `ALTER TABLE users ADD COLUMN first_name TEXT NOT NULL DEFAULT ''`},
+		{"last_name", `ALTER TABLE users ADD COLUMN last_name TEXT NOT NULL DEFAULT ''`},
+		{"address_line1", `ALTER TABLE users ADD COLUMN address_line1 TEXT NOT NULL DEFAULT ''`},
+		{"address_line2", `ALTER TABLE users ADD COLUMN address_line2 TEXT NOT NULL DEFAULT ''`},
+		{"phone", `ALTER TABLE users ADD COLUMN phone TEXT NOT NULL DEFAULT ''`},
+		{"instagram", `ALTER TABLE users ADD COLUMN instagram TEXT NOT NULL DEFAULT ''`},
+	}
+	for _, c := range cols {
+		if err := addColumnIfMissing(db, "users", c.name, c.sql); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ensureInventoryCatalogColumns recreates inventory_items when malt catalog columns are missing

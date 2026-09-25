@@ -224,6 +224,35 @@ body {
 	display: none;
 }
 
+.login-stage.is-authenticated .login__bootstrap {
+	display: none;
+}
+
+.login__bootstrap {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+	width: min(100%, 22rem);
+	margin-top: 1.25rem;
+	padding: 1rem;
+	border: 1px solid rgba(255, 255, 255, 0.25);
+	border-radius: 0.5rem;
+	background: rgba(0, 0, 0, 0.2);
+}
+
+.login__bootstrap-lead {
+	margin: 0;
+	font-size: 0.875rem;
+	line-height: 1.4;
+	color: #fff;
+	text-align: center;
+}
+
+.login__bootstrap .login__input {
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font-size: 0.8rem;
+}
+
 /* —— App shell —— */
 
 .shell {
@@ -585,6 +614,10 @@ body {
 	justify-content: space-between;
 	gap: 0.75rem;
 	cursor: pointer;
+}
+
+.shell__profile-menu-item--toggle[hidden] {
+	display: none !important;
 }
 
 .shell__profile-menu-item--toggle input {

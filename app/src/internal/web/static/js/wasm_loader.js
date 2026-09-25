@@ -7,6 +7,9 @@
 	const loginSuccess = document.getElementById("login-success");
 	const loginStage = document.querySelector(".login-stage");
 	const submitButton = loginForm ? loginForm.querySelector('button[type="submit"]') : null;
+	const bootstrapBox = document.getElementById("bootstrap-credentials");
+	const bootstrapUsername = document.getElementById("bootstrap-username");
+	const bootstrapPassword = document.getElementById("bootstrap-password");
 	const shell = document.getElementById("shell");
 	const shellCollapse = document.getElementById("shell-collapse");
 	const shellAvatar = document.getElementById("shell-avatar");
@@ -176,8 +179,17 @@
 		}
 		const elevatable = canElevate();
 		profileAdminWrap.hidden = !elevatable;
+		profileAdminWrap.classList.toggle("is-role-hidden", !elevatable);
 		if (elevatable) {
 			profileAdminToggle.checked = currentRole() === "admin";
+		}
+		syncAdminTips();
+	}
+
+	function syncAdminTips() {
+		const tip = document.getElementById("shell-welcome-admin-tip");
+		if (tip) {
+			tip.hidden = !canElevate();
 		}
 	}
 
@@ -219,6 +231,45 @@
 		logout: () => logout(),
 	};
 
+	function hideBootstrapCredentials() {
+		if (bootstrapBox) {
+			bootstrapBox.hidden = true;
+		}
+		if (bootstrapUsername) {
+			bootstrapUsername.value = "";
+		}
+		if (bootstrapPassword) {
+			bootstrapPassword.value = "";
+		}
+	}
+
+	async function loadBootstrapCredentials() {
+		if (!bootstrapBox) {
+			return;
+		}
+		try {
+			const response = await fetch("/api/bootstrap");
+			const data = await response.json().catch(() => ({}));
+			if (!response.ok || !data.pending) {
+				hideBootstrapCredentials();
+				return;
+			}
+			if (bootstrapUsername) {
+				bootstrapUsername.value = data.username || "admin";
+			}
+			if (bootstrapPassword) {
+				bootstrapPassword.value = data.password || "";
+			}
+			bootstrapBox.hidden = false;
+			if (loginForm && loginForm.username && data.username) {
+				loginForm.username.value = data.username;
+			}
+		} catch (err) {
+			console.error("Bootstrap credentials request failed:", err);
+			hideBootstrapCredentials();
+		}
+	}
+
 	function maybeShowLogin() {
 		if (wasmFailed || app.classList.contains("is-shell")) {
 			return;
@@ -240,6 +291,7 @@
 				}
 			}
 			app.classList.add("is-login");
+			loadBootstrapCredentials();
 		}
 	}
 
@@ -336,6 +388,9 @@
 	}
 
 	function welcomeHTML() {
+		const tip = canElevate()
+			? '<p class="shell__welcome-tip" id="shell-welcome-admin-tip">Admin accounts: open your profile menu and turn on <strong>Admin mode</strong> for Economy, IAM, and Settings.</p>'
+			: "";
 		return (
 			'<section class="shell__welcome">' +
 			'<div class="shell__welcome-logo-wrap">' +
@@ -346,7 +401,7 @@
 			'<h1 class="shell__welcome-title">From recipe to the pub</h1>' +
 			'<p class="shell__welcome-text">Pick a section in the navigation, or start with the batch pipeline guide.</p>' +
 			'<a class="btn btn--primary shell__welcome-cta" href="/app/guide" hx-get="/app/guide" hx-target="#main-content" hx-swap="innerHTML">Brewery 101</a>' +
-			'<p class="shell__welcome-tip">Admin accounts: open your profile menu and turn on <strong>Admin mode</strong> for Economy, IAM, and Settings.</p>' +
+			tip +
 			"</section>"
 		);
 	}
@@ -430,6 +485,12 @@
 			}
 			profileForm.username.value = data.username || "";
 			profileForm.email.value = data.email || "";
+			profileForm.first_name.value = data.first_name || "";
+			profileForm.last_name.value = data.last_name || "";
+			profileForm.address_line1.value = data.address_line1 || "";
+			profileForm.address_line2.value = data.address_line2 || "";
+			profileForm.phone.value = data.phone || "";
+			profileForm.instagram.value = data.instagram || "";
 			profileDialog.showModal();
 		} catch (err) {
 			console.error(err);
@@ -557,7 +618,15 @@
 				profileDialog.showModal();
 				return;
 			}
-			const body = { email };
+			const body = {
+				email,
+				first_name: profileForm.first_name.value.trim(),
+				last_name: profileForm.last_name.value.trim(),
+				address_line1: profileForm.address_line1.value.trim(),
+				address_line2: profileForm.address_line2.value.trim(),
+				phone: profileForm.phone.value.trim(),
+				instagram: profileForm.instagram.value.trim(),
+			};
 			if (password) {
 				body.password = password;
 			}
@@ -687,6 +756,7 @@
 				}
 
 				applySessionData(data);
+				hideBootstrapCredentials();
 				showLoginSuccess(data.username);
 			} catch (err) {
 				console.error("Login request failed:", err);

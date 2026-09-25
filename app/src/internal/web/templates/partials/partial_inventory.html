@@ -28,4 +28,15 @@
 			</div>
 		</form>
 	</dialog>
+	<dialog class="panel__dialog panel__dialog--wide" id="inventory-log-dialog">
+		<form method="dialog" class="panel__form" id="inventory-log-form">
+			<h2 id="inventory-log-title">Change log</h2>
+			<p class="panel__lead" id="inventory-log-lead">Recent changes for this inventory item.</p>
+			<div id="inventory-log-list" class="inventory-log-list"></div>
+			<div class="panel__dialog-actions">
+				<button type="button" class="btn" id="inventory-log-more" hidden>Load more</button>
+				<button type="submit" class="btn" value="cancel" formnovalidate>Close</button>
+			</div>
+		</form>
+	</dialog>
 </section>

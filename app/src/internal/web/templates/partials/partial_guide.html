@@ -1,7 +1,7 @@
 <section class="panel" data-panel="guide">
 	<header class="panel__header">
 		<h1 class="panel__title">Brewery 101</h1>
-		<p class="panel__lead">How to take a batch from recipe to the pub, and what each section of Brewhouse is for.</p>
+		<p class="panel__lead">How to take a batch from recipe to the pub, what roles mean, and what each section of Brewhouse is for.</p>
 	</header>
 
 	<section class="guide-section">
@@ -35,7 +35,7 @@
 		</ol>
 	</section>
 
-	<section class="guide-section">
+	<section class="guide-section" data-require-elevate>
 		<h2 class="guide-section__title">Admin mode</h2>
 		<p class="guide-section__lead">Admin accounts sign in as superuser. Economy, IAM, and Settings stay hidden until you elevate.</p>
 		<ul class="guide-list">
@@ -43,6 +43,26 @@
 			<li><strong>On</strong> — Your session becomes admin; Economy, IAM, and Settings appear in the navigation.</li>
 			<li><strong>Off</strong> — You return to superuser; admin-only pages are left and those nav sections hide again.</li>
 		</ul>
+	</section>
+
+	<section class="guide-section">
+		<h2 class="guide-section__title">Roles</h2>
+		<p class="guide-section__lead">Access has two layers: the <strong>account role</strong> on the user (IAM → Users), and a <strong>brewery membership</strong> role per brewery (IAM → Breweries).</p>
+
+		<h3 class="guide-section__subtitle">Account roles</h3>
+		<ul class="guide-list">
+			<li><strong>user</strong> — Brewing, Inventory (view), and Hygiene for breweries you belong to: recipes, schedule, brewday, delivery, and wishlist shortfalls from recipes.</li>
+			<li><strong>superuser</strong> — Same as user, plus create and edit shared inventory and purchase orders. Economy, IAM, and Settings stay hidden.</li>
+			<li><strong>admin</strong> — Signs in as superuser. With <strong>Admin mode</strong> on, full access including Economy, IAM, and Settings.</li>
+		</ul>
+
+		<h3 class="guide-section__subtitle">Brewery membership roles</h3>
+		<ul class="guide-list">
+			<li><strong>user</strong> — Member of that brewery; can work on its batches.</li>
+			<li><strong>superuser</strong> — Member plus inventory management for the shared stock.</li>
+			<li><strong>brewery_admin</strong> — Manages that brewery (contacts and members). Not a global admin, and not set as the account role in Users — only on membership.</li>
+		</ul>
+		<p class="guide-section__lead">Economy, IAM, and Settings always require elevated admin (see Admin mode above).</p>
 	</section>
 
 	<section class="guide-section">

@@ -17,6 +17,7 @@ func New(webHandler *web.Handler, apiHandler *api.Handler, tokens *auth.TokenIss
 
 	mux.HandleFunc("/api/login", apiHandler.Login)
 	mux.HandleFunc("/api/version", apiHandler.Version)
+	mux.HandleFunc("/api/bootstrap", apiHandler.Bootstrap)
 	mux.HandleFunc("/logo", apiHandler.Logo)
 	mux.HandleFunc("/favicon", apiHandler.Favicon)
 

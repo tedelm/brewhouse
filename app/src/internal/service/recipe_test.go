@@ -29,23 +29,37 @@ func testDB(t *testing.T) (*service.AccessService, *service.UserService, *servic
 	return access, users, breweries, inventory, settings, recipes, schedule
 }
 
+func ensureAdminUser(t *testing.T, users *service.UserService) (*service.User, service.Actor) {
+	t.Helper()
+	plain, created, err := users.EnsureDefaultAdmin()
+	if err != nil {
+		t.Fatalf("ensure default admin: %v", err)
+	}
+	if !created || plain == "" {
+		t.Fatal("expected newly created default admin with password")
+	}
+	u, err := users.Authenticate("admin", plain)
+	if err != nil {
+		t.Fatalf("auth admin: %v", err)
+	}
+	return u, service.Actor{UserID: u.ID, Role: service.RoleAdmin}
+}
+
+func ensureAdminActor(t *testing.T, users *service.UserService) service.Actor {
+	t.Helper()
+	_, actor := ensureAdminUser(t, users)
+	return actor
+}
+
 func TestRecipe_CreateCheckoutAndDeleteRestoresStock(t *testing.T) {
 	_, users, breweries, inventory, _, recipes, _ := testDB(t)
-	admin := service.Actor{UserID: 1, Role: service.RoleAdmin}
-	if err := users.EnsureDemoUser(); err != nil {
-		t.Fatalf("demo user: %v", err)
-	}
-	u, err := users.Authenticate("demo", "demo")
-	if err != nil {
-		t.Fatalf("auth: %v", err)
-	}
-	admin.UserID = u.ID
+	_, admin := ensureAdminUser(t, users)
 
 	brewery, err := breweries.Create(admin, "Test Brewery", "A", "a@t.com", "", nil)
 	if err != nil {
 		t.Fatalf("create brewery: %v", err)
 	}
-	member, err := users.Create("brewer", "pass", "brewer@test.local", service.RoleUser)
+	member, err := users.Create("brewer", "pass", "brewer@test.local", service.RoleUser, service.UserContact{})
 	if err != nil {
 		t.Fatalf("create user: %v", err)
 	}
@@ -91,11 +105,7 @@ func TestRecipe_CreateCheckoutAndDeleteRestoresStock(t *testing.T) {
 
 func TestRecipe_PartialCheckoutAddsPlanningOrder(t *testing.T) {
 	_, users, breweries, inventory, _, recipes, _ := testDB(t)
-	if err := users.EnsureDemoUser(); err != nil {
-		t.Fatalf("demo: %v", err)
-	}
-	u, _ := users.Authenticate("demo", "demo")
-	admin := service.Actor{UserID: u.ID, Role: service.RoleAdmin}
+	_, admin := ensureAdminUser(t, users)
 	brewery, _ := breweries.Create(admin, "B2", "", "", "", nil)
 	item, err := inventory.Create(admin, service.InventoryItem{Category: service.CategoryHops, Name: "Test Cascade Shortfall", Unit: "g", Qty: 50, CostPrice: 1})
 	if err != nil {
@@ -152,11 +162,7 @@ func TestABVAndPricing(t *testing.T) {
 
 func TestSchedule_BookingConflict(t *testing.T) {
 	_, users, breweries, inventory, settings, recipes, schedule := testDB(t)
-	if err := users.EnsureDemoUser(); err != nil {
-		t.Fatalf("demo: %v", err)
-	}
-	u, _ := users.Authenticate("demo", "demo")
-	admin := service.Actor{UserID: u.ID, Role: service.RoleAdmin}
+	_, admin := ensureAdminUser(t, users)
 	brewery, _ := breweries.Create(admin, "B3", "", "", "", nil)
 	item, _ := inventory.Create(admin, service.InventoryItem{Category: service.CategoryYeast, Name: "US-05", Unit: "pack", Qty: 5, CostPrice: 30})
 	tank, err := settings.CreateTank(admin, "FV1", 1000)
@@ -195,11 +201,7 @@ func TestSchedule_BookingConflict(t *testing.T) {
 
 func TestSchedule_TankConflictDetails(t *testing.T) {
 	_, users, breweries, inventory, settings, recipes, schedule := testDB(t)
-	if err := users.EnsureDemoUser(); err != nil {
-		t.Fatalf("demo: %v", err)
-	}
-	u, _ := users.Authenticate("demo", "demo")
-	admin := service.Actor{UserID: u.ID, Role: service.RoleAdmin}
+	_, admin := ensureAdminUser(t, users)
 	brewery, _ := breweries.Create(admin, "Conflict Brewery", "", "", "", nil)
 	item, _ := inventory.Create(admin, service.InventoryItem{Category: service.CategoryYeast, Name: "US-05", Unit: "pack", Qty: 5, CostPrice: 30})
 	tank, err := settings.CreateTank(admin, "FVConflict", 1000)
@@ -251,11 +253,7 @@ func TestSchedule_TankConflictDetails(t *testing.T) {
 
 func TestSchedule_TankConflictNoAlternatives(t *testing.T) {
 	_, users, breweries, inventory, settings, recipes, schedule := testDB(t)
-	if err := users.EnsureDemoUser(); err != nil {
-		t.Fatalf("demo: %v", err)
-	}
-	u, _ := users.Authenticate("demo", "demo")
-	admin := service.Actor{UserID: u.ID, Role: service.RoleAdmin}
+	_, admin := ensureAdminUser(t, users)
 	brewery, _ := breweries.Create(admin, "Solo Brewery", "", "", "", nil)
 	item, _ := inventory.Create(admin, service.InventoryItem{Category: service.CategoryYeast, Name: "US-05", Unit: "pack", Qty: 5, CostPrice: 30})
 	tank, err := settings.CreateTank(admin, "OnlyFV", 1000)
@@ -291,11 +289,7 @@ func TestSchedule_TankConflictNoAlternatives(t *testing.T) {
 
 func TestSchedule_Unbook(t *testing.T) {
 	_, users, breweries, inventory, settings, recipes, schedule := testDB(t)
-	if err := users.EnsureDemoUser(); err != nil {
-		t.Fatalf("demo: %v", err)
-	}
-	u, _ := users.Authenticate("demo", "demo")
-	admin := service.Actor{UserID: u.ID, Role: service.RoleAdmin}
+	_, admin := ensureAdminUser(t, users)
 	brewery, _ := breweries.Create(admin, "BUnbook", "", "", "", nil)
 	item, _ := inventory.Create(admin, service.InventoryItem{Category: service.CategoryYeast, Name: "US-05", Unit: "pack", Qty: 5, CostPrice: 30})
 	tank, err := settings.CreateTank(admin, "FVUnbook", 1000)
@@ -353,11 +347,7 @@ func TestSchedule_Unbook(t *testing.T) {
 
 func TestPipeline_GatesAndRevokeHygiene(t *testing.T) {
 	_, users, breweries, inventory, settings, recipes, schedule := testDB(t)
-	if err := users.EnsureDemoUser(); err != nil {
-		t.Fatalf("demo: %v", err)
-	}
-	u, _ := users.Authenticate("demo", "demo")
-	admin := service.Actor{UserID: u.ID, Role: service.RoleAdmin}
+	_, admin := ensureAdminUser(t, users)
 	brewery, _ := breweries.Create(admin, "BPipe", "", "", "", nil)
 	item, _ := inventory.Create(admin, service.InventoryItem{Category: service.CategoryMalt, Name: "Pale", Unit: "kg", Qty: 20, CostPrice: 10})
 	tank, _ := settings.CreateTank(admin, "FVPipe", 500)
@@ -431,11 +421,7 @@ func TestPipeline_GatesAndRevokeHygiene(t *testing.T) {
 
 func TestRevokeBrewday(t *testing.T) {
 	_, users, breweries, inventory, settings, recipes, schedule := testDB(t)
-	if err := users.EnsureDemoUser(); err != nil {
-		t.Fatalf("demo: %v", err)
-	}
-	u, _ := users.Authenticate("demo", "demo")
-	admin := service.Actor{UserID: u.ID, Role: service.RoleAdmin}
+	_, admin := ensureAdminUser(t, users)
 	brewery, _ := breweries.Create(admin, "BRevBrew", "", "", "", nil)
 	item, _ := inventory.Create(admin, service.InventoryItem{Category: service.CategoryMalt, Name: "Pale", Unit: "kg", Qty: 20, CostPrice: 10})
 	tank, _ := settings.CreateTank(admin, "FVRevBrew", 500)
@@ -498,11 +484,7 @@ func multiplierIDByName(t *testing.T, settings *service.SettingsService, name st
 
 func TestDelivery_ComputesTaxCostNet(t *testing.T) {
 	_, users, breweries, inventory, settings, recipes, schedule := testDB(t)
-	if err := users.EnsureDemoUser(); err != nil {
-		t.Fatalf("demo: %v", err)
-	}
-	u, _ := users.Authenticate("demo", "demo")
-	admin := service.Actor{UserID: u.ID, Role: service.RoleAdmin}
+	_, admin := ensureAdminUser(t, users)
 	brewery, _ := breweries.Create(admin, "B4", "", "", "", nil)
 	item, _ := inventory.Create(admin, service.InventoryItem{Category: service.CategoryMalt, Name: "Pale", Unit: "kg", Qty: 20, CostPrice: 10})
 	tank, _ := settings.CreateTank(admin, "FV2", 500)
@@ -554,11 +536,7 @@ func TestDelivery_ComputesTaxCostNet(t *testing.T) {
 
 func TestDelivered_HideAndList(t *testing.T) {
 	_, users, breweries, inventory, settings, recipes, schedule := testDB(t)
-	if err := users.EnsureDemoUser(); err != nil {
-		t.Fatalf("demo: %v", err)
-	}
-	u, _ := users.Authenticate("demo", "demo")
-	admin := service.Actor{UserID: u.ID, Role: service.RoleAdmin}
+	_, admin := ensureAdminUser(t, users)
 	brewery, _ := breweries.Create(admin, "BHide", "", "", "", nil)
 	item, _ := inventory.Create(admin, service.InventoryItem{Category: service.CategoryMalt, Name: "Pale", Unit: "kg", Qty: 20, CostPrice: 10})
 	tank, _ := settings.CreateTank(admin, "FVHide", 500)
@@ -647,11 +625,7 @@ func TestDelivered_HideAndList(t *testing.T) {
 
 func TestDelivery_Revoke(t *testing.T) {
 	_, users, breweries, inventory, settings, recipes, schedule := testDB(t)
-	if err := users.EnsureDemoUser(); err != nil {
-		t.Fatalf("demo: %v", err)
-	}
-	u, _ := users.Authenticate("demo", "demo")
-	admin := service.Actor{UserID: u.ID, Role: service.RoleAdmin}
+	_, admin := ensureAdminUser(t, users)
 	brewery, _ := breweries.Create(admin, "B6", "", "", "", nil)
 	item, _ := inventory.Create(admin, service.InventoryItem{Category: service.CategoryMalt, Name: "Pale", Unit: "kg", Qty: 20, CostPrice: 10})
 	tank, _ := settings.CreateTank(admin, "FV4", 500)
@@ -700,11 +674,7 @@ func TestDelivery_Revoke(t *testing.T) {
 
 func TestDelivery_NetIsBeerNetTimesMult(t *testing.T) {
 	_, users, breweries, inventory, settings, recipes, schedule := testDB(t)
-	if err := users.EnsureDemoUser(); err != nil {
-		t.Fatalf("demo: %v", err)
-	}
-	u, _ := users.Authenticate("demo", "demo")
-	admin := service.Actor{UserID: u.ID, Role: service.RoleAdmin}
+	_, admin := ensureAdminUser(t, users)
 	brewery, _ := breweries.Create(admin, "B5", "", "", "", nil)
 	item, _ := inventory.Create(admin, service.InventoryItem{Category: service.CategoryMalt, Name: "Pale", Unit: "kg", Qty: 20, CostPrice: 10})
 	tank, _ := settings.CreateTank(admin, "FV3", 500)
@@ -750,11 +720,7 @@ func TestDelivery_NetIsBeerNetTimesMult(t *testing.T) {
 
 func TestDelivery_HigherMultiplierRaisesNet(t *testing.T) {
 	_, users, breweries, inventory, settings, recipes, schedule := testDB(t)
-	if err := users.EnsureDemoUser(); err != nil {
-		t.Fatalf("demo: %v", err)
-	}
-	u, _ := users.Authenticate("demo", "demo")
-	admin := service.Actor{UserID: u.ID, Role: service.RoleAdmin}
+	_, admin := ensureAdminUser(t, users)
 	brewery, _ := breweries.Create(admin, "B7", "", "", "", nil)
 	item, _ := inventory.Create(admin, service.InventoryItem{Category: service.CategoryMalt, Name: "Pale", Unit: "kg", Qty: 40, CostPrice: 10})
 	tank, _ := settings.CreateTank(admin, "FV5", 500)

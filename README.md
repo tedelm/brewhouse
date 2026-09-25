@@ -25,7 +25,7 @@ Copy-Item "$(go env GOROOT)/lib/wasm/wasm_exec.js" internal/web/static/js/wasm_e
 go run ./cmd
 ```
 
-Open http://localhost:8080 — splash loads, then sign in with **demo / demo**.
+Open http://localhost:8080 — splash loads, then the login page. On first start the default **admin** account is created and its generated password is shown on the login page until the first successful sign-in (save it securely).
 
 ### Environment
 

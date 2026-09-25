@@ -9,14 +9,7 @@ import (
 
 func TestUpdateOrderLineProductLink(t *testing.T) {
 	_, users, _, inventory, _, _, _ := testDB(t)
-	if err := users.EnsureDemoUser(); err != nil {
-		t.Fatalf("demo: %v", err)
-	}
-	u, err := users.Authenticate("demo", "demo")
-	if err != nil {
-		t.Fatalf("auth: %v", err)
-	}
-	admin := service.Actor{UserID: u.ID, Role: service.RoleAdmin}
+	_, admin := ensureAdminUser(t, users)
 
 	item, err := inventory.Create(admin, service.InventoryItem{
 		Category: service.CategoryHops, Name: "Cascade Link", Unit: "g", Qty: 100, CostPrice: 1,
@@ -67,14 +60,7 @@ func TestUpdateOrderLineProductLink(t *testing.T) {
 
 func TestOrderPauseBlocksAddLine(t *testing.T) {
 	_, users, _, inventory, _, _, _ := testDB(t)
-	if err := users.EnsureDemoUser(); err != nil {
-		t.Fatalf("demo: %v", err)
-	}
-	u, err := users.Authenticate("demo", "demo")
-	if err != nil {
-		t.Fatalf("auth: %v", err)
-	}
-	admin := service.Actor{UserID: u.ID, Role: service.RoleAdmin}
+	_, admin := ensureAdminUser(t, users)
 
 	item, err := inventory.Create(admin, service.InventoryItem{
 		Category: service.CategoryHops, Name: "Pause Hop", Unit: "g", Qty: 100, CostPrice: 1,
@@ -116,14 +102,7 @@ func TestOrderPauseBlocksAddLine(t *testing.T) {
 
 func TestOrderPauseRequiresAdmin(t *testing.T) {
 	_, users, _, inventory, _, _, _ := testDB(t)
-	if err := users.EnsureDemoUser(); err != nil {
-		t.Fatalf("demo: %v", err)
-	}
-	u, err := users.Authenticate("demo", "demo")
-	if err != nil {
-		t.Fatalf("auth: %v", err)
-	}
-	admin := service.Actor{UserID: u.ID, Role: service.RoleAdmin}
+	u, admin := ensureAdminUser(t, users)
 	super := service.Actor{UserID: u.ID, Role: service.RoleSuperuser}
 
 	order, err := inventory.CreateOrder(admin, "pause auth", "", nil)
@@ -138,14 +117,7 @@ func TestOrderPauseRequiresAdmin(t *testing.T) {
 
 func TestDeleteOrderWithLines(t *testing.T) {
 	_, users, _, inventory, _, _, _ := testDB(t)
-	if err := users.EnsureDemoUser(); err != nil {
-		t.Fatalf("demo: %v", err)
-	}
-	u, err := users.Authenticate("demo", "demo")
-	if err != nil {
-		t.Fatalf("auth: %v", err)
-	}
-	admin := service.Actor{UserID: u.ID, Role: service.RoleAdmin}
+	_, admin := ensureAdminUser(t, users)
 
 	item, err := inventory.Create(admin, service.InventoryItem{
 		Category: service.CategoryMalt, Name: "Delete Malt", Unit: "kg", Qty: 50, CostPrice: 2,
@@ -170,14 +142,7 @@ func TestDeleteOrderWithLines(t *testing.T) {
 
 func TestOrderedQtyZeroOnComplete(t *testing.T) {
 	_, users, _, inventory, _, _, _ := testDB(t)
-	if err := users.EnsureDemoUser(); err != nil {
-		t.Fatalf("demo: %v", err)
-	}
-	u, err := users.Authenticate("demo", "demo")
-	if err != nil {
-		t.Fatalf("auth: %v", err)
-	}
-	admin := service.Actor{UserID: u.ID, Role: service.RoleAdmin}
+	_, admin := ensureAdminUser(t, users)
 
 	item, err := inventory.Create(admin, service.InventoryItem{
 		Category: service.CategoryYeast, Name: "Zero Yeast", Unit: "pack", Qty: 10, CostPrice: 3,
@@ -219,14 +184,7 @@ func TestOrderedQtyZeroOnComplete(t *testing.T) {
 
 func TestCompleteOrderAllocatesToRecipeShortfall(t *testing.T) {
 	_, users, breweries, inventory, _, recipes, _ := testDB(t)
-	if err := users.EnsureDemoUser(); err != nil {
-		t.Fatalf("demo: %v", err)
-	}
-	u, err := users.Authenticate("demo", "demo")
-	if err != nil {
-		t.Fatalf("auth: %v", err)
-	}
-	admin := service.Actor{UserID: u.ID, Role: service.RoleAdmin}
+	_, admin := ensureAdminUser(t, users)
 	brewery, err := breweries.Create(admin, "Alloc Brewery", "", "", "", nil)
 	if err != nil {
 		t.Fatalf("brewery: %v", err)

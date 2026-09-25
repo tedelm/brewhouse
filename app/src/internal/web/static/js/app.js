@@ -246,6 +246,13 @@
 			const allowed = el.getAttribute("data-require-roles") || "";
 			el.classList.toggle("is-role-hidden", !canRoles(allowed));
 		});
+		const elevatable =
+			window.BrewhouseAuth && typeof window.BrewhouseAuth.canElevate === "function"
+				? window.BrewhouseAuth.canElevate()
+				: sessionStorage.getItem("brewhouse_can_elevate") === "1";
+		root.querySelectorAll("[data-require-elevate]").forEach((el) => {
+			el.classList.toggle("is-role-hidden", !elevatable);
+		});
 	}
 
 	function showForbidden(panel) {
@@ -1146,7 +1153,14 @@
 		const dialog = panel.querySelector("#inventory-dialog");
 		const form = panel.querySelector("#inventory-form");
 		const titleEl = panel.querySelector("#inventory-dialog-title");
+		const logDialog = panel.querySelector("#inventory-log-dialog");
+		const logTitle = panel.querySelector("#inventory-log-title");
+		const logList = panel.querySelector("#inventory-log-list");
+		const logMoreBtn = panel.querySelector("#inventory-log-more");
 		const canEdit = canRoles(["superuser", "admin"]);
+		let logItemID = null;
+		let logOffset = 0;
+		const logPageSize = 5;
 
 		panel.querySelectorAll(".inventory-field--malt").forEach((el) => {
 			el.classList.toggle("is-role-hidden", !isMalt);
@@ -1185,6 +1199,98 @@
 			};
 		}
 
+		function formatLogTime(iso) {
+			if (!iso) {
+				return "";
+			}
+			const d = new Date(iso);
+			if (Number.isNaN(d.getTime())) {
+				return String(iso);
+			}
+			return d.toLocaleString();
+		}
+
+		function formatLogUser(entry) {
+			const user = entry.username || "";
+			const email = entry.email || "";
+			if (user && email) {
+				return user + " / " + email;
+			}
+			return user || email || "—";
+		}
+
+		function renderLogRows(entries, append) {
+			const rows = (entries || [])
+				.map(
+					(e) =>
+						"<tr><td>" +
+						esc(formatLogTime(e.created_at)) +
+						"</td><td>" +
+						esc(formatLogUser(e)) +
+						"</td><td>" +
+						esc(e.summary || "") +
+						"</td></tr>"
+				)
+				.join("");
+			if (append) {
+				const tbody = logList.querySelector("tbody");
+				if (tbody) {
+					tbody.insertAdjacentHTML("beforeend", rows);
+					return;
+				}
+			}
+			if (!entries || !entries.length) {
+				logList.innerHTML = "<p class=\"panel__empty\">No changes logged yet.</p>";
+				return;
+			}
+			logList.innerHTML = table(["Time", "User", "Change"], rows);
+		}
+
+		async function loadLogPage(reset) {
+			if (!logItemID) {
+				return;
+			}
+			if (reset) {
+				logOffset = 0;
+				logList.textContent = "Loading…";
+			}
+			try {
+				const data = await api(
+					"/api/inventory/" +
+						logItemID +
+						"/log?limit=" +
+						logPageSize +
+						"&offset=" +
+						logOffset
+				);
+				const items = (data && data.items) || [];
+				renderLogRows(items, !reset && logOffset > 0);
+				logOffset += items.length;
+				if (logMoreBtn) {
+					logMoreBtn.hidden = !(data && data.has_more);
+				}
+			} catch (e) {
+				logList.textContent = e.message;
+				if (logMoreBtn) {
+					logMoreBtn.hidden = true;
+				}
+			}
+		}
+
+		async function openLog(id, name) {
+			logItemID = id;
+			if (logTitle) {
+				logTitle.textContent = "Change log — " + (name || "item");
+			}
+			if (logMoreBtn) {
+				logMoreBtn.hidden = true;
+			}
+			await loadLogPage(true);
+			if (logDialog) {
+				logDialog.showModal();
+			}
+		}
+
 		async function refresh() {
 			list.textContent = "Loading…";
 			try {
@@ -1221,6 +1327,13 @@
 								  i.id +
 								  '">Edit</button>'
 								: "";
+							const logBtn =
+								'<button type="button" class="btn btn--small" data-action="inventory-log" data-id="' +
+								i.id +
+								'" data-name="' +
+								esc(i.name) +
+								'">View log</button>';
+							const actions = [logBtn, orderBtn, editBtn].filter(Boolean).join(" ");
 							if (isMalt) {
 								return (
 									"<tr><td>" +
@@ -1238,9 +1351,7 @@
 									"</td><td>" +
 									linkCell +
 									"</td><td>" +
-									orderBtn +
-									" " +
-									editBtn +
+									actions +
 									"</td></tr>"
 								);
 							}
@@ -1260,9 +1371,7 @@
 								"</td><td>" +
 								linkCell +
 								"</td><td>" +
-								orderBtn +
-								" " +
-								editBtn +
+								actions +
 								"</td></tr>"
 							);
 						})
@@ -1299,6 +1408,14 @@
 						dialog.showModal();
 					})
 					.catch((e) => alert(e.message));
+			}
+			if (t.getAttribute("data-action") === "inventory-log") {
+				const id = parseInt(t.getAttribute("data-id"), 10);
+				const name = t.getAttribute("data-name") || "item";
+				openLog(id, name).catch((e) => alert(e.message));
+			}
+			if (t.id === "inventory-log-more" || t.getAttribute("data-action") === "inventory-log-more") {
+				loadLogPage(false).catch((e) => alert(e.message));
 			}
 			if (t.getAttribute("data-action") === "inventory-order") {
 				if (!canEdit) {
@@ -2720,12 +2837,13 @@
 			try {
 				const users = await api("/api/users");
 				usersEl.innerHTML = table(
-					["ID", "Username", "Email", "Role", "Active", ""],
+					["ID", "Username", "Name", "Email", "Role", "Active", ""],
 					(users || [])
 						.map((u) => {
 							const active = u.active !== false;
 							const label = active ? "Active" : "Inactive";
 							const btnLabel = active ? "Deactivate" : "Activate";
+							const name = [u.first_name, u.last_name].filter(Boolean).join(" ");
 							const btn =
 								'<button type="button" class="btn btn--small" data-edit-user="' +
 								u.id +
@@ -2744,6 +2862,8 @@
 								u.id +
 								"</td><td>" +
 								esc(u.username) +
+								"</td><td>" +
+								esc(name || "—") +
 								"</td><td>" +
 								esc(u.email || "") +
 								"</td><td>" +
@@ -2798,9 +2918,16 @@
 					form.querySelector('[name="user_id"]').value = user.id;
 					form.querySelector('[name="username"]').value = user.username || "";
 					form.querySelector('[name="email"]').value = user.email || "";
+					form.querySelector('[name="first_name"]').value = user.first_name || "";
+					form.querySelector('[name="last_name"]').value = user.last_name || "";
+					form.querySelector('[name="address_line1"]').value = user.address_line1 || "";
+					form.querySelector('[name="address_line2"]').value = user.address_line2 || "";
+					form.querySelector('[name="phone"]').value = user.phone || "";
+					form.querySelector('[name="instagram"]').value = user.instagram || "";
 					roleSel.value = user.role || "user";
 					const editingSelfAdmin =
 						String(user.id) === selfID && (user.role || "") === "admin";
+					form.querySelector('[name="username"]').readOnly = false;
 					roleSel.disabled = editingSelfAdmin;
 					hint.hidden = !editingSelfAdmin;
 					dlg.showModal();
@@ -2831,6 +2958,12 @@
 					form.querySelector('[name="username"]').value = user.username || "";
 					form.querySelector('[name="email"]').value = user.email || "";
 					form.querySelector('[name="role"]').value = user.role || "user";
+					form.querySelector('[name="first_name"]').value = user.first_name || "";
+					form.querySelector('[name="last_name"]').value = user.last_name || "";
+					form.querySelector('[name="address_line1"]').value = user.address_line1 || "";
+					form.querySelector('[name="address_line2"]').value = user.address_line2 || "";
+					form.querySelector('[name="phone"]').value = user.phone || "";
+					form.querySelector('[name="instagram"]').value = user.instagram || "";
 					form.querySelector('[name="password"]').value = "";
 					dlg.showModal();
 				} catch (e) {
@@ -2850,6 +2983,12 @@
 				username: fd.get("username"),
 				password: fd.get("password"),
 				email: fd.get("email"),
+				first_name: fd.get("first_name"),
+				last_name: fd.get("last_name"),
+				address_line1: fd.get("address_line1"),
+				address_line2: fd.get("address_line2"),
+				phone: fd.get("phone"),
+				instagram: fd.get("instagram"),
 				role: fd.get("role"),
 			};
 			const breweryID = fd.get("brewery_id");
@@ -2889,6 +3028,12 @@
 					body: JSON.stringify({
 						username: fd.get("username"),
 						email: fd.get("email"),
+						first_name: fd.get("first_name"),
+						last_name: fd.get("last_name"),
+						address_line1: fd.get("address_line1"),
+						address_line2: fd.get("address_line2"),
+						phone: fd.get("phone"),
+						instagram: fd.get("instagram"),
 						role: role,
 					}),
 				});
@@ -2915,6 +3060,12 @@
 					body: JSON.stringify({
 						username: fd.get("username"),
 						email: fd.get("email"),
+						first_name: fd.get("first_name"),
+						last_name: fd.get("last_name"),
+						address_line1: fd.get("address_line1"),
+						address_line2: fd.get("address_line2"),
+						phone: fd.get("phone"),
+						instagram: fd.get("instagram"),
 						role: fd.get("role"),
 						password: fd.get("password"),
 					}),
