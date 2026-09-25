@@ -2,6 +2,8 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -66,6 +68,38 @@ func (h *Handler) Users(w http.ResponseWriter, r *http.Request) {
 	}
 
 	parts := splitPath(path)
+	if len(parts) == 1 && parts[0] == "export" {
+		if r.Method != http.MethodGet {
+			writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
+			return
+		}
+		data, err := h.users.ExportUsersCSV()
+		if err != nil {
+			h.writeErr(w, err)
+			return
+		}
+		writeCSVDownload(w, "users.csv", data)
+		return
+	}
+	if len(parts) == 1 && parts[0] == "import" {
+		if r.Method != http.MethodPost {
+			writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
+			return
+		}
+		data, err := readCSVUpload(r)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+			return
+		}
+		result, err := h.users.ImportUsersCSV(actor, data)
+		if err != nil {
+			h.writeErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, result)
+		return
+	}
+
 	id, err := strconv.ParseInt(parts[0], 10, 64)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid id"})
@@ -186,6 +220,76 @@ func (h *Handler) Breweries(w http.ResponseWriter, r *http.Request) {
 			writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
 		}
 		return
+	}
+
+	if len(parts) == 1 && parts[0] == "export" {
+		if r.Method != http.MethodGet {
+			writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
+			return
+		}
+		if !actor.IsAdmin() {
+			writeJSON(w, http.StatusForbidden, ErrorResponse{Error: "forbidden"})
+			return
+		}
+		data, err := h.breweries.ExportBreweriesCSV(actor)
+		if err != nil {
+			h.writeErr(w, err)
+			return
+		}
+		writeCSVDownload(w, "breweries.csv", data)
+		return
+	}
+	if len(parts) == 1 && parts[0] == "import" {
+		if r.Method != http.MethodPost {
+			writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
+			return
+		}
+		data, err := readCSVUpload(r)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+			return
+		}
+		result, err := h.breweries.ImportBreweriesCSV(actor, data)
+		if err != nil {
+			h.writeErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, result)
+		return
+	}
+
+	if len(parts) == 2 && parts[0] == "members" {
+		switch parts[1] {
+		case "export":
+			if r.Method != http.MethodGet {
+				writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
+				return
+			}
+			data, err := h.breweries.ExportMembersCSV(actor)
+			if err != nil {
+				h.writeErr(w, err)
+				return
+			}
+			writeCSVDownload(w, "members.csv", data)
+			return
+		case "import":
+			if r.Method != http.MethodPost {
+				writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
+				return
+			}
+			data, err := readCSVUpload(r)
+			if err != nil {
+				writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+				return
+			}
+			result, err := h.breweries.ImportMembersCSV(actor, data)
+			if err != nil {
+				h.writeErr(w, err)
+				return
+			}
+			writeJSON(w, http.StatusOK, result)
+			return
+		}
 	}
 
 	id, err := strconv.ParseInt(parts[0], 10, 64)
@@ -632,4 +736,41 @@ func (h *Handler) inventoryOrders(w http.ResponseWriter, r *http.Request, actor 
 	default:
 		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
 	}
+}
+
+func writeCSVDownload(w http.ResponseWriter, filename string, data []byte) {
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(data)
+}
+
+func readCSVUpload(r *http.Request) ([]byte, error) {
+	ct := r.Header.Get("Content-Type")
+	if strings.HasPrefix(ct, "multipart/form-data") {
+		if err := r.ParseMultipartForm(8 << 20); err != nil {
+			return nil, fmt.Errorf("invalid multipart form")
+		}
+		file, _, err := r.FormFile("file")
+		if err != nil {
+			return nil, fmt.Errorf("missing file")
+		}
+		defer file.Close()
+		data, err := io.ReadAll(io.LimitReader(file, 8<<20))
+		if err != nil {
+			return nil, fmt.Errorf("failed to read file")
+		}
+		if len(data) == 0 {
+			return nil, fmt.Errorf("empty file")
+		}
+		return data, nil
+	}
+	data, err := io.ReadAll(io.LimitReader(r.Body, 8<<20))
+	if err != nil {
+		return nil, fmt.Errorf("failed to read body")
+	}
+	if len(data) == 0 {
+		return nil, fmt.Errorf("empty body")
+	}
+	return data, nil
 }

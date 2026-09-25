@@ -385,6 +385,8 @@
 		if (loginForm) {
 			loginForm.reset();
 		}
+		hideBootstrapCredentials();
+		loadBootstrapCredentials();
 	}
 
 	function welcomeHTML() {

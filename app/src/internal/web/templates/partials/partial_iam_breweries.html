@@ -5,6 +5,12 @@
 	</header>
 	<div class="panel__toolbar">
 		<button type="button" class="btn" data-action="iam-breweries-refresh">Refresh</button>
+		<button type="button" class="btn" data-action="iam-breweries-export">Export CSV</button>
+		<button type="button" class="btn" data-action="iam-breweries-import">Import CSV</button>
+		<input type="file" id="iam-breweries-import-file" accept=".csv,text/csv" hidden>
+		<button type="button" class="btn" data-action="iam-members-export">Export members CSV</button>
+		<button type="button" class="btn" data-action="iam-members-import">Import members CSV</button>
+		<input type="file" id="iam-members-import-file" accept=".csv,text/csv" hidden>
 		<button type="button" class="btn btn--primary" data-action="iam-brewery-new">New brewery</button>
 	</div>
 	<div class="panel__body" id="iam-breweries">Loading…</div>

@@ -240,6 +240,11 @@ body {
 	background: rgba(0, 0, 0, 0.2);
 }
 
+/* display:flex above would otherwise override the [hidden] attribute */
+.login__bootstrap[hidden] {
+	display: none;
+}
+
 .login__bootstrap-lead {
 	margin: 0;
 	font-size: 0.875rem;

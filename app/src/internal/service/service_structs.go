@@ -264,3 +264,11 @@ type Actor struct {
 	UserID int64
 	Role   string
 }
+
+// ImportResult summarizes a CSV import batch.
+type ImportResult struct {
+	Created int      `json:"created"`
+	Updated int      `json:"updated"`
+	Failed  int      `json:"failed"`
+	Errors  []string `json:"errors,omitempty"`
+}

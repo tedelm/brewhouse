@@ -5,6 +5,9 @@
 	</header>
 	<div class="panel__toolbar">
 		<button type="button" class="btn" data-action="iam-users-refresh">Refresh</button>
+		<button type="button" class="btn" data-action="iam-users-export">Export CSV</button>
+		<button type="button" class="btn" data-action="iam-users-import">Import CSV</button>
+		<input type="file" id="iam-users-import-file" accept=".csv,text/csv" hidden>
 		<button type="button" class="btn btn--primary" data-action="iam-user-new">New user</button>
 	</div>
 	<div class="panel__body" id="iam-users">Loading…</div>

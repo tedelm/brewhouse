@@ -48,6 +48,65 @@
 		return data;
 	}
 
+	async function downloadCSVAuth(path, filename) {
+		const res = await fetch(path, {
+			headers: { Authorization: "Bearer " + token() },
+		});
+		if (!res.ok) {
+			const text = await res.text();
+			let msg = res.statusText;
+			try {
+				const data = text ? JSON.parse(text) : null;
+				if (data && data.error) {
+					msg = data.error;
+				}
+			} catch {
+				/* ignore */
+			}
+			throw new Error(msg);
+		}
+		const blob = await res.blob();
+		const a = document.createElement("a");
+		a.href = URL.createObjectURL(blob);
+		a.download = filename;
+		a.click();
+		URL.revokeObjectURL(a.href);
+	}
+
+	async function importCSVAuth(path, file) {
+		const res = await fetch(path, {
+			method: "POST",
+			headers: {
+				Authorization: "Bearer " + token(),
+				"Content-Type": "text/csv",
+			},
+			body: file,
+		});
+		const text = await res.text();
+		let data = null;
+		try {
+			data = text ? JSON.parse(text) : null;
+		} catch {
+			data = { error: text };
+		}
+		if (!res.ok) {
+			throw new Error((data && data.error) || res.statusText);
+		}
+		return data;
+	}
+
+	function formatImportResult(result) {
+		const parts = [
+			"Created: " + (result.created || 0),
+			"Updated: " + (result.updated || 0),
+			"Failed: " + (result.failed || 0),
+		];
+		if (result.errors && result.errors.length) {
+			parts.push("", "Errors:", result.errors.join("\n"));
+		}
+		return parts.join("\n");
+	}
+
 	function esc(s) {
 		return String(s ?? "")
 			.replace(/&/g, "&amp;")
@@ -2891,6 +2950,20 @@
 			if (action === "iam-users-refresh") {
 				refreshUsers();
 			}
+			if (action === "iam-users-export") {
+				try {
+					await downloadCSVAuth("/api/users/export", "users.csv");
+				} catch (e) {
+					alert(e.message);
+				}
+			}
+			if (action === "iam-users-import") {
+				const input = panel.querySelector("#iam-users-import-file");
+				if (input) {
+					input.value = "";
+					input.click();
+				}
+			}
 			if (action === "iam-user-new") {
 				const dlg = panel.querySelector("#iam-user-dialog");
 				const brewSel = dlg.querySelector('[name="brewery_id"]');
@@ -3077,6 +3150,28 @@
 			}
 		});
 
+		const usersImportFile = panel.querySelector("#iam-users-import-file");
+		if (usersImportFile) {
+			usersImportFile.addEventListener("change", async () => {
+				const file = usersImportFile.files && usersImportFile.files[0];
+				if (!file) {
+					return;
+				}
+				try {
+					const result = await importCSVAuth("/api/users/import", file);
+					await appInfo({
+						title: "Users import",
+						message: formatImportResult(result || {}),
+					});
+					refreshUsers();
+				} catch (e) {
+					alert(e.message);
+				} finally {
+					usersImportFile.value = "";
+				}
+			});
+		}
+
 		refreshUsers();
 	}
 
@@ -3243,6 +3338,34 @@
 			const action = t.getAttribute("data-action");
 			if (action === "iam-breweries-refresh") {
 				refreshBreweries();
+			}
+			if (action === "iam-breweries-export") {
+				try {
+					await downloadCSVAuth("/api/breweries/export", "breweries.csv");
+				} catch (e) {
+					alert(e.message);
+				}
+			}
+			if (action === "iam-breweries-import") {
+				const input = panel.querySelector("#iam-breweries-import-file");
+				if (input) {
+					input.value = "";
+					input.click();
+				}
+			}
+			if (action === "iam-members-export") {
+				try {
+					await downloadCSVAuth("/api/breweries/members/export", "members.csv");
+				} catch (e) {
+					alert(e.message);
+				}
+			}
+			if (action === "iam-members-import") {
+				const input = panel.querySelector("#iam-members-import-file");
+				if (input) {
+					input.value = "";
+					input.click();
+				}
 			}
 			if (action === "iam-brewery-new") {
 				try {
@@ -3416,6 +3539,50 @@
 				alert(e.message);
 			}
 		});
+
+		const breweriesImportFile = panel.querySelector("#iam-breweries-import-file");
+		if (breweriesImportFile) {
+			breweriesImportFile.addEventListener("change", async () => {
+				const file = breweriesImportFile.files && breweriesImportFile.files[0];
+				if (!file) {
+					return;
+				}
+				try {
+					const result = await importCSVAuth("/api/breweries/import", file);
+					await appInfo({
+						title: "Breweries import",
+						message: formatImportResult(result || {}),
+					});
+					refreshBreweries();
+				} catch (e) {
+					alert(e.message);
+				} finally {
+					breweriesImportFile.value = "";
+				}
+			});
+		}
+
+		const membersImportFile = panel.querySelector("#iam-members-import-file");
+		if (membersImportFile) {
+			membersImportFile.addEventListener("change", async () => {
+				const file = membersImportFile.files && membersImportFile.files[0];
+				if (!file) {
+					return;
+				}
+				try {
+					const result = await importCSVAuth("/api/breweries/members/import", file);
+					await appInfo({
+						title: "Members import",
+						message: formatImportResult(result || {}),
+					});
+					refreshBreweries();
+				} catch (e) {
+					alert(e.message);
+				} finally {
+					membersImportFile.value = "";
+				}
+			});
+		}
 
 		refreshBreweries();
 	}
