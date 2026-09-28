@@ -175,6 +175,7 @@ func migrate(db *sql.DB) error {
 			category TEXT NOT NULL,
 			qty REAL NOT NULL,
 			ordered_qty REAL,
+			cost_price REAL NOT NULL DEFAULT 0,
 			brewery_id INTEGER,
 			recipe_id INTEGER,
 			FOREIGN KEY (order_id) REFERENCES inventory_orders(id) ON DELETE CASCADE,
@@ -450,7 +451,24 @@ func ensureOrderBreweryColumns(db *sql.DB) error {
 	if err := addColumnIfMissing(db, "inventory_order_lines", "ordered_qty", `ALTER TABLE inventory_order_lines ADD COLUMN ordered_qty REAL`); err != nil {
 		return err
 	}
-	return addColumnIfMissing(db, "inventory_order_lines", "recipe_id", `ALTER TABLE inventory_order_lines ADD COLUMN recipe_id INTEGER`)
+	if err := addColumnIfMissing(db, "inventory_order_lines", "recipe_id", `ALTER TABLE inventory_order_lines ADD COLUMN recipe_id INTEGER`); err != nil {
+		return err
+	}
+	hadCost, err := columnExists(db, "inventory_order_lines", "cost_price")
+	if err != nil {
+		return err
+	}
+	if err := addColumnIfMissing(db, "inventory_order_lines", "cost_price", `ALTER TABLE inventory_order_lines ADD COLUMN cost_price REAL NOT NULL DEFAULT 0`); err != nil {
+		return err
+	}
+	if !hadCost {
+		_, _ = db.Exec(`UPDATE inventory_order_lines
+			SET cost_price = (
+				SELECT COALESCE(i.cost_price, 0) FROM inventory_items i WHERE i.id = inventory_order_lines.inventory_item_id
+			)
+			WHERE inventory_item_id IS NOT NULL`)
+	}
+	return nil
 }
 
 func columnExists(db *sql.DB, table, column string) (bool, error) {

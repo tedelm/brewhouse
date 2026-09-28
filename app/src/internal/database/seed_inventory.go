@@ -23,6 +23,9 @@ var yeastCSV []byte
 //go:embed seed/misc.csv
 var miscCSV []byte
 
+//go:embed seed/equipment.csv
+var equipmentCSV []byte
+
 func seedInventoryCatalogs(db *sql.DB) error {
 	if err := seedMalt(db); err != nil {
 		return err
@@ -34,6 +37,9 @@ func seedInventoryCatalogs(db *sql.DB) error {
 		return err
 	}
 	if err := seedCategoryCSV(db, "misc", "kg", miscCSV, false); err != nil {
+		return err
+	}
+	if err := seedCategoryCSV(db, "equipment", "pcs", equipmentCSV, false); err != nil {
 		return err
 	}
 	return nil

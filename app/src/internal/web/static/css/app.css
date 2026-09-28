@@ -490,7 +490,9 @@ body {
 }
 
 .shell__nav-sublink {
-	display: block;
+	display: flex;
+	align-items: center;
+	gap: 0.4rem;
 	padding: 0.55rem 0.85rem 0.55rem 2.4rem;
 	border-radius: 0.4rem;
 	color: #fff;
@@ -503,6 +505,25 @@ body {
 .shell__nav-sublink:focus-visible {
 	background-color: rgba(255, 255, 255, 0.18);
 	outline: none;
+}
+
+.shell__nav-count {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 1.25rem;
+	height: 1.25rem;
+	padding: 0 0.35rem;
+	border-radius: 999px;
+	font-size: 0.72rem;
+	font-weight: 700;
+	line-height: 1;
+	flex-shrink: 0;
+}
+
+.shell__nav-count[hidden],
+.shell__nav-count:empty {
+	display: none;
 }
 
 .shell__nav-label {
@@ -976,7 +997,9 @@ body {
 	}
 
 	.shell__sheet-link {
-		display: block;
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
 		padding: 0.65rem 0.9rem;
 		border-radius: 0.45rem;
 		color: #fff;
@@ -1453,7 +1476,8 @@ body {
 }
 
 .status-pill--planning,
-.order-status--planning {
+.order-status--planning,
+.shell__nav-count--planning {
 	background: #fef3c7;
 	color: #92400e;
 }
@@ -1499,7 +1523,8 @@ body {
 	color: #3730a3;
 }
 
-.status-pill--created {
+.status-pill--created,
+.shell__nav-count--created {
 	background: #e5e7eb;
 	color: #374151;
 }
@@ -1509,7 +1534,8 @@ body {
 	color: #1e40af;
 }
 
-.status-pill--brewday {
+.status-pill--brewday,
+.shell__nav-count--brewday {
 	background: #ffedd5;
 	color: #9a3412;
 }
@@ -1519,7 +1545,8 @@ body {
 	color: #9d174d;
 }
 
-.status-pill--ready_for_delivery {
+.status-pill--ready_for_delivery,
+.shell__nav-count--ready_for_delivery {
 	background: #e0e7ff;
 	color: #3730a3;
 }
@@ -1549,6 +1576,20 @@ body {
 .recipe-ings-detail td {
 	background: #f9fafb;
 	padding: 0.75rem 1rem;
+}
+
+.inventory-row {
+	cursor: pointer;
+}
+
+.inventory-log-detail td {
+	background: #f9fafb;
+	padding: 0.75rem 1rem;
+}
+
+.inventory-log-panel {
+	display: grid;
+	gap: 0.5rem;
 }
 
 .data-table--nested {
@@ -1616,17 +1657,112 @@ body {
 	display: none !important;
 }
 
-#recipe-ingredients {
+#recipe-ingredients.recipe-ing-sections {
 	display: grid;
-	gap: 0.65rem;
+	gap: 1rem;
 	margin: 0.25rem 0 0.5rem;
+}
+
+.recipe-ing-section {
+	display: grid;
+	gap: 0.5rem;
+	padding: 0.75rem 0 0;
+	border-top: 1px solid #e5e7eb;
+}
+
+.recipe-ing-section:first-child {
+	border-top: 0;
+	padding-top: 0;
+}
+
+.recipe-ing-section__title {
+	margin: 0;
+	font-size: 0.95rem;
+	font-weight: 700;
+	color: #1f2937;
+}
+
+.ing-search-wrap {
+	position: relative;
+}
+
+.ing-search {
+	width: 100%;
+	box-sizing: border-box;
+	padding: 0.45rem 0.65rem;
+	border: 1px solid #c5cad3;
+	border-radius: 0.4rem;
+	font: inherit;
+}
+
+.ing-search-results {
+	position: absolute;
+	z-index: 5;
+	left: 0;
+	right: 0;
+	top: calc(100% + 0.15rem);
+	margin: 0;
+	padding: 0.25rem 0;
+	list-style: none;
+	max-height: 12rem;
+	overflow: auto;
+	background: #fff;
+	border: 1px solid #c5cad3;
+	border-radius: 0.4rem;
+	box-shadow: 0 8px 20px rgba(15, 20, 25, 0.12);
+}
+
+.ing-search-results__btn {
+	display: block;
+	width: 100%;
+	padding: 0.4rem 0.65rem;
+	border: 0;
+	background: transparent;
+	text-align: left;
+	font: inherit;
+	cursor: pointer;
+	color: #1f2937;
+}
+
+.ing-search-results__btn:hover,
+.ing-search-results__btn:focus-visible {
+	background: #f3f4f6;
+	outline: none;
+}
+
+.ing-search-results__stock {
+	color: #6b7280;
+	font-size: 0.85em;
+}
+
+.ing-search-results__empty {
+	padding: 0.4rem 0.65rem;
+	color: #6b7280;
+	font-size: 0.9rem;
+}
+
+.ing-section-rows {
+	display: grid;
+	gap: 0.5rem;
 }
 
 .ing-row {
 	display: grid;
-	grid-template-columns: minmax(10rem, 1fr) minmax(4.5rem, 6rem) minmax(4rem, 5rem) auto auto;
+	grid-template-columns: minmax(8rem, 1.4fr) minmax(4.5rem, 6rem) minmax(4rem, 5rem) auto auto;
 	gap: 0.5rem;
 	align-items: end;
+}
+
+.ing-row__name {
+	font-size: 0.9rem;
+	font-weight: 600;
+	color: #1f2937;
+	align-self: center;
+}
+
+.ing-row__producer {
+	font-weight: 500;
+	color: #6b7280;
 }
 
 .ing-row__stock {
@@ -1734,11 +1870,4 @@ input.btn[type="month"]::-webkit-calendar-picker-indicator {
 .data-table__th--help:focus-visible {
 	color: #1f3d2b;
 	outline: none;
-}
-
-.ing-row {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 0.75rem;
-	margin-bottom: 0.5rem;
 }

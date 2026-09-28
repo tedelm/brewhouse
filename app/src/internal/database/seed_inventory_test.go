@@ -21,6 +21,7 @@ func TestOpenSeedsInventoryCatalogs(t *testing.T) {
 		{"hops", 50},
 		{"yeast", 40},
 		{"misc", 40},
+		{"equipment", 20},
 	}
 	for _, tc := range cases {
 		var n int

@@ -20,10 +20,11 @@ const (
 
 // Inventory category constants.
 const (
-	CategoryMalt  = "malt"
-	CategoryHops  = "hops"
-	CategoryYeast = "yeast"
-	CategoryMisc  = "misc"
+	CategoryMalt      = "malt"
+	CategoryHops      = "hops"
+	CategoryYeast     = "yeast"
+	CategoryMisc      = "misc"
+	CategoryEquipment = "equipment"
 )
 
 // Ingredient fulfillment status for a recipe or line.
@@ -126,6 +127,7 @@ type InventoryOrder struct {
 	CreatedAt       string               `json:"created_at"`
 	UpdatedAt       string               `json:"updated_at"`
 	OrderedAt       *string              `json:"ordered_at,omitempty"`
+	Total           float64              `json:"total"`
 	Lines           []InventoryOrderLine `json:"lines,omitempty"`
 }
 
@@ -138,6 +140,8 @@ type InventoryOrderLine struct {
 	Category        string   `json:"category"`
 	Qty             float64  `json:"qty"`
 	OrderedQty      *float64 `json:"ordered_qty,omitempty"`
+	CostPrice       float64  `json:"cost_price"`
+	LineCost        float64  `json:"line_cost"`
 	Unit            string   `json:"unit"`
 	Link            string   `json:"link,omitempty"`
 	BreweryID       *int64   `json:"brewery_id,omitempty"`

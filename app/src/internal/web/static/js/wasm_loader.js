@@ -366,6 +366,13 @@
 		shellAvatar.textContent = initial;
 		shellProfileName.textContent = username;
 		shellProfile.setAttribute("aria-label", "Profile: " + username);
+
+		if (window.BrewhouseUI && typeof window.BrewhouseUI.refreshOrdersNavCount === "function") {
+			window.BrewhouseUI.refreshOrdersNavCount();
+		}
+		if (window.BrewhouseUI && typeof window.BrewhouseUI.refreshBrewingNavCounts === "function") {
+			window.BrewhouseUI.refreshBrewingNavCounts();
+		}
 	}
 
 	function logout() {
@@ -787,6 +794,16 @@
 	}
 
 	const go = new Go();
+
+	if ("serviceWorker" in navigator && window.isSecureContext) {
+		const meta = document.querySelector('meta[name="app-version"]');
+		const version = meta ? meta.getAttribute("content") || "dev" : "dev";
+		navigator.serviceWorker
+			.register("/static/js/sw.js?v=" + encodeURIComponent(version), { scope: "/" })
+			.catch((err) => {
+				console.warn("Service worker registration failed:", err);
+			});
+	}
 
 	WebAssembly.instantiateStreaming(fetch("/static/wasm/app.wasm"), go.importObject)
 		.then((result) => {

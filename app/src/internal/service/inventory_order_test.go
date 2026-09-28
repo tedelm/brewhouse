@@ -246,3 +246,117 @@ func TestCompleteOrderAllocatesToRecipeShortfall(t *testing.T) {
 		t.Fatalf("expected free stock 20, got %v", stock.Qty)
 	}
 }
+
+func TestCountOpenOrders(t *testing.T) {
+	_, users, _, inventory, _, _, _ := testDB(t)
+	_, admin := ensureAdminUser(t, users)
+
+	item, err := inventory.Create(admin, service.InventoryItem{
+		Category: service.CategoryMalt, Name: "Count Malt", Unit: "kg", Qty: 100, CostPrice: 1,
+	})
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	lines := []service.OrderLineInput{{InventoryItemID: item.ID, Qty: 1}}
+
+	planning, err := inventory.CreateOrder(admin, "planning", "", lines)
+	if err != nil {
+		t.Fatalf("create planning: %v", err)
+	}
+	ordered, err := inventory.CreateOrder(admin, "ordered", "", lines)
+	if err != nil {
+		t.Fatalf("create ordered: %v", err)
+	}
+	if _, err := inventory.SetOrderStatus(admin, ordered.ID, service.OrderStatusOrdered); err != nil {
+		t.Fatalf("mark ordered: %v", err)
+	}
+	paused, err := inventory.CreateOrder(admin, "paused", "", lines)
+	if err != nil {
+		t.Fatalf("create paused: %v", err)
+	}
+	if _, err := inventory.SetOrderStatus(admin, paused.ID, service.OrderStatusPaused); err != nil {
+		t.Fatalf("pause: %v", err)
+	}
+	completed, err := inventory.CreateOrder(admin, "completed", "", lines)
+	if err != nil {
+		t.Fatalf("create completed: %v", err)
+	}
+	if _, err := inventory.SetOrderStatus(admin, completed.ID, service.OrderStatusOrdered); err != nil {
+		t.Fatalf("mark ordered for complete: %v", err)
+	}
+	if _, err := inventory.SetOrderStatus(admin, completed.ID, service.OrderStatusCompleted); err != nil {
+		t.Fatalf("complete: %v", err)
+	}
+
+	n, err := inventory.CountOpenOrders()
+	if err != nil {
+		t.Fatalf("count open: %v", err)
+	}
+	if n != 2 {
+		t.Fatalf("expected open count 2 (planning #%d + ordered #%d), got %d", planning.ID, ordered.ID, n)
+	}
+}
+
+func TestOrderLineCostSnapshotAndTotal(t *testing.T) {
+	_, users, _, inventory, _, _, _ := testDB(t)
+	_, admin := ensureAdminUser(t, users)
+
+	item, err := inventory.Create(admin, service.InventoryItem{
+		Category: service.CategoryHops, Name: "Cost Hop", Unit: "g", Qty: 100, CostPrice: 2.5,
+	})
+	if err != nil {
+		t.Fatalf("create item: %v", err)
+	}
+	order, err := inventory.CreateOrder(admin, "cost test", "", []service.OrderLineInput{
+		{InventoryItemID: item.ID, Qty: 10},
+	})
+	if err != nil {
+		t.Fatalf("create order: %v", err)
+	}
+	if len(order.Lines) != 1 {
+		t.Fatalf("expected 1 line, got %d", len(order.Lines))
+	}
+	line := order.Lines[0]
+	if line.CostPrice != 2.5 {
+		t.Fatalf("expected cost_price 2.5, got %v", line.CostPrice)
+	}
+	if line.LineCost != 25 {
+		t.Fatalf("expected line_cost 25, got %v", line.LineCost)
+	}
+	if order.Total != 25 {
+		t.Fatalf("expected total 25, got %v", order.Total)
+	}
+
+	updated, err := inventory.UpdateOrderLineCostPrice(admin, order.ID, line.ID, 3)
+	if err != nil {
+		t.Fatalf("update cost: %v", err)
+	}
+	if updated.Lines[0].CostPrice != 3 {
+		t.Fatalf("expected cost_price 3, got %v", updated.Lines[0].CostPrice)
+	}
+	if updated.Lines[0].LineCost != 30 {
+		t.Fatalf("expected line_cost 30, got %v", updated.Lines[0].LineCost)
+	}
+	if updated.Total != 30 {
+		t.Fatalf("expected total 30, got %v", updated.Total)
+	}
+
+	withQty, err := inventory.UpdateOrderLineOrderedQty(admin, order.ID, line.ID, 4)
+	if err != nil {
+		t.Fatalf("update ordered qty: %v", err)
+	}
+	if withQty.Lines[0].LineCost != 12 {
+		t.Fatalf("expected line_cost 12 (3*4), got %v", withQty.Lines[0].LineCost)
+	}
+	if withQty.Total != 12 {
+		t.Fatalf("expected total 12, got %v", withQty.Total)
+	}
+
+	gotItem, err := inventory.Get(item.ID)
+	if err != nil {
+		t.Fatalf("get catalog item: %v", err)
+	}
+	if gotItem.CostPrice != 2.5 {
+		t.Fatalf("catalog cost should stay 2.5, got %v", gotItem.CostPrice)
+	}
+}

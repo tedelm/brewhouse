@@ -770,3 +770,102 @@ func TestDelivery_HigherMultiplierRaisesNet(t *testing.T) {
 		t.Fatalf("expected 3.00 net > default net, got default=%v high=%v", *base.Net, *raised.Net)
 	}
 }
+
+func TestCountByStatuses_NavCounts(t *testing.T) {
+	_, users, breweries, inventory, settings, recipes, schedule := testDB(t)
+	_, admin := ensureAdminUser(t, users)
+	brewery, err := breweries.Create(admin, "NavCounts Brew", "", "", "", "", nil)
+	if err != nil {
+		t.Fatalf("brewery: %v", err)
+	}
+	item, err := inventory.Create(admin, service.InventoryItem{
+		Category: service.CategoryMalt, Name: "Nav Malt", Unit: "kg", Qty: 200, CostPrice: 1,
+	})
+	if err != nil {
+		t.Fatalf("item: %v", err)
+	}
+	tank, err := settings.CreateTank(admin, "NavFV", 500)
+	if err != nil {
+		t.Fatalf("tank: %v", err)
+	}
+	multID := multiplierIDByName(t, settings, "default")
+	ings := []service.IngredientInput{{InventoryItemID: item.ID, Qty: 1}}
+
+	makeRecipe := func(name string) int64 {
+		t.Helper()
+		r, err := recipes.Create(admin, brewery.ID, name, ings)
+		if err != nil {
+			t.Fatalf("create %s: %v", name, err)
+		}
+		return r.Recipe.ID
+	}
+	advanceToScheduled := func(id int64, date string) {
+		t.Helper()
+		if err := schedule.Book(admin, service.BookRequest{
+			RecipeID: id, Date: date, TankID: tank.ID, TankDays: 7,
+		}); err != nil {
+			t.Fatalf("book %d: %v", id, err)
+		}
+	}
+	advanceToBrewday := func(id int64, date string) {
+		t.Helper()
+		advanceToScheduled(id, date)
+		if _, err := recipes.SetBrewday(admin, id, 1.050, 100); err != nil {
+			t.Fatalf("brewday %d: %v", id, err)
+		}
+	}
+	advanceToHygiene := func(id int64, date string) {
+		t.Helper()
+		advanceToBrewday(id, date)
+		if _, err := recipes.CompleteAllHygiene(admin, id); err != nil {
+			t.Fatalf("hygiene %d: %v", id, err)
+		}
+	}
+	advanceToReady := func(id int64, date string) {
+		t.Helper()
+		advanceToHygiene(id, date)
+		if _, err := recipes.SetDelivery(admin, id, 1.010, 90, 40, multID); err != nil {
+			t.Fatalf("delivery %d: %v", id, err)
+		}
+	}
+	advanceToDelivered := func(id int64, date string) {
+		t.Helper()
+		advanceToReady(id, date)
+		if _, err := recipes.Deliver(admin, id); err != nil {
+			t.Fatalf("deliver %d: %v", id, err)
+		}
+	}
+
+	_ = makeRecipe("Created")
+	advanceToScheduled(makeRecipe("Scheduled"), "2031-01-01")
+	advanceToBrewday(makeRecipe("Brewday"), "2031-02-01")
+	advanceToHygiene(makeRecipe("Hygiene"), "2031-03-01")
+	advanceToReady(makeRecipe("Ready"), "2031-04-01")
+	advanceToDelivered(makeRecipe("Delivered"), "2031-05-01")
+
+	recipesN, err := recipes.CountByStatuses(service.StatusCreated)
+	if err != nil {
+		t.Fatalf("count created: %v", err)
+	}
+	if recipesN != 1 {
+		t.Fatalf("recipes/schedule count: want 1, got %d", recipesN)
+	}
+	brewdayN, err := recipes.CountByStatuses(
+		service.StatusScheduled, service.StatusBrewday, service.StatusHygieneDone,
+	)
+	if err != nil {
+		t.Fatalf("count brewday: %v", err)
+	}
+	if brewdayN != 3 {
+		t.Fatalf("brewday count: want 3, got %d", brewdayN)
+	}
+	deliveryN, err := recipes.CountByStatuses(
+		service.StatusHygieneDone, service.StatusReadyForDelivery,
+	)
+	if err != nil {
+		t.Fatalf("count delivery: %v", err)
+	}
+	if deliveryN != 2 {
+		t.Fatalf("delivery count: want 2, got %d", deliveryN)
+	}
+}

@@ -6,9 +6,10 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
+	"strings"
 )
 
-//go:embed templates/* static/**/*
+//go:embed templates static
 var embeddedFS embed.FS
 
 // Handler serves the HTML shell and static GUI assets.
@@ -60,7 +61,19 @@ func (h *Handler) RenderPartial(w http.ResponseWriter, name string, data any) {
 
 // Static returns an http.Handler that serves embedded static assets.
 func (h *Handler) Static() http.Handler {
-	return http.StripPrefix("/static/", http.FileServer(h.staticFS))
+	inner := http.StripPrefix("/static/", http.FileServer(h.staticFS))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		if strings.HasSuffix(path, ".webmanifest") {
+			w.Header().Set("Content-Type", "application/manifest+json; charset=utf-8")
+		}
+		if strings.HasSuffix(path, "/sw.js") || strings.HasSuffix(path, "sw.js") {
+			w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+			w.Header().Set("Service-Worker-Allowed", "/")
+			w.Header().Set("Cache-Control", "no-cache")
+		}
+		inner.ServeHTTP(w, r)
+	})
 }
 
 // ReadStatic reads an embedded static file by path relative to the static root.

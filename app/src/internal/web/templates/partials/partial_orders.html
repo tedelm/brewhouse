@@ -74,6 +74,18 @@
 			</div>
 		</form>
 	</dialog>
+	<dialog class="panel__dialog" id="order-cost-dialog">
+		<form method="dialog" class="panel__form" id="order-cost-form">
+			<h2>Line cost price</h2>
+			<input type="hidden" name="order_id" value="">
+			<input type="hidden" name="line_id" value="">
+			<label>Cost price (SEK) <input name="cost_price" type="number" step="any" min="0" required></label>
+			<div class="panel__dialog-actions">
+				<button type="submit" class="btn btn--primary" value="save">Save</button>
+				<button type="submit" class="btn" value="cancel" formnovalidate>Cancel</button>
+			</div>
+		</form>
+	</dialog>
 	<dialog class="panel__dialog panel__dialog--wide" id="order-links-dialog">
 		<form method="dialog" class="panel__form" id="order-links-form">
 			<h2 id="order-links-title">Product links</h2>

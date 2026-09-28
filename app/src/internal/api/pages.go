@@ -37,6 +37,8 @@ func (h *Handler) Pages(w http.ResponseWriter, r *http.Request) {
 		h.web.RenderPartial(w, "partial_inventory.html", map[string]string{"Category": "yeast", "Title": "Yeast"})
 	case "inventory/misc":
 		h.web.RenderPartial(w, "partial_inventory.html", map[string]string{"Category": "misc", "Title": "Misc"})
+	case "inventory/equipment":
+		h.web.RenderPartial(w, "partial_inventory.html", map[string]string{"Category": "equipment", "Title": "Equipment"})
 	case "inventory/orders":
 		h.web.RenderPartial(w, "partial_orders.html", nil)
 	case "hygiene":

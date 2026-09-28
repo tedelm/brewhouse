@@ -142,9 +142,10 @@ type OrderLineRequest struct {
 	BreweryID       *int64  `json:"brewery_id,omitempty"`
 }
 
-// UpdateOrderLineRequest patches ordered qty and/or product link on a line.
+// UpdateOrderLineRequest patches ordered qty, cost price, and/or product link on a line.
 type UpdateOrderLineRequest struct {
 	OrderedQty *float64 `json:"ordered_qty,omitempty"`
+	CostPrice  *float64 `json:"cost_price,omitempty"`
 	Link       *string  `json:"link,omitempty"`
 }
 

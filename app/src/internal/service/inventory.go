@@ -164,18 +164,29 @@ func (s *InventoryService) Update(actor Actor, id int64, in InventoryItem) (*Inv
 	return after, nil
 }
 
-// Delete removes an inventory item.
+// Delete removes an unused inventory item. Admin only; refuses if the item appears
+// on any recipe or order line.
 func (s *InventoryService) Delete(actor Actor, id int64) error {
-	ok, err := s.access.CanManageInventory(actor)
-	if err != nil {
-		return err
-	}
-	if !ok {
+	if !actor.IsAdmin() {
 		return ErrForbidden
 	}
 	item, err := s.Get(id)
 	if err != nil {
 		return err
+	}
+	var recipeRefs, orderRefs int
+	if err := s.db.QueryRow(
+		`SELECT COUNT(*) FROM recipe_ingredients WHERE inventory_item_id = ?`, id,
+	).Scan(&recipeRefs); err != nil {
+		return fmt.Errorf("check recipe usage: %w", err)
+	}
+	if err := s.db.QueryRow(
+		`SELECT COUNT(*) FROM inventory_order_lines WHERE inventory_item_id = ?`, id,
+	).Scan(&orderRefs); err != nil {
+		return fmt.Errorf("check order usage: %w", err)
+	}
+	if recipeRefs > 0 || orderRefs > 0 {
+		return fmt.Errorf("inventory item is in use: %w", ErrConflict)
 	}
 	if err := s.appendItemLog(s.db, &id, item.Name, actor, "deleted item"); err != nil {
 		return err
@@ -318,8 +329,8 @@ func (s *InventoryService) insertOrderLineTx(db execQuerier, orderID, itemID int
 	}
 	item := &InventoryItem{}
 	err := db.QueryRow(
-		`SELECT id, category, name FROM inventory_items WHERE id = ?`, itemID,
-	).Scan(&item.ID, &item.Category, &item.Name)
+		`SELECT id, category, name, cost_price FROM inventory_items WHERE id = ?`, itemID,
+	).Scan(&item.ID, &item.Category, &item.Name, &item.CostPrice)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrNotFound
 	}
@@ -356,9 +367,9 @@ func (s *InventoryService) insertOrderLineTx(db execQuerier, orderID, itemID int
 		return err
 	}
 	_, err = db.Exec(
-		`INSERT INTO inventory_order_lines (order_id, inventory_item_id, item_name, category, qty, brewery_id, recipe_id)
-		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		orderID, item.ID, item.Name, item.Category, qty, breweryID, recipeID,
+		`INSERT INTO inventory_order_lines (order_id, inventory_item_id, item_name, category, qty, cost_price, brewery_id, recipe_id)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		orderID, item.ID, item.Name, item.Category, qty, item.CostPrice, breweryID, recipeID,
 	)
 	if err != nil {
 		return fmt.Errorf("insert order line: %w", err)
@@ -719,9 +730,23 @@ func (s *InventoryService) ListOrders() ([]InventoryOrder, error) {
 			return nil, err
 		}
 		o.Lines = lines
+		o.Total = orderLinesTotal(lines)
 		out = append(out, o)
 	}
 	return out, rows.Err()
+}
+
+// CountOpenOrders returns how many orders are in planning or ordered status.
+func (s *InventoryService) CountOpenOrders() (int, error) {
+	var n int
+	err := s.db.QueryRow(
+		`SELECT COUNT(*) FROM inventory_orders WHERE status IN (?, ?)`,
+		OrderStatusPlanning, OrderStatusOrdered,
+	).Scan(&n)
+	if err != nil {
+		return 0, fmt.Errorf("count open orders: %w", err)
+	}
+	return n, nil
 }
 
 // GetOrder returns one order with lines.
@@ -751,13 +776,30 @@ func (s *InventoryService) GetOrder(id int64) (*InventoryOrder, error) {
 		return nil, err
 	}
 	o.Lines = lines
+	o.Total = orderLinesTotal(lines)
 	return o, nil
+}
+
+func orderLinesTotal(lines []InventoryOrderLine) float64 {
+	var total float64
+	for _, line := range lines {
+		total += line.LineCost
+	}
+	return total
+}
+
+func orderLineEffectiveQty(line InventoryOrderLine) float64 {
+	if line.OrderedQty != nil {
+		return *line.OrderedQty
+	}
+	return line.Qty
 }
 
 func (s *InventoryService) orderLines(orderID int64) ([]InventoryOrderLine, error) {
 	rows, err := s.db.Query(
 		`SELECT l.id, l.order_id, l.inventory_item_id, l.item_name, l.category, l.qty, l.ordered_qty,
-		        COALESCE(i.unit, ''), COALESCE(i.link, ''), l.brewery_id, COALESCE(b.name, ''), l.recipe_id
+		        COALESCE(l.cost_price, 0), COALESCE(i.unit, ''), COALESCE(i.link, ''),
+		        l.brewery_id, COALESCE(b.name, ''), l.recipe_id
 		 FROM inventory_order_lines l
 		 LEFT JOIN inventory_items i ON i.id = l.inventory_item_id
 		 LEFT JOIN breweries b ON b.id = l.brewery_id
@@ -777,7 +819,7 @@ func (s *InventoryService) orderLines(orderID int64) ([]InventoryOrderLine, erro
 		var orderedQty sql.NullFloat64
 		if err := rows.Scan(
 			&line.ID, &line.OrderID, &itemID, &line.ItemName, &line.Category, &line.Qty, &orderedQty,
-			&line.Unit, &line.Link, &breweryID, &line.BreweryName, &recipeID,
+			&line.CostPrice, &line.Unit, &line.Link, &breweryID, &line.BreweryName, &recipeID,
 		); err != nil {
 			return nil, err
 		}
@@ -797,6 +839,7 @@ func (s *InventoryService) orderLines(orderID int64) ([]InventoryOrderLine, erro
 			v := recipeID.Int64
 			line.RecipeID = &v
 		}
+		line.LineCost = line.CostPrice * orderLineEffectiveQty(line)
 		out = append(out, line)
 	}
 	return out, rows.Err()
@@ -837,6 +880,48 @@ func (s *InventoryService) UpdateOrderLineOrderedQty(actor Actor, orderID, lineI
 	)
 	if err != nil {
 		return nil, fmt.Errorf("update ordered qty: %w", err)
+	}
+	if err := s.touchOrderUpdatedAt(orderID); err != nil {
+		return nil, err
+	}
+	return s.GetOrder(orderID)
+}
+
+// UpdateOrderLineCostPrice sets the unit cost on a planning, paused, or ordered line.
+func (s *InventoryService) UpdateOrderLineCostPrice(actor Actor, orderID, lineID int64, costPrice float64) (*InventoryOrder, error) {
+	ok, err := s.access.CanManageInventory(actor)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, ErrForbidden
+	}
+	if costPrice < 0 {
+		return nil, fmt.Errorf("cost price must be zero or positive")
+	}
+	order, err := s.GetOrder(orderID)
+	if err != nil {
+		return nil, err
+	}
+	if order.Status != OrderStatusPlanning && order.Status != OrderStatusOrdered && order.Status != OrderStatusPaused {
+		return nil, fmt.Errorf("order is completed")
+	}
+	var found bool
+	for _, line := range order.Lines {
+		if line.ID == lineID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return nil, ErrNotFound
+	}
+	_, err = s.db.Exec(
+		`UPDATE inventory_order_lines SET cost_price = ? WHERE id = ? AND order_id = ?`,
+		costPrice, lineID, orderID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("update cost price: %w", err)
 	}
 	if err := s.touchOrderUpdatedAt(orderID); err != nil {
 		return nil, err
@@ -897,7 +982,7 @@ func (s *InventoryService) touchOrderUpdatedAt(orderID int64) error {
 
 func validCategory(c string) bool {
 	switch c {
-	case CategoryMalt, CategoryHops, CategoryYeast, CategoryMisc:
+	case CategoryMalt, CategoryHops, CategoryYeast, CategoryMisc, CategoryEquipment:
 		return true
 	default:
 		return false

@@ -502,6 +502,49 @@ func (h *Handler) Inventory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(parts) == 1 && parts[0] == "export" {
+		if r.Method != http.MethodGet {
+			writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
+			return
+		}
+		cat := r.URL.Query().Get("category")
+		if cat == "" {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "category required"})
+			return
+		}
+		data, err := h.inventory.ExportInventoryCSV(cat)
+		if err != nil {
+			h.writeErr(w, err)
+			return
+		}
+		writeCSVDownload(w, cat+"-inventory.csv", data)
+		return
+	}
+
+	if len(parts) == 1 && parts[0] == "import" {
+		if r.Method != http.MethodPost {
+			writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
+			return
+		}
+		cat := r.URL.Query().Get("category")
+		if cat == "" {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "category required"})
+			return
+		}
+		data, err := readCSVUpload(r)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+			return
+		}
+		result, err := h.inventory.ImportInventoryCSV(actor, cat, data)
+		if err != nil {
+			h.writeErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, result)
+		return
+	}
+
 	id, err := strconv.ParseInt(parts[0], 10, 64)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid id"})
@@ -663,6 +706,20 @@ func (h *Handler) inventoryOrders(w http.ResponseWriter, r *http.Request, actor 
 		return
 	}
 
+	if len(parts) == 1 && parts[0] == "open-count" {
+		if r.Method != http.MethodGet {
+			writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
+			return
+		}
+		n, err := h.inventory.CountOpenOrders()
+		if err != nil {
+			h.writeErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]int{"count": n})
+		return
+	}
+
 	if parts[0] == "planning" && len(parts) == 2 && parts[1] == "lines" && r.Method == http.MethodPost {
 		var req OrderLineRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -705,8 +762,8 @@ func (h *Handler) inventoryOrders(w http.ResponseWriter, r *http.Request, actor 
 				writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid body"})
 				return
 			}
-			if req.Link == nil && req.OrderedQty == nil {
-				writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "ordered_qty or link required"})
+			if req.Link == nil && req.OrderedQty == nil && req.CostPrice == nil {
+				writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "ordered_qty, cost_price, or link required"})
 				return
 			}
 			var order *service.InventoryOrder
@@ -719,6 +776,13 @@ func (h *Handler) inventoryOrders(w http.ResponseWriter, r *http.Request, actor 
 			}
 			if req.OrderedQty != nil {
 				order, err = h.inventory.UpdateOrderLineOrderedQty(actor, id, lineID, *req.OrderedQty)
+				if err != nil {
+					h.writeErr(w, err)
+					return
+				}
+			}
+			if req.CostPrice != nil {
+				order, err = h.inventory.UpdateOrderLineCostPrice(actor, id, lineID, *req.CostPrice)
 				if err != nil {
 					h.writeErr(w, err)
 					return
@@ -742,6 +806,20 @@ func (h *Handler) inventoryOrders(w http.ResponseWriter, r *http.Request, actor 
 			return
 		}
 		writeJSON(w, http.StatusOK, order)
+		return
+	}
+
+	if len(parts) >= 2 && parts[1] == "export" {
+		if r.Method != http.MethodGet {
+			writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
+			return
+		}
+		data, err := h.inventory.ExportOrderCSV(id)
+		if err != nil {
+			h.writeErr(w, err)
+			return
+		}
+		writeCSVDownload(w, fmt.Sprintf("order-%d.csv", id), data)
 		return
 	}
 

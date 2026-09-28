@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"brewhouse/internal/database"
@@ -66,6 +67,28 @@ func (s *RecipeService) List(actor Actor, breweryID int64, includeHidden bool) (
 		return nil, err
 	}
 	return out, nil
+}
+
+// CountByStatuses returns how many active recipes have one of the given statuses.
+func (s *RecipeService) CountByStatuses(statuses ...string) (int, error) {
+	if len(statuses) == 0 {
+		return 0, nil
+	}
+	placeholders := make([]string, len(statuses))
+	args := make([]any, len(statuses))
+	for i, st := range statuses {
+		placeholders[i] = "?"
+		args[i] = st
+	}
+	var n int
+	err := s.db.QueryRow(
+		`SELECT COUNT(*) FROM recipes WHERE active = 1 AND status IN (`+strings.Join(placeholders, ",")+`)`,
+		args...,
+	).Scan(&n)
+	if err != nil {
+		return 0, fmt.Errorf("count recipes by status: %w", err)
+	}
+	return n, nil
 }
 
 const recipeColumns = `id, brewery_id, name, status, booked_date, tank_id, og, fg, brew_volume, delivery_volume, cost, tax, net, created_by, created_at, delivered_at, active`

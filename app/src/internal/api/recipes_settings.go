@@ -66,6 +66,39 @@ func (h *Handler) Recipes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if len(parts) == 1 && parts[0] == "nav-counts" {
+		if r.Method != http.MethodGet {
+			writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
+			return
+		}
+		recipesN, err := h.recipes.CountByStatuses(service.StatusCreated)
+		if err != nil {
+			h.writeErr(w, err)
+			return
+		}
+		brewdayN, err := h.recipes.CountByStatuses(
+			service.StatusScheduled, service.StatusBrewday, service.StatusHygieneDone,
+		)
+		if err != nil {
+			h.writeErr(w, err)
+			return
+		}
+		deliveryN, err := h.recipes.CountByStatuses(
+			service.StatusHygieneDone, service.StatusReadyForDelivery,
+		)
+		if err != nil {
+			h.writeErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]int{
+			"recipes":  recipesN,
+			"schedule": recipesN,
+			"brewday":  brewdayN,
+			"delivery": deliveryN,
+		})
+		return
+	}
+
 	id, err := strconv.ParseInt(parts[0], 10, 64)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid id"})

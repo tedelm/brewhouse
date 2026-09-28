@@ -128,11 +128,12 @@
 	}
 
 	function table(headers, rowsHtml) {
+		const body = Array.isArray(rowsHtml) ? rowsHtml.join("") : rowsHtml;
 		return (
 			'<div class="table-scroll"><table class="data-table"><thead><tr>' +
 			headers.map((h) => "<th>" + esc(h) + "</th>").join("") +
 			"</tr></thead><tbody>" +
-			rowsHtml +
+			body +
 			"</tbody></table></div>"
 		);
 	}
@@ -203,6 +204,43 @@
 			dialog.addEventListener("close", onClose);
 			dialog.showModal();
 		});
+	}
+
+	const PIPELINE_GUIDE = {
+		recipe_created: {
+			title: "Recipe created",
+			message:
+				"Next step: open Schedule in the Brewing menu and book a brew day and fermenter for this batch.",
+		},
+		scheduled: {
+			title: "Scheduled",
+			message:
+				"Next step: open Brewday and record original gravity (OG) and brew volume for this batch.",
+		},
+		brewday_recorded: {
+			title: "Brewday recorded",
+			message:
+				"Next step: confirm cleaning is done — use Mark hygiene done on Brewday, or Hygiene → Routines.",
+		},
+		hygiene_done: {
+			title: "Hygiene done",
+			message:
+				"Next step: open Delivery to set final gravity (FG), delivery volume, beer net, and multiplier.",
+		},
+		ready_for_delivery: {
+			title: "Ready for delivery",
+			message:
+				"Next step: when the batch goes to the pub, click Deliver on the Delivery page.",
+		},
+		delivered: {
+			title: "Delivered",
+			message:
+				"This batch is delivered. You can hide it from Recipes when you are finished with it.",
+		},
+	};
+
+	function pipelineGuide(step) {
+		return PIPELINE_GUIDE[step] || { title: "Next step", message: "" };
 	}
 
 	function appPrompt(opts) {
@@ -292,7 +330,81 @@
 		info: appInfo,
 		confirm: appConfirm,
 		prompt: appPrompt,
+		refreshOrdersNavCount,
+		refreshBrewingNavCounts,
 	};
+
+	async function refreshOrdersNavCount() {
+		const els = document.querySelectorAll("[data-orders-nav-count]");
+		if (!els.length) {
+			return;
+		}
+		try {
+			const data = await api("/api/inventory/orders/open-count");
+			const n = data && typeof data.count === "number" ? data.count : 0;
+			els.forEach((el) => {
+				if (n > 0) {
+					el.textContent = String(n);
+					el.hidden = false;
+				} else {
+					el.textContent = "";
+					el.hidden = true;
+				}
+			});
+		} catch {
+			els.forEach((el) => {
+				el.textContent = "";
+				el.hidden = true;
+			});
+		}
+	}
+
+	function setNavCount(selector, n) {
+		document.querySelectorAll(selector).forEach((el) => {
+			if (n > 0) {
+				el.textContent = String(n);
+				el.hidden = false;
+			} else {
+				el.textContent = "";
+				el.hidden = true;
+			}
+		});
+	}
+
+	async function refreshBrewingNavCounts() {
+		const hasAny =
+			document.querySelector("[data-recipes-nav-count]") ||
+			document.querySelector("[data-schedule-nav-count]") ||
+			document.querySelector("[data-brewday-nav-count]") ||
+			document.querySelector("[data-delivery-nav-count]");
+		if (!hasAny) {
+			return;
+		}
+		try {
+			const data = await api("/api/recipes/nav-counts");
+			setNavCount(
+				"[data-recipes-nav-count]",
+				data && typeof data.recipes === "number" ? data.recipes : 0
+			);
+			setNavCount(
+				"[data-schedule-nav-count]",
+				data && typeof data.schedule === "number" ? data.schedule : 0
+			);
+			setNavCount(
+				"[data-brewday-nav-count]",
+				data && typeof data.brewday === "number" ? data.brewday : 0
+			);
+			setNavCount(
+				"[data-delivery-nav-count]",
+				data && typeof data.delivery === "number" ? data.delivery : 0
+			);
+		} catch {
+			setNavCount("[data-recipes-nav-count]", 0);
+			setNavCount("[data-schedule-nav-count]", 0);
+			setNavCount("[data-brewday-nav-count]", 0);
+			setNavCount("[data-delivery-nav-count]", 0);
+		}
+	}
 
 	function canRoles(roles) {
 		if (window.BrewhouseAuth && typeof window.BrewhouseAuth.can === "function") {
@@ -438,7 +550,7 @@
 			brewerySel.innerHTML = (breweries || [])
 				.map((b) => '<option value="' + b.id + '">' + esc(b.name) + "</option>")
 				.join("");
-			panel.querySelector("#recipe-ingredients").innerHTML = "";
+			renderIngSections(panel);
 			if (recipe && recipe.id) {
 				form.elements.namedItem("id").value = String(recipe.id);
 				brewerySel.value = String(recipe.brewery_id);
@@ -451,11 +563,9 @@
 					saveBtn.textContent = "Save";
 				}
 				const ings = recipe.ingredients || [];
-				if (ings.length) {
-					ings.forEach((ing) => addIngRow(panel, ing.inventory_item_id, ing.qty, ing.unit));
-				} else {
-					addIngRow(panel);
-				}
+				ings.forEach((ing) =>
+					addIngRow(panel, ing.inventory_item_id, ing.qty, ing.unit, ing.category)
+				);
 			} else {
 				form.elements.namedItem("id").value = "";
 				brewerySel.disabled = false;
@@ -466,7 +576,6 @@
 				if (saveBtn) {
 					saveBtn.textContent = "Create";
 				}
-				addIngRow(panel);
 			}
 			dialog.showModal();
 		}
@@ -478,6 +587,7 @@
 				const recipes = await api("/api/recipes" + qs);
 				if (!recipes || !recipes.length) {
 					list.innerHTML = "<p class=\"panel__empty\">No recipes yet.</p>";
+					refreshBrewingNavCounts();
 					return;
 				}
 				function ingredientsUsed(status) {
@@ -618,6 +728,7 @@
 					"</tr></thead><tbody>" +
 					body +
 					"</tbody></table></div>";
+				refreshBrewingNavCounts();
 			} catch (e) {
 				list.textContent = e.message;
 			}
@@ -644,7 +755,14 @@
 						"</li>"
 				)
 				.join("");
-			shortfallDialog.showModal();
+			return new Promise((resolve) => {
+				const onClose = () => {
+					shortfallDialog.removeEventListener("close", onClose);
+					resolve();
+				};
+				shortfallDialog.addEventListener("close", onClose);
+				shortfallDialog.showModal();
+			});
 		}
 
 		panel.addEventListener("click", async (ev) => {
@@ -680,9 +798,6 @@
 				} catch (e) {
 					await appInfo({ title: "Notice", message: e.message });
 				}
-			}
-			if (t.getAttribute("data-action") === "recipe-add-ing") {
-				addIngRow(panel);
 			}
 			if (t.getAttribute("data-action") === "recipe-remove-ing") {
 				const row = t.closest(".ing-row");
@@ -750,6 +865,30 @@
 			}
 		});
 
+		panel.addEventListener("mousedown", (ev) => {
+			const t = ev.target;
+			if (!(t instanceof HTMLElement)) {
+				return;
+			}
+			const suggestion = t.closest(".ing-search-results__btn");
+			if (!suggestion) {
+				return;
+			}
+			ev.preventDefault();
+			const section = suggestion.closest(".recipe-ing-section");
+			const id = parseInt(suggestion.getAttribute("data-item-id"), 10);
+			addIngRow(panel, id);
+			const search = section && section.querySelector(".ing-search");
+			const results = section && section.querySelector(".ing-search-results");
+			if (search) {
+				search.value = "";
+			}
+			if (results) {
+				results.hidden = true;
+				results.innerHTML = "";
+			}
+		});
+
 		dialog.addEventListener("close", async () => {
 			brewerySel.disabled = false;
 			if (dialog.returnValue !== "save") {
@@ -775,6 +914,7 @@
 			};
 			try {
 				let result;
+				const isCreate = !idVal;
 				if (idVal) {
 					result = await api("/api/recipes/" + idVal, {
 						method: "PUT",
@@ -789,7 +929,12 @@
 				form.reset();
 				refresh();
 				if (result && result.shortfalls && result.shortfalls.length) {
-					showShortfallNotice(result.shortfalls, result.order_id);
+					await showShortfallNotice(result.shortfalls, result.order_id);
+					refreshOrdersNavCount();
+				}
+				refreshBrewingNavCounts();
+				if (isCreate) {
+					await appInfo(pipelineGuide("recipe_created"));
 				}
 			} catch (e) {
 				errEl.hidden = false;
@@ -807,71 +952,153 @@
 		refresh();
 	}
 
+	const RECIPE_ING_CATEGORIES = [
+		{ id: "malt", label: "Malt" },
+		{ id: "hops", label: "Hops" },
+		{ id: "yeast", label: "Yeast" },
+		{ id: "misc", label: "Misc" },
+		{ id: "equipment", label: "Equipment" },
+	];
+
 	function unitOptions(selected) {
-		const units = ["kg", "g", "L", "ml"];
+		const units = ["kg", "g", "L", "ml", "pcs", "pack"];
 		const sel = selected || "kg";
-		return units
-			.map((u) => '<option value="' + u + '"' + (u === sel ? " selected" : "") + ">" + u + "</option>")
+		const list = units.includes(sel) ? units : units.concat([sel]);
+		return list
+			.map((u) => '<option value="' + esc(u) + '"' + (u === sel ? " selected" : "") + ">" + esc(u) + "</option>")
 			.join("");
 	}
 
-	function addIngRow(panel, selectedId, qty, unit) {
-		const items = panel.querySelector("#recipe-form")._items || [];
+	function renderIngSections(panel) {
 		const wrap = panel.querySelector("#recipe-ingredients");
+		if (!wrap) {
+			return;
+		}
+		wrap.innerHTML = RECIPE_ING_CATEGORIES.map(
+			(cat) =>
+				'<div class="recipe-ing-section" data-category="' +
+				esc(cat.id) +
+				'">' +
+				'<h3 class="recipe-ing-section__title">' +
+				esc(cat.label) +
+				"</h3>" +
+				'<div class="ing-search-wrap">' +
+				'<input type="search" class="ing-search" placeholder="Search ' +
+				esc(cat.label.toLowerCase()) +
+				' by name…" autocomplete="off">' +
+				'<ul class="ing-search-results" hidden></ul>' +
+				"</div>" +
+				'<div class="ing-section-rows"></div>' +
+				"</div>"
+		).join("");
+
+		wrap.querySelectorAll(".recipe-ing-section").forEach((section) => {
+			const search = section.querySelector(".ing-search");
+			const results = section.querySelector(".ing-search-results");
+			const category = section.getAttribute("data-category");
+			if (!search || !results) {
+				return;
+			}
+			search.addEventListener("input", () => {
+				const q = search.value.trim().toLowerCase();
+				if (!q) {
+					results.hidden = true;
+					results.innerHTML = "";
+					return;
+				}
+				const items = panel.querySelector("#recipe-form")._items || [];
+				const matches = items
+					.filter(
+						(i) =>
+							(i.category || "") === category &&
+							String(i.name || "")
+								.toLowerCase()
+								.includes(q)
+					)
+					.slice(0, 12);
+				if (!matches.length) {
+					results.innerHTML = '<li class="ing-search-results__empty">No matches</li>';
+					results.hidden = false;
+					return;
+				}
+				results.innerHTML = matches
+					.map(
+						(i) =>
+							'<li><button type="button" class="ing-search-results__btn" data-item-id="' +
+							i.id +
+							'">' +
+							esc(i.name) +
+							(i.producer ? " — " + esc(i.producer) : "") +
+							' <span class="ing-search-results__stock">(stock ' +
+							esc(String(i.qty)) +
+							" " +
+							esc(i.unit || "") +
+							")</span></button></li>"
+					)
+					.join("");
+				results.hidden = false;
+			});
+			search.addEventListener("keydown", (ev) => {
+				if (ev.key === "Escape") {
+					results.hidden = true;
+					results.innerHTML = "";
+				}
+			});
+			search.addEventListener("blur", () => {
+				setTimeout(() => {
+					results.hidden = true;
+				}, 150);
+			});
+		});
+	}
+
+	function addIngRow(panel, selectedId, qty, unit, categoryHint) {
+		if (!selectedId) {
+			return;
+		}
+		const form = panel.querySelector("#recipe-form");
+		const items = (form && form._items) || [];
+		const item = items.find((i) => i.id === selectedId);
+		if (!item) {
+			return;
+		}
+		const category = item.category || categoryHint || "";
+		const section = panel.querySelector(
+			'.recipe-ing-section[data-category="' + category + '"] .ing-section-rows'
+		);
+		if (!section) {
+			return;
+		}
+		const existing = panel.querySelector(
+			'#recipe-ingredients .ing-row [name="item_id"][value="' + selectedId + '"]'
+		);
+		if (existing) {
+			return;
+		}
+		const rowUnit = unit || item.unit || "kg";
 		const div = document.createElement("div");
 		div.className = "ing-row";
-		const first = items[0];
-		const initialId = selectedId || (first && first.id);
-		const initialItem = items.find((i) => i.id === initialId) || first;
-		const initialUnit = unit || (initialItem && initialItem.unit) || "kg";
 		div.innerHTML =
-			'<label>Item <select name="item_id">' +
-			items
-				.map(
-					(i) =>
-						'<option value="' +
-						i.id +
-						'" data-unit="' +
-						esc(i.unit || "kg") +
-						'" data-stock="' +
-						i.qty +
-						'"' +
-						(initialId && initialId === i.id ? " selected" : "") +
-						">" +
-						esc(i.category + " / " + i.name + " (stock " + i.qty + " " + (i.unit || "") + ")") +
-						"</option>"
-				)
-				.join("") +
-			'</select></label>' +
+			'<input type="hidden" name="item_id" value="' +
+			item.id +
+			'">' +
+			'<span class="ing-row__name">' +
+			esc(item.name) +
+			(item.producer ? " <span class=\"ing-row__producer\">(" + esc(item.producer) + ")</span>" : "") +
+			"</span>" +
 			'<label>Qty <input name="qty" type="number" step="any" value="' +
 			(qty != null ? qty : 1) +
 			'" min="0"></label>' +
 			"<label>Unit <select name=\"unit\">" +
-			unitOptions(initialUnit) +
+			unitOptions(rowUnit) +
 			"</select></label>" +
-			'<span class="ing-row__stock"></span>' +
+			'<span class="ing-row__stock">In stock: ' +
+			esc(String(item.qty)) +
+			" " +
+			esc(item.unit || "") +
+			"</span>" +
 			'<button type="button" class="btn btn--small" data-action="recipe-remove-ing">Remove</button>';
-		wrap.appendChild(div);
-		const sel = div.querySelector('[name="item_id"]');
-		const unitSel = div.querySelector('[name="unit"]');
-		const stockEl = div.querySelector(".ing-row__stock");
-		function syncStock() {
-			const opt = sel.options[sel.selectedIndex];
-			if (!opt) {
-				return;
-			}
-			const stock = opt.getAttribute("data-stock");
-			const u = opt.getAttribute("data-unit") || "";
-			stockEl.textContent = "In stock: " + stock + " " + u;
-		}
-		sel.addEventListener("change", () => {
-			const opt = sel.options[sel.selectedIndex];
-			if (opt) {
-				unitSel.value = opt.getAttribute("data-unit") || "kg";
-			}
-			syncStock();
-		});
-		syncStock();
+		section.appendChild(div);
 	}
 
 	function recipeOptionLabel(r) {
@@ -919,6 +1146,7 @@
 				fillRecipeSelect(recipeSel, bookable, "No bookable recipes");
 				if (!bookings || !bookings.length) {
 					list.innerHTML = "<p class=\"panel__empty\">No bookings in range.</p>";
+					refreshBrewingNavCounts();
 					return;
 				}
 				list.innerHTML = table(
@@ -950,6 +1178,7 @@
 						})
 						.join("")
 				);
+				refreshBrewingNavCounts();
 			} catch (e) {
 				list.textContent = e.message;
 			}
@@ -997,6 +1226,7 @@
 					}),
 				});
 				refresh();
+				await appInfo(pipelineGuide("scheduled"));
 			} catch (e) {
 				errEl.hidden = false;
 				errEl.textContent = e.message;
@@ -1061,6 +1291,7 @@
 				fillBrewdayFields(byID[recipeSel.value]);
 				if (!selectable.length) {
 					list.innerHTML = "<p class=\"panel__empty\">No scheduled, brewday, or hygiene-done batches.</p>";
+					refreshBrewingNavCounts();
 					return;
 				}
 				list.innerHTML = table(
@@ -1109,6 +1340,7 @@
 						})
 						.join("")
 				);
+				refreshBrewingNavCounts();
 			} catch (e) {
 				list.textContent = e.message;
 			}
@@ -1196,6 +1428,7 @@
 			try {
 				await api("/api/recipes/" + id + "/hygiene/complete", { method: "POST" });
 				refresh();
+				await appInfo(pipelineGuide("hygiene_done"));
 			} catch (e) {
 				await appInfo({ title: "Notice", message: e.message });
 			}
@@ -1213,6 +1446,7 @@
 					}),
 				});
 				refresh();
+				await appInfo(pipelineGuide("brewday_recorded"));
 			} catch (e) {
 				errEl.hidden = false;
 				errEl.textContent = e.message;
@@ -1224,19 +1458,16 @@
 	async function loadInventory(panel) {
 		const category = panel.getAttribute("data-category");
 		const isMalt = category === "malt";
-		const defaultUnit = category === "hops" ? "g" : category === "yeast" ? "pack" : "kg";
+		const defaultUnit = category === "hops" ? "g" : category === "yeast" ? "pack" : category === "equipment" ? "pcs" : "kg";
 		const list = panel.querySelector("#inventory-list");
 		const dialog = panel.querySelector("#inventory-dialog");
 		const form = panel.querySelector("#inventory-form");
 		const titleEl = panel.querySelector("#inventory-dialog-title");
-		const logDialog = panel.querySelector("#inventory-log-dialog");
-		const logTitle = panel.querySelector("#inventory-log-title");
-		const logList = panel.querySelector("#inventory-log-list");
-		const logMoreBtn = panel.querySelector("#inventory-log-more");
 		const canEdit = canRoles(["superuser", "admin"]);
-		let logItemID = null;
-		let logOffset = 0;
+		const canDelete = canRoles(["admin"]);
+		const logOffsets = new Map();
 		const logPageSize = 5;
+		const colCount = 8;
 
 		panel.querySelectorAll(".inventory-field--malt").forEach((el) => {
 			el.classList.toggle("is-role-hidden", !isMalt);
@@ -1295,7 +1526,19 @@
 			return user || email || "—";
 		}
 
-		function renderLogRows(entries, append) {
+		function logPanelEls(id) {
+			const detail = list.querySelector('.inventory-log-detail[data-log-for="' + id + '"]');
+			if (!detail) {
+				return null;
+			}
+			return {
+				detail,
+				logList: detail.querySelector(".inventory-log-list"),
+				moreBtn: detail.querySelector('[data-action="inventory-log-more"]'),
+			};
+		}
+
+		function renderLogRows(logListEl, entries, append) {
 			const rows = (entries || [])
 				.map(
 					(e) =>
@@ -1309,66 +1552,76 @@
 				)
 				.join("");
 			if (append) {
-				const tbody = logList.querySelector("tbody");
+				const tbody = logListEl.querySelector("tbody");
 				if (tbody) {
 					tbody.insertAdjacentHTML("beforeend", rows);
 					return;
 				}
 			}
 			if (!entries || !entries.length) {
-				logList.innerHTML = "<p class=\"panel__empty\">No changes logged yet.</p>";
+				logListEl.innerHTML = "<p class=\"panel__empty\">No changes logged yet.</p>";
 				return;
 			}
-			logList.innerHTML = table(["Time", "User", "Change"], rows);
+			logListEl.innerHTML =
+				'<table class="data-table data-table--nested"><thead><tr>' +
+				"<th>Time</th><th>User</th><th>Change</th>" +
+				"</tr></thead><tbody>" +
+				rows +
+				"</tbody></table>";
 		}
 
-		async function loadLogPage(reset) {
-			if (!logItemID) {
+		async function loadLogPage(id, reset) {
+			const els = logPanelEls(id);
+			if (!els || !els.logList) {
 				return;
 			}
+			let offset = reset ? 0 : logOffsets.get(id) || 0;
 			if (reset) {
-				logOffset = 0;
-				logList.textContent = "Loading…";
+				logOffsets.set(id, 0);
+				els.logList.textContent = "Loading…";
+				if (els.moreBtn) {
+					els.moreBtn.hidden = true;
+				}
 			}
 			try {
 				const data = await api(
-					"/api/inventory/" +
-						logItemID +
-						"/log?limit=" +
-						logPageSize +
-						"&offset=" +
-						logOffset
+					"/api/inventory/" + id + "/log?limit=" + logPageSize + "&offset=" + offset
 				);
 				const items = (data && data.items) || [];
-				renderLogRows(items, !reset && logOffset > 0);
-				logOffset += items.length;
-				if (logMoreBtn) {
-					logMoreBtn.hidden = !(data && data.has_more);
+				renderLogRows(els.logList, items, !reset && offset > 0);
+				offset += items.length;
+				logOffsets.set(id, offset);
+				if (els.moreBtn) {
+					els.moreBtn.hidden = !(data && data.has_more);
 				}
 			} catch (e) {
-				logList.textContent = e.message;
-				if (logMoreBtn) {
-					logMoreBtn.hidden = true;
+				els.logList.textContent = e.message;
+				if (els.moreBtn) {
+					els.moreBtn.hidden = true;
 				}
 			}
 		}
 
-		async function openLog(id, name) {
-			logItemID = id;
-			if (logTitle) {
-				logTitle.textContent = "Change log — " + (name || "item");
+		async function toggleLogRow(row) {
+			const id = row.getAttribute("data-inventory-id");
+			const els = logPanelEls(id);
+			if (!els) {
+				return;
 			}
-			if (logMoreBtn) {
-				logMoreBtn.hidden = true;
-			}
-			await loadLogPage(true);
-			if (logDialog) {
-				logDialog.showModal();
+			const open = els.detail.hasAttribute("hidden");
+			if (open) {
+				els.detail.removeAttribute("hidden");
+				row.setAttribute("aria-expanded", "true");
+				await loadLogPage(id, true);
+			} else {
+				els.detail.setAttribute("hidden", "");
+				row.setAttribute("aria-expanded", "false");
 			}
 		}
 
 		async function refresh() {
 			list.textContent = "Loading…";
+			logOffsets.clear();
 			try {
 				const items = await api("/api/inventory?category=" + encodeURIComponent(category));
 				if (!items || !items.length) {
@@ -1403,53 +1656,65 @@
 								  i.id +
 								  '">Edit</button>'
 								: "";
-							const logBtn =
-								'<button type="button" class="btn btn--small" data-action="inventory-log" data-id="' +
+							const deleteBtn = canDelete
+								? '<button type="button" class="btn btn--small" data-action="inventory-delete" data-id="' +
+								  i.id +
+								  '" data-name="' +
+								  esc(i.name) +
+								  '">Delete</button>'
+								: "";
+							const actions = [orderBtn, editBtn, deleteBtn].filter(Boolean).join(" ");
+							const cells = isMalt
+								? "<td>" +
+								  esc(i.name) +
+								  "</td><td>" +
+								  esc(i.item_type || "") +
+								  "</td><td>" +
+								  esc(i.producer || "") +
+								  "</td><td>" +
+								  ebc +
+								  "</td><td>" +
+								  i.qty +
+								  "</td><td>" +
+								  i.cost_price +
+								  "</td><td>" +
+								  linkCell +
+								  "</td><td>" +
+								  actions +
+								  "</td>"
+								: "<td>" +
+								  esc(i.name) +
+								  "</td><td>" +
+								  esc(i.item_type || "") +
+								  "</td><td>" +
+								  esc(i.producer || "") +
+								  "</td><td>" +
+								  esc(i.unit) +
+								  "</td><td>" +
+								  i.qty +
+								  "</td><td>" +
+								  i.cost_price +
+								  "</td><td>" +
+								  linkCell +
+								  "</td><td>" +
+								  actions +
+								  "</td>";
+							const main =
+								'<tr class="inventory-row" data-inventory-id="' +
 								i.id +
-								'" data-name="' +
-								esc(i.name) +
-								'">View log</button>';
-							const actions = [logBtn, orderBtn, editBtn].filter(Boolean).join(" ");
-							if (isMalt) {
-								return (
-									"<tr><td>" +
-									esc(i.name) +
-									"</td><td>" +
-									esc(i.item_type || "") +
-									"</td><td>" +
-									esc(i.producer || "") +
-									"</td><td>" +
-									ebc +
-									"</td><td>" +
-									i.qty +
-									"</td><td>" +
-									i.cost_price +
-									"</td><td>" +
-									linkCell +
-									"</td><td>" +
-									actions +
-									"</td></tr>"
-								);
-							}
-							return (
-								"<tr><td>" +
-								esc(i.name) +
-								"</td><td>" +
-								esc(i.item_type || "") +
-								"</td><td>" +
-								esc(i.producer || "") +
-								"</td><td>" +
-								esc(i.unit) +
-								"</td><td>" +
-								i.qty +
-								"</td><td>" +
-								i.cost_price +
-								"</td><td>" +
-								linkCell +
-								"</td><td>" +
-								actions +
-								"</td></tr>"
-							);
+								'" aria-expanded="false">' +
+								cells +
+								"</tr>";
+							const detail =
+								'<tr class="inventory-log-detail" data-log-for="' +
+								i.id +
+								'" hidden><td colspan="' +
+								colCount +
+								'"><div class="inventory-log-panel"><div class="inventory-log-list"></div>' +
+								'<button type="button" class="btn btn--small" data-action="inventory-log-more" data-id="' +
+								i.id +
+								'" hidden>Load more</button></div></td></tr>';
+							return main + detail;
 						})
 						.join("")
 				);
@@ -1465,6 +1730,28 @@
 			}
 			if (t.getAttribute("data-action") === "inventory-refresh") {
 				refresh();
+			}
+			if (t.getAttribute("data-action") === "inventory-export") {
+				try {
+					await downloadCSVAuth(
+						"/api/inventory/export?category=" + encodeURIComponent(category),
+						category + "-inventory.csv"
+					);
+				} catch (e) {
+					await appInfo({ title: "Notice", message: e.message });
+				}
+				return;
+			}
+			if (t.getAttribute("data-action") === "inventory-import") {
+				if (!canEdit) {
+					return;
+				}
+				const input = panel.querySelector("#inventory-import-file");
+				if (input) {
+					input.value = "";
+					input.click();
+				}
+				return;
 			}
 			if (t.getAttribute("data-action") === "inventory-new") {
 				if (!canEdit) {
@@ -1485,13 +1772,36 @@
 					})
 					.catch((e) => { appInfo({ title: "Notice", message: e.message }); });
 			}
-			if (t.getAttribute("data-action") === "inventory-log") {
+			if (t.getAttribute("data-action") === "inventory-delete") {
+				if (!canDelete) {
+					return;
+				}
 				const id = parseInt(t.getAttribute("data-id"), 10);
 				const name = t.getAttribute("data-name") || "item";
-				openLog(id, name).catch((e) => { appInfo({ title: "Notice", message: e.message }); });
+				const ok = await appConfirm({
+					title: "Delete item",
+					message: "Delete \"" + name + "\"? Only unused items can be removed.",
+				});
+				if (!ok) {
+					return;
+				}
+				try {
+					await api("/api/inventory/" + id, { method: "DELETE" });
+					refresh();
+				} catch (e) {
+					await appInfo({ title: "Notice", message: e.message });
+				}
+				return;
 			}
-			if (t.id === "inventory-log-more" || t.getAttribute("data-action") === "inventory-log-more") {
-				loadLogPage(false).catch((e) => { appInfo({ title: "Notice", message: e.message }); });
+			if (t.getAttribute("data-action") === "inventory-log-more") {
+				const id = parseInt(t.getAttribute("data-id"), 10);
+				loadLogPage(id, false).catch((e) => { appInfo({ title: "Notice", message: e.message }); });
+				return;
+			}
+			const invRow = t.closest(".inventory-row");
+			if (invRow && !t.closest("a, button, [data-action]")) {
+				toggleLogRow(invRow).catch((e) => { appInfo({ title: "Notice", message: e.message }); });
+				return;
 			}
 			if (t.getAttribute("data-action") === "inventory-order") {
 				if (!canEdit) {
@@ -1594,11 +1904,38 @@
 						});
 					}
 					await appInfo({ title: "Notice", message: "Added to order #" + order.id });
+					if (values.order_id === "new") {
+						refreshOrdersNavCount();
+					}
 				} catch (e) {
 					await appInfo({ title: "Notice", message: e.message });
 				}
 			}
 		});
+
+		const importFile = panel.querySelector("#inventory-import-file");
+		if (importFile) {
+			importFile.addEventListener("change", async () => {
+				const file = importFile.files && importFile.files[0];
+				if (!file) {
+					return;
+				}
+				try {
+					const result = await importCSVAuth(
+						"/api/inventory/import?category=" + encodeURIComponent(category),
+						file
+					);
+					await appInfo({
+						title: "Import result",
+						message: formatImportResult(result || {}),
+					});
+					refresh();
+				} catch (e) {
+					await appInfo({ title: "Notice", message: e.message });
+				}
+				importFile.value = "";
+			});
+		}
 
 		dialog.addEventListener("close", async () => {
 			if (dialog.returnValue !== "save") {
@@ -1643,6 +1980,8 @@
 		const externalForm = panel.querySelector("#order-external-form");
 		const orderedQtyDialog = panel.querySelector("#order-ordered-qty-dialog");
 		const orderedQtyForm = panel.querySelector("#order-ordered-qty-form");
+		const costDialog = panel.querySelector("#order-cost-dialog");
+		const costForm = panel.querySelector("#order-cost-form");
 		const linksDialog = panel.querySelector("#order-links-dialog");
 		const linksList = panel.querySelector("#order-links-list");
 		const linksTitle = panel.querySelector("#order-links-title");
@@ -1699,6 +2038,8 @@
 								l.ordered_qty != null && l.ordered_qty !== undefined
 									? l.ordered_qty
 									: l.qty;
+							const costPrice = l.cost_price != null ? l.cost_price : 0;
+							const lineCost = l.line_cost != null ? l.line_cost : costPrice * orderQty;
 							let text =
 								esc(l.item_name) +
 								" (" +
@@ -1708,7 +2049,12 @@
 								unit +
 								" · order " +
 								orderQty +
-								unit;
+								unit +
+								" · " +
+								costPrice +
+								" SEK/unit · line " +
+								lineCost +
+								" SEK";
 							if (canEditLines) {
 								text +=
 									' <button type="button" class="btn btn--small" data-action="order-line-ordered-qty" data-order-id="' +
@@ -1720,6 +2066,14 @@
 									'" data-ordered="' +
 									orderQty +
 									'">Set ordered qty</button>';
+								text +=
+									' <button type="button" class="btn btn--small" data-action="order-line-cost" data-order-id="' +
+									order.id +
+									'" data-line-id="' +
+									l.id +
+									'" data-cost="' +
+									costPrice +
+									'">Set cost</button>';
 							}
 							return "<li>" + text + "</li>";
 						})
@@ -1844,11 +2198,15 @@
 				const orders = await api("/api/inventory/orders");
 				if (!orders || !orders.length) {
 					list.innerHTML = "<p class=\"panel__empty\">No orders.</p>";
+					refreshOrdersNavCount();
 					return;
 				}
 				list.innerHTML = orders
 					.map((o) => {
 						let actions =
+							'<button type="button" class="btn btn--small" data-action="order-export" data-id="' +
+							o.id +
+							'">Export CSV</button> ' +
 							'<button type="button" class="btn btn--small" data-action="order-product-links" data-id="' +
 							o.id +
 							'">Product links</button>';
@@ -1906,6 +2264,10 @@
 							dates += " · Ordered: " + esc(formatOrderDate(o.ordered_at));
 						}
 						dates += "</p>";
+						const total =
+							'<p class="order-total"><strong>Total: ' +
+							(o.total != null ? o.total : 0) +
+							" SEK</strong></p>";
 						return (
 							'<div class="panel__card" data-order-id="' +
 							o.id +
@@ -1918,6 +2280,7 @@
 							ext +
 							(o.notes ? "<p>" + esc(o.notes) + "</p>" : "") +
 							renderLines(o, o.lines) +
+							total +
 							'<div class="panel__card-actions">' +
 							actions +
 							"</div>" +
@@ -1925,6 +2288,7 @@
 						);
 					})
 					.join("");
+				refreshOrdersNavCount();
 			} catch (e) {
 				list.textContent = e.message;
 			}
@@ -1944,6 +2308,14 @@
 				}
 				newForm.reset();
 				newDialog.showModal();
+			}
+			if (t.getAttribute("data-action") === "order-export") {
+				const id = t.getAttribute("data-id");
+				try {
+					await downloadCSVAuth("/api/inventory/orders/" + id + "/export", "order-" + id + ".csv");
+				} catch (e) {
+					await appInfo({ title: "Notice", message: e.message });
+				}
 			}
 			if (t.getAttribute("data-action") === "order-product-links") {
 				try {
@@ -2018,6 +2390,15 @@
 				orderedQtyForm.elements.namedItem("line_id").value = t.getAttribute("data-line-id");
 				orderedQtyForm.elements.namedItem("ordered_qty").value = defaultQty;
 				orderedQtyDialog.showModal();
+			}
+			if (t.getAttribute("data-action") === "order-line-cost") {
+				if (!canManage) {
+					return;
+				}
+				costForm.elements.namedItem("order_id").value = t.getAttribute("data-order-id");
+				costForm.elements.namedItem("line_id").value = t.getAttribute("data-line-id");
+				costForm.elements.namedItem("cost_price").value = t.getAttribute("data-cost") || "0";
+				costDialog.showModal();
 			}
 			if (t.getAttribute("data-action") === "order-status") {
 				const status = t.getAttribute("data-status");
@@ -2177,6 +2558,30 @@
 			}
 		});
 
+		costDialog.addEventListener("close", async () => {
+			if (costDialog.returnValue !== "save") {
+				return;
+			}
+			const fd = new FormData(costForm);
+			const costPrice = parseFloat(fd.get("cost_price"));
+			if (Number.isNaN(costPrice) || costPrice < 0) {
+				await appInfo({ title: "Notice", message: "Cost price must be zero or positive" });
+				return;
+			}
+			try {
+				await api(
+					"/api/inventory/orders/" + fd.get("order_id") + "/lines/" + fd.get("line_id"),
+					{
+						method: "PATCH",
+						body: JSON.stringify({ cost_price: costPrice }),
+					}
+				);
+				refresh();
+			} catch (e) {
+				await appInfo({ title: "Notice", message: e.message });
+			}
+		});
+
 		applyRequireRoles(panel);
 		refresh();
 	}
@@ -2255,6 +2660,8 @@
 			try {
 				await api("/api/recipes/" + recipeId + "/hygiene/complete", { method: "POST" });
 				refresh();
+				refreshBrewingNavCounts();
+				await appInfo(pipelineGuide("hygiene_done"));
 			} catch (e) {
 				errEl.hidden = false;
 				errEl.textContent = e.message;
@@ -2923,6 +3330,7 @@
 				);
 				if (!relevant.length) {
 					list.innerHTML = "<p class=\"panel__empty\">No batches in delivery pipeline.</p>";
+					refreshBrewingNavCounts();
 					return;
 				}
 				list.innerHTML = table(
@@ -2981,6 +3389,7 @@
 						})
 						.join("")
 				);
+				refreshBrewingNavCounts();
 			} catch (e) {
 				list.textContent = e.message;
 			}
@@ -3007,6 +3416,7 @@
 						method: "POST",
 					});
 					refresh();
+					await appInfo(pipelineGuide("delivered"));
 				} catch (e) {
 					await appInfo({ title: "Notice", message: e.message });
 				}
@@ -3047,6 +3457,7 @@
 					}),
 				});
 				refresh();
+				await appInfo(pipelineGuide("ready_for_delivery"));
 			} catch (e) {
 				errEl.hidden = false;
 				errEl.textContent = e.message;
@@ -4613,29 +5024,31 @@
 				}
 				listEl.innerHTML = table(
 					["Taken", "Type", "Size", "File", ""],
-					list.map((b) => {
-						const name = esc(b.name || "");
-						return (
-							"<tr><td>" +
-							esc(formatWhen(b.created_at)) +
-							"</td><td>" +
-							esc(kindLabel(b.kind)) +
-							"</td><td>" +
-							esc(formatBytes(b.size_bytes || 0)) +
-							"</td><td>" +
-							name +
-							'</td><td class="panel__row-actions">' +
-							'<button type="button" class="btn btn--small" data-action="settings-backup-download" data-name="' +
-							name +
-							'">Download</button> ' +
-							'<button type="button" class="btn btn--small" data-action="settings-backup-restore" data-name="' +
-							name +
-							'">Restore</button> ' +
-							'<button type="button" class="btn btn--small" data-action="settings-backup-delete" data-name="' +
-							name +
-							'">Delete</button></td></tr>'
-						);
-					})
+					list
+						.map((b) => {
+							const name = esc(b.name || "");
+							return (
+								"<tr><td>" +
+								esc(formatWhen(b.created_at)) +
+								"</td><td>" +
+								esc(kindLabel(b.kind)) +
+								"</td><td>" +
+								esc(formatBytes(b.size_bytes || 0)) +
+								"</td><td>" +
+								name +
+								'</td><td class="panel__row-actions">' +
+								'<button type="button" class="btn btn--small" data-action="settings-backup-download" data-name="' +
+								name +
+								'">Download</button> ' +
+								'<button type="button" class="btn btn--small" data-action="settings-backup-restore" data-name="' +
+								name +
+								'">Restore</button> ' +
+								'<button type="button" class="btn btn--small" data-action="settings-backup-delete" data-name="' +
+								name +
+								'">Delete</button></td></tr>'
+							);
+						})
+						.join("")
 				);
 			} catch (e) {
 				listEl.textContent = e.message;

@@ -5,6 +5,9 @@
 	</header>
 	<div class="panel__toolbar">
 		<button type="button" class="btn" data-action="inventory-refresh">Refresh</button>
+		<button type="button" class="btn" data-action="inventory-export">Export CSV</button>
+		<button type="button" class="btn" data-action="inventory-import" data-require-roles="superuser,admin">Import CSV</button>
+		<input type="file" id="inventory-import-file" accept=".csv,text/csv" hidden>
 		<button type="button" class="btn btn--primary" data-action="inventory-new" data-require-roles="superuser,admin">Add item</button>
 	</div>
 	<div class="panel__body" id="inventory-list">Loading…</div>
@@ -25,17 +28,6 @@
 			<div class="panel__dialog-actions">
 				<button type="submit" class="btn btn--primary" value="save">Save</button>
 				<button type="submit" class="btn" value="cancel" formnovalidate>Cancel</button>
-			</div>
-		</form>
-	</dialog>
-	<dialog class="panel__dialog panel__dialog--wide" id="inventory-log-dialog">
-		<form method="dialog" class="panel__form" id="inventory-log-form">
-			<h2 id="inventory-log-title">Change log</h2>
-			<p class="panel__lead" id="inventory-log-lead">Recent changes for this inventory item.</p>
-			<div id="inventory-log-list" class="inventory-log-list"></div>
-			<div class="panel__dialog-actions">
-				<button type="button" class="btn" id="inventory-log-more" hidden>Load more</button>
-				<button type="submit" class="btn" value="cancel" formnovalidate>Close</button>
 			</div>
 		</form>
 	</dialog>
