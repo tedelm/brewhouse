@@ -5,18 +5,20 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"brewhouse/internal/database"
 )
 
 // RecipeService manages recipe-as-batch lifecycle through create/delete and lookups.
 type RecipeService struct {
-	db        *sql.DB
+	db        *database.Holder
 	access    *AccessService
 	inventory *InventoryService
 	settings  *SettingsService
 }
 
 // NewRecipeService creates a RecipeService.
-func NewRecipeService(db *sql.DB, access *AccessService, inventory *InventoryService, settings *SettingsService) *RecipeService {
+func NewRecipeService(db *database.Holder, access *AccessService, inventory *InventoryService, settings *SettingsService) *RecipeService {
 	return &RecipeService{db: db, access: access, inventory: inventory, settings: settings}
 }
 

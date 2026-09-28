@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"brewhouse/internal/database"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -24,11 +26,11 @@ var ErrInvalidCredentials = errors.New("invalid credentials")
 
 // UserService provides user persistence and authentication.
 type UserService struct {
-	db *sql.DB
+	db *database.Holder
 }
 
 // NewUserService creates a UserService backed by db.
-func NewUserService(db *sql.DB) *UserService {
+func NewUserService(db *database.Holder) *UserService {
 	return &UserService{db: db}
 }
 

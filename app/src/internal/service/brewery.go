@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"brewhouse/internal/database"
 )
 
 const (
@@ -16,12 +18,12 @@ const (
 
 // BreweryService manages breweries and memberships.
 type BreweryService struct {
-	db     *sql.DB
+	db     *database.Holder
 	access *AccessService
 }
 
 // NewBreweryService creates a BreweryService.
-func NewBreweryService(db *sql.DB, access *AccessService) *BreweryService {
+func NewBreweryService(db *database.Holder, access *AccessService) *BreweryService {
 	return &BreweryService{db: db, access: access}
 }
 

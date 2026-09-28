@@ -9,6 +9,7 @@ type Config struct {
 	Port         string
 	AppVersion   string
 	DatabasePath string
+	BackupDir    string
 	JWTSecret    string
 }
 
@@ -29,6 +30,11 @@ func Load() *Config {
 		databasePath = "brewhouse.db"
 	}
 
+	backupDir := os.Getenv("BACKUP_DIR")
+	if backupDir == "" {
+		backupDir = "backups"
+	}
+
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
 		jwtSecret = "brewhouse-dev-secret-change-me"
@@ -38,6 +44,7 @@ func Load() *Config {
 		Port:         port,
 		AppVersion:   appVersion,
 		DatabasePath: databasePath,
+		BackupDir:    backupDir,
 		JWTSecret:    jwtSecret,
 	}
 }

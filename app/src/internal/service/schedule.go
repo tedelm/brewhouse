@@ -5,16 +5,18 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"brewhouse/internal/database"
 )
 
 // ScheduleService books brewery equipment days and fermentation tanks.
 type ScheduleService struct {
-	db     *sql.DB
+	db     *database.Holder
 	access *AccessService
 }
 
 // NewScheduleService creates a ScheduleService.
-func NewScheduleService(db *sql.DB, access *AccessService) *ScheduleService {
+func NewScheduleService(db *database.Holder, access *AccessService) *ScheduleService {
 	return &ScheduleService{db: db, access: access}
 }
 

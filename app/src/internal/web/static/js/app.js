@@ -400,6 +400,7 @@
 			"settings-multipliers": loadSettingsMultipliers,
 			"settings-beer-price": loadSettingsBeerPrice,
 			"settings-hygiene": loadSettingsHygiene,
+			"settings-backup": loadSettingsBackup,
 		};
 		const fn = loaders[kind];
 		if (fn) {
@@ -4547,6 +4548,230 @@
 				await appInfo({ title: "Notice", message: e.message });
 			}
 		});
+		refresh();
+	}
+
+	async function loadSettingsBackup(panel) {
+		const listEl = panel.querySelector("#settings-backup");
+		const errEl = panel.querySelector("#settings-backup-error");
+		const uploadInput = panel.querySelector("#settings-backup-upload");
+
+		function formatBytes(n) {
+			if (n < 1024) {
+				return n + " B";
+			}
+			if (n < 1024 * 1024) {
+				return (n / 1024).toFixed(1) + " KB";
+			}
+			return (n / (1024 * 1024)).toFixed(1) + " MB";
+		}
+
+		function formatWhen(iso) {
+			if (!iso) {
+				return "";
+			}
+			const d = new Date(iso);
+			if (Number.isNaN(d.getTime())) {
+				return iso;
+			}
+			return d.toLocaleString();
+		}
+
+		function kindLabel(kind) {
+			if (kind === "daily") {
+				return "Daily";
+			}
+			if (kind === "monthly") {
+				return "Monthly";
+			}
+			if (kind === "manual") {
+				return "Manual";
+			}
+			return kind || "";
+		}
+
+		function showErr(msg) {
+			if (!errEl) {
+				return;
+			}
+			if (!msg) {
+				errEl.hidden = true;
+				errEl.textContent = "";
+				return;
+			}
+			errEl.hidden = false;
+			errEl.textContent = msg;
+		}
+
+		async function refresh() {
+			showErr("");
+			try {
+				const list = await api("/api/settings/backup");
+				if (!list || !list.length) {
+					listEl.innerHTML = '<p class="panel__empty">No backups yet.</p>';
+					return;
+				}
+				listEl.innerHTML = table(
+					["Taken", "Type", "Size", "File", ""],
+					list.map((b) => {
+						const name = esc(b.name || "");
+						return (
+							"<tr><td>" +
+							esc(formatWhen(b.created_at)) +
+							"</td><td>" +
+							esc(kindLabel(b.kind)) +
+							"</td><td>" +
+							esc(formatBytes(b.size_bytes || 0)) +
+							"</td><td>" +
+							name +
+							'</td><td class="panel__row-actions">' +
+							'<button type="button" class="btn btn--small" data-action="settings-backup-download" data-name="' +
+							name +
+							'">Download</button> ' +
+							'<button type="button" class="btn btn--small" data-action="settings-backup-restore" data-name="' +
+							name +
+							'">Restore</button> ' +
+							'<button type="button" class="btn btn--small" data-action="settings-backup-delete" data-name="' +
+							name +
+							'">Delete</button></td></tr>'
+						);
+					})
+				);
+			} catch (e) {
+				listEl.textContent = e.message;
+			}
+		}
+
+		async function downloadBackup(name) {
+			await downloadCSVAuth("/api/settings/backup/" + encodeURIComponent(name) + "/download", name);
+		}
+
+		async function restoreNamed(name) {
+			const ok = await appConfirm({
+				title: "Restore backup",
+				message:
+					"Replace the live database with " +
+					name +
+					"? A pre-restore copy is kept next to the database file. Continue?",
+			});
+			if (!ok) {
+				return;
+			}
+			await api("/api/settings/backup/" + encodeURIComponent(name) + "/restore", {
+				method: "POST",
+			});
+			await appInfo({
+				title: "Restore complete",
+				message: "Database restored. Reload the page to continue with the restored data.",
+			});
+			window.location.reload();
+		}
+
+		async function restoreUpload(file) {
+			const ok = await appConfirm({
+				title: "Restore from file",
+				message:
+					"Replace the live database with the uploaded file? A pre-restore copy is kept next to the database file. Continue?",
+			});
+			if (!ok) {
+				return;
+			}
+			const fd = new FormData();
+			fd.append("file", file);
+			const res = await fetch("/api/settings/backup/restore-upload", {
+				method: "POST",
+				headers: { Authorization: "Bearer " + token() },
+				body: fd,
+			});
+			const text = await res.text();
+			let data = null;
+			try {
+				data = text ? JSON.parse(text) : null;
+			} catch {
+				data = { error: text };
+			}
+			if (!res.ok) {
+				throw new Error((data && data.error) || res.statusText);
+			}
+			await appInfo({
+				title: "Restore complete",
+				message: "Database restored. Reload the page to continue with the restored data.",
+			});
+			window.location.reload();
+		}
+
+		panel.addEventListener("click", async (ev) => {
+			const t = ev.target;
+			if (!(t instanceof HTMLElement)) {
+				return;
+			}
+			const action = t.getAttribute("data-action");
+			if (action === "settings-backup-refresh") {
+				refresh();
+				return;
+			}
+			if (action === "settings-backup-now") {
+				showErr("");
+				try {
+					await api("/api/settings/backup", { method: "POST" });
+					refresh();
+				} catch (e) {
+					showErr(e.message);
+				}
+				return;
+			}
+			const name = t.getAttribute("data-name");
+			if (action === "settings-backup-download" && name) {
+				try {
+					await downloadBackup(name);
+				} catch (e) {
+					showErr(e.message);
+				}
+				return;
+			}
+			if (action === "settings-backup-restore" && name) {
+				try {
+					await restoreNamed(name);
+				} catch (e) {
+					showErr(e.message);
+				}
+				return;
+			}
+			if (action === "settings-backup-delete" && name) {
+				const ok = await appConfirm({
+					title: "Delete backup",
+					message: "Delete backup " + name + "?",
+				});
+				if (!ok) {
+					return;
+				}
+				try {
+					await api("/api/settings/backup/" + encodeURIComponent(name), {
+						method: "DELETE",
+					});
+					refresh();
+				} catch (e) {
+					showErr(e.message);
+				}
+			}
+		});
+
+		if (uploadInput) {
+			uploadInput.addEventListener("change", async () => {
+				const file = uploadInput.files && uploadInput.files[0];
+				uploadInput.value = "";
+				if (!file) {
+					return;
+				}
+				showErr("");
+				try {
+					await restoreUpload(file);
+				} catch (e) {
+					showErr(e.message);
+				}
+			});
+		}
+
 		refresh();
 	}
 })();

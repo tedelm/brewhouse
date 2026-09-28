@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+
+	"brewhouse/internal/database"
 )
 
 // ErrForbidden is returned when the actor lacks permission.
@@ -23,11 +25,11 @@ var ErrInvalidStatus = errors.New("invalid status")
 
 // AccessService resolves brewery membership for authorization.
 type AccessService struct {
-	db *sql.DB
+	db *database.Holder
 }
 
 // NewAccessService creates an AccessService.
-func NewAccessService(db *sql.DB) *AccessService {
+func NewAccessService(db *database.Holder) *AccessService {
 	return &AccessService{db: db}
 }
 

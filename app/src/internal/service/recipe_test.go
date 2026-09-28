@@ -13,7 +13,7 @@ import (
 func testDB(t *testing.T) (*service.AccessService, *service.UserService, *service.BreweryService, *service.InventoryService, *service.SettingsService, *service.RecipeService, *service.ScheduleService) {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "test.db")
-	db, err := database.Open(path)
+	db, err := database.OpenHolder(path)
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}

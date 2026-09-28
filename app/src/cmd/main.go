@@ -21,7 +21,7 @@ func main() {
 	cfg := config.Load()
 
 	// Initialize database
-	db, err := database.Open(cfg.DatabasePath)
+	db, err := database.OpenHolder(cfg.DatabasePath)
 	if err != nil {
 		logger.Println("Failed to open database:", err)
 		return
@@ -44,6 +44,7 @@ func main() {
 	settings := service.NewSettingsService(db, access)
 	recipes := service.NewRecipeService(db, access, inventory, settings)
 	schedule := service.NewScheduleService(db, access)
+	backup := service.NewBackupService(db, access, cfg.BackupDir)
 
 	tokens := auth.NewTokenIssuer(cfg.JWTSecret, 10*time.Minute)
 
@@ -61,11 +62,17 @@ func main() {
 		Recipes:    recipes,
 		Schedule:   schedule,
 		Settings:   settings,
+		Backup:     backup,
 		Tokens:     tokens,
 		Web:        webHandler,
 		AppVersion: cfg.AppVersion,
 		Logger:     logger,
 	})
+
+	// Nightly SQLite backups at 01:00 local time
+	scheduler := service.NewBackupScheduler(backup, logger)
+	scheduler.Start()
+	defer scheduler.Stop()
 
 	// Setup routes
 	handler := router.New(webHandler, apiHandler, tokens)

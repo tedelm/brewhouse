@@ -22,6 +22,7 @@ type Handler struct {
 	recipes    *service.RecipeService
 	schedule   *service.ScheduleService
 	settings   *service.SettingsService
+	backup     *service.BackupService
 	tokens     *auth.TokenIssuer
 	web        *web.Handler
 	appVersion string
@@ -36,6 +37,7 @@ type Deps struct {
 	Recipes    *service.RecipeService
 	Schedule   *service.ScheduleService
 	Settings   *service.SettingsService
+	Backup     *service.BackupService
 	Tokens     *auth.TokenIssuer
 	Web        *web.Handler
 	AppVersion string
@@ -51,6 +53,7 @@ func New(d Deps) *Handler {
 		recipes:    d.Recipes,
 		schedule:   d.Schedule,
 		settings:   d.Settings,
+		backup:     d.Backup,
 		tokens:     d.Tokens,
 		web:        d.Web,
 		appVersion: d.AppVersion,
@@ -87,6 +90,11 @@ func (h *Handler) writeErr(w http.ResponseWriter, err error) {
 	case errors.Is(err, service.ErrInvalidStatus):
 		writeJSON(w, http.StatusConflict, ErrorResponse{Error: "invalid status"})
 	default:
+		msg := err.Error()
+		if strings.Contains(msg, "invalid sqlite") || strings.Contains(msg, "invalid backup") {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: msg})
+			return
+		}
 		h.logger.Println("API error:", err)
 		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "internal error"})
 	}

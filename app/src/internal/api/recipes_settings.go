@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -362,6 +363,8 @@ func (h *Handler) Settings(w http.ResponseWriter, r *http.Request) {
 		h.settingsFavicon(w, r, actor, parts[1:])
 	case "brand-color":
 		h.settingsBrandColor(w, r, actor, parts[1:])
+	case "backup":
+		h.settingsBackup(w, r, actor, parts[1:])
 	default:
 		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "not found"})
 	}
@@ -828,6 +831,96 @@ func (h *Handler) settingsBrandImage(
 			return
 		}
 		w.WriteHeader(http.StatusNoContent)
+	default:
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
+	}
+}
+
+func (h *Handler) settingsBackup(w http.ResponseWriter, r *http.Request, actor service.Actor, parts []string) {
+	if h.backup == nil {
+		writeJSON(w, http.StatusInternalServerError, ErrorResponse{Error: "backup not configured"})
+		return
+	}
+
+	// POST /api/settings/backup/restore-upload
+	if len(parts) == 1 && parts[0] == "restore-upload" && r.Method == http.MethodPost {
+		if err := r.ParseMultipartForm(256 << 20); err != nil {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid multipart form"})
+			return
+		}
+		file, _, err := r.FormFile("file")
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "file required"})
+			return
+		}
+		defer file.Close()
+		if err := h.backup.RestoreFromUpload(actor, file); err != nil {
+			h.writeErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, BackupRestoreResponse{OK: true})
+		return
+	}
+
+	// /api/settings/backup/{name}/download|restore  or DELETE /api/settings/backup/{name}
+	if len(parts) >= 1 {
+		name := parts[0]
+		if len(parts) == 2 && parts[1] == "download" && r.Method == http.MethodGet {
+			f, info, err := h.backup.OpenDownload(actor, name)
+			if err != nil {
+				h.writeErr(w, err)
+				return
+			}
+			defer f.Close()
+			w.Header().Set("Content-Type", "application/octet-stream")
+			w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, info.Name))
+			w.Header().Set("Content-Length", strconv.FormatInt(info.SizeBytes, 10))
+			w.WriteHeader(http.StatusOK)
+			_, _ = io.Copy(w, f)
+			return
+		}
+		if len(parts) == 2 && parts[1] == "restore" && r.Method == http.MethodPost {
+			if err := h.backup.RestoreFromStored(actor, name); err != nil {
+				h.writeErr(w, err)
+				return
+			}
+			writeJSON(w, http.StatusOK, BackupRestoreResponse{OK: true})
+			return
+		}
+		if len(parts) == 1 && r.Method == http.MethodDelete {
+			if err := h.backup.Delete(actor, name); err != nil {
+				h.writeErr(w, err)
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if len(parts) >= 1 && parts[0] != "" {
+			writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "not found"})
+			return
+		}
+	}
+
+	// GET/POST /api/settings/backup
+	switch r.Method {
+	case http.MethodGet:
+		list, err := h.backup.List(actor)
+		if err != nil {
+			h.writeErr(w, err)
+			return
+		}
+		if list == nil {
+			list = []service.BackupInfo{}
+		}
+		writeJSON(w, http.StatusOK, list)
+	case http.MethodPost:
+		info, err := h.backup.Create(actor, service.BackupKindManual)
+		if err != nil {
+			h.writeErr(w, err)
+			return
+		}
+		_ = h.backup.Prune(actor)
+		writeJSON(w, http.StatusCreated, info)
 	default:
 		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
 	}

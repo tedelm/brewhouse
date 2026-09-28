@@ -63,6 +63,8 @@ func (h *Handler) Pages(w http.ResponseWriter, r *http.Request) {
 		h.web.RenderPartial(w, "partial_settings_beer_price.html", nil)
 	case "settings/hygiene":
 		h.web.RenderPartial(w, "partial_settings_hygiene.html", nil)
+	case "settings/backup":
+		h.web.RenderPartial(w, "partial_settings_backup.html", nil)
 	default:
 		http.NotFound(w, r)
 	}

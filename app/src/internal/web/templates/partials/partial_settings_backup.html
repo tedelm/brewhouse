@@ -1,0 +1,16 @@
+<section class="panel" data-panel="settings-backup">
+	<header class="panel__header">
+		<h1 class="panel__title">Backup</h1>
+		<p class="panel__lead">Automatic backup every night at 01:00. Keeps 7 daily and 3 monthly copies. Manual backups are kept for 90 days.</p>
+	</header>
+	<div class="panel__toolbar">
+		<button type="button" class="btn btn--primary" data-action="settings-backup-now">Backup now</button>
+		<button type="button" class="btn" data-action="settings-backup-refresh">Refresh</button>
+		<label class="btn">
+			Restore from file
+			<input id="settings-backup-upload" type="file" accept=".db,application/octet-stream" hidden>
+		</label>
+	</div>
+	<p class="panel__error" id="settings-backup-error" hidden></p>
+	<div id="settings-backup">Loading…</div>
+</section>

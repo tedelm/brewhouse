@@ -5,18 +5,20 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"brewhouse/internal/database"
 )
 
 const inventorySelectCols = `id, category, name, unit, qty, cost_price, producer, item_type, min_ebc, max_ebc, link`
 
 // InventoryService manages shared stock and wishlist orders.
 type InventoryService struct {
-	db     *sql.DB
+	db     *database.Holder
 	access *AccessService
 }
 
 // NewInventoryService creates an InventoryService.
-func NewInventoryService(db *sql.DB, access *AccessService) *InventoryService {
+func NewInventoryService(db *database.Holder, access *AccessService) *InventoryService {
 	return &InventoryService{db: db, access: access}
 }
 

@@ -27,6 +27,11 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
+// BackupRestoreResponse is returned after a successful database restore.
+type BackupRestoreResponse struct {
+	OK bool `json:"ok"`
+}
+
 // VersionResponse is returned by GET /api/version.
 type VersionResponse struct {
 	Version string `json:"version"`

@@ -33,6 +33,7 @@ go.work.sum
 *.db-journal
 *.db-wal
 *.db-shm
+*.db.pre-restore
 
 # Editor/IDE
 # .idea/

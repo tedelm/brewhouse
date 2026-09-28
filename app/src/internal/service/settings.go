@@ -10,16 +10,18 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"strings"
+
+	"brewhouse/internal/database"
 )
 
 // SettingsService manages tanks, tax tiers, multipliers, and hygiene routines.
 type SettingsService struct {
-	db     *sql.DB
+	db     *database.Holder
 	access *AccessService
 }
 
 // NewSettingsService creates a SettingsService.
-func NewSettingsService(db *sql.DB, access *AccessService) *SettingsService {
+func NewSettingsService(db *database.Holder, access *AccessService) *SettingsService {
 	return &SettingsService{db: db, access: access}
 }
 
