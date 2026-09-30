@@ -456,15 +456,19 @@ func (s *RecipeService) checkoutIngredients(tx *sql.Tx, actor Actor, recipeID, b
 		}
 		unit := defaultUnit(in.Unit)
 		var itemID int64
-		var stockQty, costPrice float64
+		var stockQty, costPrice, adjustPercent float64
 		var itemUnit, itemName, itemCategory string
 		err := tx.QueryRow(
-			`SELECT id, qty, cost_price, unit, name, category FROM inventory_items WHERE id = ?`,
+			`SELECT i.id, i.qty, i.cost_price, i.unit, i.name, i.category, COALESCE(s.adjust_percent, 0)
+			 FROM inventory_items i
+			 LEFT JOIN suppliers s ON s.id = i.supplier_id
+			 WHERE i.id = ?`,
 			in.InventoryItemID,
-		).Scan(&itemID, &stockQty, &costPrice, &itemUnit, &itemName, &itemCategory)
+		).Scan(&itemID, &stockQty, &costPrice, &itemUnit, &itemName, &itemCategory, &adjustPercent)
 		if err != nil {
 			return nil, err
 		}
+		effectiveCost := EffectiveCost(costPrice, adjustPercent)
 		need, err := ConvertQty(in.Qty, unit, defaultUnit(itemUnit))
 		if err != nil {
 			return nil, err
@@ -496,7 +500,7 @@ func (s *RecipeService) checkoutIngredients(tx *sql.Tx, actor Actor, recipeID, b
 		_, err = tx.Exec(
 			`INSERT INTO recipe_ingredients (recipe_id, inventory_item_id, qty, unit, checked_out, cost_price)
 			 VALUES (?, ?, ?, ?, ?, ?)`,
-			recipeID, itemID, in.Qty, unit, take, costPrice,
+			recipeID, itemID, in.Qty, unit, take, effectiveCost,
 		)
 		if err != nil {
 			return nil, err

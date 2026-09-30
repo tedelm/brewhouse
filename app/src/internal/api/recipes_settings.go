@@ -386,6 +386,8 @@ func (h *Handler) Settings(w http.ResponseWriter, r *http.Request) {
 		h.settingsTaxConfig(w, r, actor, parts[1:])
 	case "multipliers":
 		h.settingsMultipliers(w, r, actor, parts[1:])
+	case "suppliers":
+		h.settingsSuppliers(w, r, actor, parts[1:])
 	case "beer-price":
 		h.settingsBeerPrice(w, r, actor, parts[1:])
 	case "regional":
@@ -726,6 +728,92 @@ func (h *Handler) settingsMultipliers(w http.ResponseWriter, r *http.Request, ac
 		writeJSON(w, http.StatusOK, m)
 	case http.MethodDelete:
 		if err := h.settings.DeleteMultiplier(actor, id); err != nil {
+			h.writeErr(w, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	default:
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
+	}
+}
+
+func (h *Handler) settingsSuppliers(w http.ResponseWriter, r *http.Request, actor service.Actor, parts []string) {
+	if len(parts) == 0 {
+		switch r.Method {
+		case http.MethodGet:
+			var (
+				list []service.Supplier
+				err  error
+			)
+			if r.URL.Query().Get("active") == "1" {
+				list, err = h.settings.ListActiveSuppliers()
+			} else {
+				list, err = h.settings.ListSuppliers()
+			}
+			if err != nil {
+				h.writeErr(w, err)
+				return
+			}
+			writeJSON(w, http.StatusOK, list)
+		case http.MethodPost:
+			var req SupplierRequest
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid body"})
+				return
+			}
+			sup, err := h.settings.CreateSupplier(actor, req.Name, req.AdjustPercent)
+			if err != nil {
+				h.writeErr(w, err)
+				return
+			}
+			writeJSON(w, http.StatusCreated, sup)
+		default:
+			writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
+		}
+		return
+	}
+	id, err := strconv.ParseInt(parts[0], 10, 64)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid id"})
+		return
+	}
+	if len(parts) == 2 && parts[1] == "active" {
+		if r.Method != http.MethodPost {
+			writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
+			return
+		}
+		var req ActiveRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid body"})
+			return
+		}
+		sup, err := h.settings.SetSupplierActive(actor, id, req.Active)
+		if err != nil {
+			h.writeErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, sup)
+		return
+	}
+	if len(parts) != 1 {
+		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "not found"})
+		return
+	}
+	switch r.Method {
+	case http.MethodPut, http.MethodPatch:
+		var req SupplierRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid body"})
+			return
+		}
+		sup, err := h.settings.UpdateSupplier(actor, id, req.Name, req.AdjustPercent)
+		if err != nil {
+			h.writeErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, sup)
+	case http.MethodDelete:
+		if err := h.settings.DeleteSupplier(actor, id); err != nil {
 			h.writeErr(w, err)
 			return
 		}

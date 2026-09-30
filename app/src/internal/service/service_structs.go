@@ -93,22 +93,34 @@ type BreweryMember struct {
 
 // InventoryItem is a shared stock line.
 type InventoryItem struct {
-	ID           int64   `json:"id"`
-	Category     string  `json:"category"`
-	Name         string  `json:"name"`
-	Unit         string  `json:"unit"`
-	Qty          float64 `json:"qty"`
-	CostPrice    float64 `json:"cost_price"`
-	Producer     string  `json:"producer"`
-	ItemType     string  `json:"item_type"`
-	MinEBC       float64 `json:"min_ebc"`
-	MaxEBC       float64 `json:"max_ebc"`
-	Link         string  `json:"link"`
-	PitchMinGHl  float64 `json:"pitch_min_g_hl"`
-	PitchMaxGHl  float64 `json:"pitch_max_g_hl"`
-	PackSizeG    float64 `json:"pack_size_g"`
-	TempMinC     float64 `json:"temp_min_c"`
-	TempMaxC     float64 `json:"temp_max_c"`
+	ID                 int64   `json:"id"`
+	Category           string  `json:"category"`
+	Name               string  `json:"name"`
+	Unit               string  `json:"unit"`
+	Qty                float64 `json:"qty"`
+	CostPrice          float64 `json:"cost_price"`
+	Producer           string  `json:"producer"`
+	ItemType           string  `json:"item_type"`
+	MinEBC             float64 `json:"min_ebc"`
+	MaxEBC             float64 `json:"max_ebc"`
+	Link               string  `json:"link"`
+	PitchMinGHl        float64 `json:"pitch_min_g_hl"`
+	PitchMaxGHl        float64 `json:"pitch_max_g_hl"`
+	PackSizeG          float64 `json:"pack_size_g"`
+	TempMinC           float64 `json:"temp_min_c"`
+	TempMaxC           float64 `json:"temp_max_c"`
+	SupplierID         *int64  `json:"supplier_id,omitempty"`
+	SupplierName       string  `json:"supplier_name,omitempty"`
+	AdjustPercent      float64 `json:"adjust_percent"`
+	EffectiveCostPrice float64 `json:"effective_cost_price"`
+}
+
+// Supplier is a purchase vendor with a persistent cost adjustment percentage.
+type Supplier struct {
+	ID            int64   `json:"id"`
+	Name          string  `json:"name"`
+	AdjustPercent float64 `json:"adjust_percent"`
+	Active        bool    `json:"active"`
 }
 
 // InventoryLogEntry is one change-history row for an inventory item.

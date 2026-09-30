@@ -584,6 +584,7 @@
 			"settings-brand": loadSettingsBrand,
 			"settings-tanks": loadSettingsTanks,
 			"settings-multipliers": loadSettingsMultipliers,
+			"settings-suppliers": loadSettingsSuppliers,
 			"settings-beer-price": loadSettingsBeerPrice,
 			"settings-regional": loadSettingsRegional,
 			"settings-hygiene": loadSettingsHygiene,
@@ -1539,7 +1540,10 @@
 		const canDelete = canRoles(["admin"]);
 		const logOffsets = new Map();
 		const logPageSize = 5;
-		const colCount = 8;
+		const colCount = 10;
+		const supplierSelect = form.elements.namedItem("supplier_id");
+		const effectiveHint = panel.querySelector("#inventory-effective-cost");
+		let suppliersById = {};
 
 		panel.querySelectorAll(".inventory-field--malt").forEach((el) => {
 			el.classList.toggle("is-role-hidden", !isMalt);
@@ -1548,12 +1552,67 @@
 			el.classList.toggle("is-role-hidden", !isYeast);
 		});
 
+		async function loadSuppliers() {
+			suppliersById = {};
+			if (!(supplierSelect instanceof HTMLSelectElement)) {
+				return;
+			}
+			try {
+				const suppliers = await api("/api/settings/suppliers?active=1");
+				const current = supplierSelect.value;
+				supplierSelect.innerHTML = '<option value="">—</option>';
+				(suppliers || []).forEach((s) => {
+					suppliersById[String(s.id)] = s;
+					const opt = document.createElement("option");
+					opt.value = String(s.id);
+					opt.textContent = s.name + (s.adjust_percent ? " (" + s.adjust_percent + "%)" : "");
+					supplierSelect.appendChild(opt);
+				});
+				if (current) {
+					supplierSelect.value = current;
+				}
+			} catch (e) {
+				/* keep empty select */
+			}
+		}
+
+		function updateEffectiveHint() {
+			if (!(effectiveHint instanceof HTMLElement)) {
+				return;
+			}
+			const base = parseFloat(form.elements.namedItem("cost_price").value) || 0;
+			const sid = supplierSelect instanceof HTMLSelectElement ? supplierSelect.value : "";
+			const adj = sid && suppliersById[sid] ? Number(suppliersById[sid].adjust_percent) || 0 : 0;
+			const effective = base * (1 + adj / 100);
+			if (!sid || adj === 0) {
+				effectiveHint.hidden = true;
+				return;
+			}
+			effectiveHint.hidden = false;
+			effectiveHint.textContent = t("inventory.effective_cost", { cost: String(effective), currency: currencyCode() });
+		}
+
 		function fillForm(item) {
 			form.reset();
 			form.elements.namedItem("id").value = item && item.id ? String(item.id) : "";
 			form.elements.namedItem("name").value = (item && item.name) || "";
 			form.elements.namedItem("item_type").value = (item && item.item_type) || "";
 			form.elements.namedItem("producer").value = (item && item.producer) || "";
+			if (supplierSelect instanceof HTMLSelectElement) {
+				const sid = item && item.supplier_id != null ? String(item.supplier_id) : "";
+				if (sid && !suppliersById[sid] && item.supplier_name) {
+					const opt = document.createElement("option");
+					opt.value = sid;
+					opt.textContent = item.supplier_name;
+					supplierSelect.appendChild(opt);
+					suppliersById[sid] = {
+						id: item.supplier_id,
+						name: item.supplier_name,
+						adjust_percent: item.adjust_percent || 0,
+					};
+				}
+				supplierSelect.value = sid;
+			}
 			form.elements.namedItem("min_ebc").value = item && item.min_ebc != null ? item.min_ebc : 0;
 			form.elements.namedItem("max_ebc").value = item && item.max_ebc != null ? item.max_ebc : 0;
 			form.elements.namedItem("pitch_min_g_hl").value =
@@ -1573,10 +1632,13 @@
 			if (titleEl) {
 				titleEl.textContent = item && item.id ? t("js.inventory.edit_item") : t("js.inventory.item");
 			}
+			updateEffectiveHint();
 		}
 
 		function bodyFromForm() {
 			const fd = new FormData(form);
+			const sidRaw = fd.get("supplier_id");
+			const sid = sidRaw ? parseInt(String(sidRaw), 10) : 0;
 			return {
 				category,
 				name: fd.get("name"),
@@ -1593,6 +1655,7 @@
 				temp_min_c: parseFloat(fd.get("temp_min_c")) || 0,
 				temp_max_c: parseFloat(fd.get("temp_max_c")) || 0,
 				link: fd.get("link") || "",
+				supplier_id: sid > 0 ? sid : null,
 			};
 		}
 
@@ -1719,8 +1782,30 @@
 					return;
 				}
 				const headers = isMalt
-					? [t("js.inventory.col.name"), t("js.inventory.col.type"), t("js.inventory.col.producer"), t("js.inventory.col.ebc"), t("js.inventory.col.qty"), t("js.inventory.col.cost"), "", ""]
-					: [t("js.inventory.col.name"), t("js.inventory.col.type"), t("js.inventory.col.producer"), t("js.inventory.col.unit"), t("js.inventory.col.qty"), t("js.inventory.col.cost"), "", ""];
+					? [
+							t("js.inventory.col.name"),
+							t("js.inventory.col.type"),
+							t("js.inventory.col.producer"),
+							t("js.inventory.col.supplier"),
+							t("js.inventory.col.ebc"),
+							t("js.inventory.col.qty"),
+							t("js.inventory.col.cost"),
+							t("js.inventory.col.effective_cost"),
+							"",
+							"",
+					  ]
+					: [
+							t("js.inventory.col.name"),
+							t("js.inventory.col.type"),
+							t("js.inventory.col.producer"),
+							t("js.inventory.col.supplier"),
+							t("js.inventory.col.unit"),
+							t("js.inventory.col.qty"),
+							t("js.inventory.col.cost"),
+							t("js.inventory.col.effective_cost"),
+							"",
+							"",
+					  ];
 				list.innerHTML = table(
 					headers,
 					items
@@ -1754,6 +1839,8 @@
 								  '">' + esc(t("common.delete")) + "</button>"
 								: "";
 							const actions = [orderBtn, editBtn, deleteBtn].filter(Boolean).join(" ");
+							const effective =
+								i.effective_cost_price != null ? i.effective_cost_price : i.cost_price;
 							const cells = isMalt
 								? "<td>" +
 								  esc(i.name) +
@@ -1762,11 +1849,15 @@
 								  "</td><td>" +
 								  esc(i.producer || "") +
 								  "</td><td>" +
+								  esc(i.supplier_name || "—") +
+								  "</td><td>" +
 								  ebc +
 								  "</td><td>" +
 								  i.qty +
 								  "</td><td>" +
 								  i.cost_price +
+								  "</td><td>" +
+								  effective +
 								  "</td><td>" +
 								  linkCell +
 								  "</td><td>" +
@@ -1779,11 +1870,15 @@
 								  "</td><td>" +
 								  esc(i.producer || "") +
 								  "</td><td>" +
+								  esc(i.supplier_name || "—") +
+								  "</td><td>" +
 								  esc(i.unit) +
 								  "</td><td>" +
 								  i.qty +
 								  "</td><td>" +
 								  i.cost_price +
+								  "</td><td>" +
+								  effective +
 								  "</td><td>" +
 								  linkCell +
 								  "</td><td>" +
@@ -2051,6 +2146,9 @@
 				await appInfo({ title: noticeTitle(), message: e.message });
 			}
 		});
+		form.addEventListener("input", updateEffectiveHint);
+		form.addEventListener("change", updateEffectiveHint);
+		await loadSuppliers();
 		refresh();
 	}
 
@@ -5059,6 +5157,169 @@
 					body: JSON.stringify({
 						name: String(values.name).trim(),
 						multiplier: parseFloat(values.multiplier),
+					}),
+				});
+				refresh();
+			} catch (e) {
+				await appInfo({ title: noticeTitle(), message: e.message });
+			}
+		});
+		refresh();
+	}
+
+	async function loadSettingsSuppliers(panel) {
+		const listEl = panel.querySelector("#settings-suppliers");
+
+		async function refresh() {
+			try {
+				const suppliers = await api("/api/settings/suppliers");
+				listEl.innerHTML = table(
+					[
+						t("common.id"),
+						t("common.name"),
+						t("settings.suppliers.adjust_percent"),
+						t("common.active"),
+						"",
+					],
+					(suppliers || [])
+						.map((s) => {
+							const toggleLabel = s.active ? t("js.settings.disable") : t("js.settings.enable");
+							return (
+								"<tr><td>" +
+								s.id +
+								"</td><td>" +
+								esc(s.name) +
+								"</td><td>" +
+								s.adjust_percent +
+								"</td><td>" +
+								(s.active ? t("js.settings.yes") : t("js.settings.no")) +
+								'</td><td><button type="button" class="btn btn--small" data-supplier-edit="' +
+								s.id +
+								'" data-name="' +
+								esc(s.name) +
+								'" data-adjust="' +
+								s.adjust_percent +
+								'">' +
+								esc(t("common.edit")) +
+								'</button> <button type="button" class="btn btn--small" data-supplier-active="' +
+								s.id +
+								'" data-active="' +
+								(s.active ? "0" : "1") +
+								'">' +
+								toggleLabel +
+								'</button> <button type="button" class="btn btn--small" data-supplier-delete="' +
+								s.id +
+								'">' +
+								esc(t("common.remove")) +
+								"</button></td></tr>"
+							);
+						})
+						.join("")
+				);
+			} catch (e) {
+				listEl.textContent = e.message;
+			}
+		}
+
+		panel.addEventListener("click", async (ev) => {
+			const el = ev.target;
+			if (!(el instanceof HTMLElement)) {
+				return;
+			}
+			if (el.hasAttribute("data-supplier-edit")) {
+				const id = el.getAttribute("data-supplier-edit");
+				const values = await appPrompt({
+					title: t("js.settings.edit_supplier"),
+					fields: [
+						{
+							name: "name",
+							label: t("js.settings.supplier_name"),
+							type: "text",
+							value: el.getAttribute("data-name") || "",
+						},
+						{
+							name: "adjust_percent",
+							label: t("js.settings.adjust_percent"),
+							type: "number",
+							step: "any",
+							value: el.getAttribute("data-adjust") || "0",
+						},
+					],
+				});
+				if (!values || !String(values.name || "").trim()) {
+					return;
+				}
+				try {
+					await api("/api/settings/suppliers/" + id, {
+						method: "PUT",
+						body: JSON.stringify({
+							name: String(values.name).trim(),
+							adjust_percent: parseFloat(values.adjust_percent) || 0,
+						}),
+					});
+					refresh();
+				} catch (e) {
+					await appInfo({ title: noticeTitle(), message: e.message });
+				}
+				return;
+			}
+			if (el.hasAttribute("data-supplier-active")) {
+				try {
+					await api(
+						"/api/settings/suppliers/" + el.getAttribute("data-supplier-active") + "/active",
+						{
+							method: "POST",
+							body: JSON.stringify({ active: el.getAttribute("data-active") === "1" }),
+						}
+					);
+					refresh();
+				} catch (e) {
+					await appInfo({ title: noticeTitle(), message: e.message });
+				}
+				return;
+			}
+			if (el.hasAttribute("data-supplier-delete")) {
+				const id = el.getAttribute("data-supplier-delete");
+				const ok = await appConfirm({
+					title: t("js.settings.remove_supplier_title"),
+					message: t("js.settings.remove_supplier_message", { id: id }),
+				});
+				if (!ok) {
+					return;
+				}
+				try {
+					await api("/api/settings/suppliers/" + id, { method: "DELETE" });
+					refresh();
+				} catch (e) {
+					await appInfo({ title: noticeTitle(), message: e.message });
+				}
+				return;
+			}
+			if (el.getAttribute("data-action") !== "settings-supplier-new") {
+				return;
+			}
+			const values = await appPrompt({
+				title: t("js.settings.new_supplier"),
+				fields: [
+					{ name: "name", label: t("js.settings.supplier_name"), type: "text" },
+					{
+						name: "adjust_percent",
+						label: t("js.settings.adjust_percent"),
+						type: "number",
+						step: "any",
+						value: "0",
+					},
+				],
+			});
+			if (!values || !String(values.name || "").trim()) {
+				return;
+			}
+			try {
+				await api("/api/settings/suppliers", {
+					method: "POST",
+					body: JSON.stringify({
+						name: String(values.name).trim(),
+						adjust_percent: parseFloat(values.adjust_percent) || 0,
 					}),
 				});
 				refresh();

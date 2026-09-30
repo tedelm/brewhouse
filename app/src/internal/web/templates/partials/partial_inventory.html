@@ -18,6 +18,7 @@
 			<label><span data-i18n="common.name">Name</span> <input name="name" required></label>
 			<label class="inventory-field--catalog"><span data-i18n="common.type">Type</span> <input name="item_type" placeholder="Type" data-i18n-attr="placeholder:inventory.type_placeholder"></label>
 			<label class="inventory-field--catalog"><span data-i18n="common.producer">Producer</span> <input name="producer"></label>
+			<label class="inventory-field--catalog"><span data-i18n="common.supplier">Supplier</span> <select name="supplier_id"><option value="">—</option></select></label>
 			<label class="inventory-field--malt"><span data-i18n="inventory.min_ebc">Min EBC</span> <input name="min_ebc" type="number" step="any" value="0"></label>
 			<label class="inventory-field--malt"><span data-i18n="inventory.max_ebc">Max EBC</span> <input name="max_ebc" type="number" step="any" value="0"></label>
 			<label class="inventory-field--yeast"><span data-i18n="inventory.pitch_min">Pitch min (g/hl)</span> <input name="pitch_min_g_hl" type="number" step="any" min="0" value="0"></label>
@@ -29,6 +30,7 @@
 			<label><span data-i18n="common.unit">Unit</span> <input name="unit" value="kg"></label>
 			<label><span data-i18n="common.qty">Qty</span> <input name="qty" type="number" step="any" value="0"></label>
 			<label><span data-i18n="inventory.cost_price">Cost price ({currency})</span> <input name="cost_price" type="number" step="any" value="0"></label>
+			<p class="panel__hint" id="inventory-effective-cost" hidden></p>
 			<p class="panel__error" id="inventory-error" hidden></p>
 			<div class="panel__dialog-actions">
 				<button type="submit" class="btn btn--primary" value="save" data-i18n="common.save">Save</button>

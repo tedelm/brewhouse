@@ -72,6 +72,12 @@ func migrate(db *sql.DB) error {
 			data BLOB NOT NULL,
 			FOREIGN KEY (brewery_id) REFERENCES breweries(id) ON DELETE CASCADE
 		)`,
+		`CREATE TABLE IF NOT EXISTS suppliers (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL UNIQUE,
+			adjust_percent REAL NOT NULL DEFAULT 0,
+			active INTEGER NOT NULL DEFAULT 1
+		)`,
 		`CREATE TABLE IF NOT EXISTS inventory_items (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			category TEXT NOT NULL,
@@ -89,6 +95,7 @@ func migrate(db *sql.DB) error {
 			pack_size_g REAL NOT NULL DEFAULT 0,
 			temp_min_c REAL NOT NULL DEFAULT 0,
 			temp_max_c REAL NOT NULL DEFAULT 0,
+			supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL,
 			UNIQUE(category, name, producer)
 		)`,
 		`CREATE TABLE IF NOT EXISTS inventory_orders (
@@ -267,6 +274,9 @@ func migrate(db *sql.DB) error {
 	if err := ensureYeastPitchColumns(db); err != nil {
 		return fmt.Errorf("ensure yeast pitch columns: %w", err)
 	}
+	if err := ensureInventorySupplierColumn(db); err != nil {
+		return fmt.Errorf("ensure inventory supplier_id: %w", err)
+	}
 	if err := migrateOrderStatuses(db); err != nil {
 		return fmt.Errorf("migrate order statuses: %w", err)
 	}
@@ -296,6 +306,12 @@ func migrate(db *sql.DB) error {
 		return fmt.Errorf("ensure known yeast pitch: %w", err)
 	}
 	return nil
+}
+
+// ensureInventorySupplierColumn adds nullable supplier_id for purchase cost adjustments.
+func ensureInventorySupplierColumn(db *sql.DB) error {
+	return addColumnIfMissing(db, "inventory_items", "supplier_id",
+		`ALTER TABLE inventory_items ADD COLUMN supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL`)
 }
 
 // ensureYeastPitchColumns adds pitch-rate columns used by the yeast calculator.

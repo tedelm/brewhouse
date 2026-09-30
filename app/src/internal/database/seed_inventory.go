@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	_ "embed"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -27,6 +28,9 @@ var miscCSV []byte
 var equipmentCSV []byte
 
 func seedInventoryCatalogs(db *sql.DB) error {
+	if err := seedDefaultSupplier(db); err != nil {
+		return err
+	}
 	if err := seedInventoryExportCSV(db, "malt", maltCSV); err != nil {
 		return err
 	}
@@ -45,6 +49,32 @@ func seedInventoryCatalogs(db *sql.DB) error {
 	return nil
 }
 
+const defaultSupplierName = "mr malt"
+
+func seedDefaultSupplier(db *sql.DB) error {
+	_, err := db.Exec(
+		`INSERT OR IGNORE INTO suppliers (name, adjust_percent, active) VALUES (?, 0, 1)`,
+		defaultSupplierName,
+	)
+	return err
+}
+
+func supplierIDByName(db *sql.DB, name string) (sql.NullInt64, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return sql.NullInt64{}, nil
+	}
+	var id int64
+	err := db.QueryRow(`SELECT id FROM suppliers WHERE name = ?`, name).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return sql.NullInt64{}, fmt.Errorf("unknown supplier %q", name)
+	}
+	if err != nil {
+		return sql.NullInt64{}, err
+	}
+	return sql.NullInt64{Int64: id, Valid: true}, nil
+}
+
 // seedInventoryExportCSV inserts rows from inventory export/import CSV when the category is empty.
 func seedInventoryExportCSV(db *sql.DB, category string, data []byte) error {
 	var count int
@@ -60,15 +90,21 @@ func seedInventoryExportCSV(db *sql.DB, category string, data []byte) error {
 		return fmt.Errorf("parse %s csv: %w", category, err)
 	}
 	for _, row := range rows {
+		supplierID, err := supplierIDByName(db, row.supplier)
+		if err != nil {
+			return fmt.Errorf("supplier for %s %q: %w", category, row.name, err)
+		}
 		if _, err := db.Exec(
 			`INSERT INTO inventory_items (
 				category, name, unit, qty, cost_price, producer, item_type,
 				min_ebc, max_ebc, link,
-				pitch_min_g_hl, pitch_max_g_hl, pack_size_g, temp_min_c, temp_max_c
-			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				pitch_min_g_hl, pitch_max_g_hl, pack_size_g, temp_min_c, temp_max_c,
+				supplier_id
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			category, row.name, row.unit, row.qty, row.costPrice, row.producer, row.itemType,
 			row.minEBC, row.maxEBC, row.link,
 			row.pitchMin, row.pitchMax, row.packSize, row.tempMin, row.tempMax,
+			supplierID,
 		); err != nil {
 			return fmt.Errorf("insert %s %q (%s): %w", category, row.name, row.producer, err)
 		}
@@ -77,10 +113,10 @@ func seedInventoryExportCSV(db *sql.DB, category string, data []byte) error {
 }
 
 type inventoryExportSeedRow struct {
-	name, unit, producer, itemType, link string
-	qty, costPrice, minEBC, maxEBC       float64
-	pitchMin, pitchMax, packSize         float64
-	tempMin, tempMax                     float64
+	name, unit, producer, itemType, link, supplier string
+	qty, costPrice, minEBC, maxEBC                 float64
+	pitchMin, pitchMax, packSize                   float64
+	tempMin, tempMax                               float64
 }
 
 func defaultUnitForCategory(category string) string {
@@ -100,14 +136,14 @@ func defaultUnitForCategory(category string) string {
 func inventorySeedColumns(category string) []string {
 	switch category {
 	case "malt":
-		return []string{"category", "name", "unit", "qty", "cost_price", "producer", "item_type", "min_ebc", "max_ebc", "link"}
+		return []string{"category", "name", "unit", "qty", "cost_price", "producer", "supplier", "item_type", "min_ebc", "max_ebc", "link"}
 	case "yeast":
 		return []string{
-			"category", "name", "unit", "qty", "cost_price", "producer", "item_type", "link",
+			"category", "name", "unit", "qty", "cost_price", "producer", "supplier", "item_type", "link",
 			"pitch_min_g_hl", "pitch_max_g_hl", "pack_size_g", "temp_min_c", "temp_max_c",
 		}
 	default:
-		return []string{"category", "name", "unit", "qty", "cost_price", "producer", "item_type", "link"}
+		return []string{"category", "name", "unit", "qty", "cost_price", "producer", "supplier", "item_type", "link"}
 	}
 }
 
@@ -169,6 +205,7 @@ func parseInventoryExportCSV(data []byte, category string) ([]inventoryExportSee
 			producer:  producer,
 			itemType:  get(rec, "item_type"),
 			link:      get(rec, "link"),
+			supplier:  get(rec, "supplier"),
 			qty:       parseFloatField(get(rec, "qty")),
 			costPrice: parseFloatField(get(rec, "cost_price")),
 			minEBC:    parseFloatField(get(rec, "min_ebc")),

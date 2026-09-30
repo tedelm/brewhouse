@@ -127,6 +127,11 @@ func inventoryCreateSummary(in InventoryItem) string {
 	if in.Producer != "" {
 		parts = append(parts, "producer="+in.Producer)
 	}
+	if in.SupplierName != "" {
+		parts = append(parts, "supplier="+in.SupplierName)
+	} else if in.SupplierID != nil {
+		parts = append(parts, "supplier_id="+formatLogQty(float64(*in.SupplierID)))
+	}
 	if in.ItemType != "" {
 		parts = append(parts, "item_type="+in.ItemType)
 	}
@@ -159,6 +164,11 @@ func inventoryUpdateSummary(before, after InventoryItem) string {
 	if before.Producer != after.Producer {
 		parts = append(parts, fmt.Sprintf("producer: %q → %q", before.Producer, after.Producer))
 	}
+	beforeSupplier := supplierLogLabel(before)
+	afterSupplier := supplierLogLabel(after)
+	if beforeSupplier != afterSupplier {
+		parts = append(parts, fmt.Sprintf("supplier: %q → %q", beforeSupplier, afterSupplier))
+	}
 	if before.ItemType != after.ItemType {
 		parts = append(parts, fmt.Sprintf("item_type: %q → %q", before.ItemType, after.ItemType))
 	}
@@ -187,4 +197,14 @@ func inventoryUpdateSummary(before, after InventoryItem) string {
 		parts = append(parts, fmt.Sprintf("temp_max_c: %s → %s", formatLogQty(before.TempMaxC), formatLogQty(after.TempMaxC)))
 	}
 	return strings.Join(parts, "; ")
+}
+
+func supplierLogLabel(item InventoryItem) string {
+	if item.SupplierName != "" {
+		return item.SupplierName
+	}
+	if item.SupplierID != nil {
+		return formatLogQty(float64(*item.SupplierID))
+	}
+	return ""
 }

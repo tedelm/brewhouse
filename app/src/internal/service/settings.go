@@ -531,6 +531,160 @@ func (s *SettingsService) DeleteMultiplier(actor Actor, id int64) error {
 	return nil
 }
 
+// --- Suppliers ---
+
+func scanSupplier(scanner interface{ Scan(dest ...any) error }) (*Supplier, error) {
+	s := &Supplier{}
+	var active int
+	if err := scanner.Scan(&s.ID, &s.Name, &s.AdjustPercent, &active); err != nil {
+		return nil, err
+	}
+	s.Active = active != 0
+	return s, nil
+}
+
+// ListSuppliers returns all suppliers.
+func (s *SettingsService) ListSuppliers() ([]Supplier, error) {
+	return s.listSuppliers(false)
+}
+
+// ListActiveSuppliers returns suppliers with active = 1.
+func (s *SettingsService) ListActiveSuppliers() ([]Supplier, error) {
+	return s.listSuppliers(true)
+}
+
+func (s *SettingsService) listSuppliers(activeOnly bool) ([]Supplier, error) {
+	q := `SELECT id, name, adjust_percent, active FROM suppliers`
+	if activeOnly {
+		q += ` WHERE active = 1`
+	}
+	q += ` ORDER BY name`
+	rows, err := s.db.Query(q)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Supplier
+	for rows.Next() {
+		sup, err := scanSupplier(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, *sup)
+	}
+	return out, rows.Err()
+}
+
+func (s *SettingsService) getSupplier(id int64) (*Supplier, error) {
+	sup, err := scanSupplier(s.db.QueryRow(
+		`SELECT id, name, adjust_percent, active FROM suppliers WHERE id = ?`, id,
+	))
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return sup, nil
+}
+
+// GetSupplier returns a supplier by id.
+func (s *SettingsService) GetSupplier(id int64) (*Supplier, error) {
+	return s.getSupplier(id)
+}
+
+// GetSupplierIDByName returns supplier id for an exact name match.
+func (s *SettingsService) GetSupplierIDByName(name string) (int64, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return 0, ErrNotFound
+	}
+	var id int64
+	err := s.db.QueryRow(`SELECT id FROM suppliers WHERE name = ?`, name).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, ErrNotFound
+	}
+	if err != nil {
+		return 0, err
+	}
+	return id, nil
+}
+
+// CreateSupplier inserts a supplier.
+func (s *SettingsService) CreateSupplier(actor Actor, name string, adjustPercent float64) (*Supplier, error) {
+	if err := s.requireAdmin(actor); err != nil {
+		return nil, err
+	}
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, fmt.Errorf("name required")
+	}
+	res, err := s.db.Exec(
+		`INSERT INTO suppliers (name, adjust_percent, active) VALUES (?, ?, 1)`,
+		name, adjustPercent,
+	)
+	if err != nil {
+		return nil, err
+	}
+	id, _ := res.LastInsertId()
+	return s.getSupplier(id)
+}
+
+// UpdateSupplier updates a supplier.
+func (s *SettingsService) UpdateSupplier(actor Actor, id int64, name string, adjustPercent float64) (*Supplier, error) {
+	if err := s.requireAdmin(actor); err != nil {
+		return nil, err
+	}
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil, fmt.Errorf("name required")
+	}
+	_, err := s.db.Exec(
+		`UPDATE suppliers SET name = ?, adjust_percent = ? WHERE id = ?`,
+		name, adjustPercent, id,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return s.getSupplier(id)
+}
+
+// SetSupplierActive enables or disables a supplier.
+func (s *SettingsService) SetSupplierActive(actor Actor, id int64, active bool) (*Supplier, error) {
+	if err := s.requireAdmin(actor); err != nil {
+		return nil, err
+	}
+	val := 0
+	if active {
+		val = 1
+	}
+	res, err := s.db.Exec(`UPDATE suppliers SET active = ? WHERE id = ?`, val, id)
+	if err != nil {
+		return nil, err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return nil, ErrNotFound
+	}
+	return s.getSupplier(id)
+}
+
+// DeleteSupplier removes a supplier (inventory items keep rows with supplier_id cleared).
+func (s *SettingsService) DeleteSupplier(actor Actor, id int64) error {
+	if err := s.requireAdmin(actor); err != nil {
+		return err
+	}
+	res, err := s.db.Exec(`DELETE FROM suppliers WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 // --- Hygiene routines ---
 
 // ListHygieneRoutines returns hygiene routines.

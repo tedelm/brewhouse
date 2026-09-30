@@ -116,6 +116,7 @@ type InventoryItemRequest struct {
 	PackSizeG   float64 `json:"pack_size_g"`
 	TempMinC    float64 `json:"temp_min_c"`
 	TempMaxC    float64 `json:"temp_max_c"`
+	SupplierID  *int64  `json:"supplier_id"`
 }
 
 // InventoryLogResponse is a paginated change-history page for one inventory item.
@@ -215,6 +216,12 @@ type TaxConfigRequest struct {
 type MultiplierRequest struct {
 	Name       string  `json:"name"`
 	Multiplier float64 `json:"multiplier"`
+}
+
+// SupplierRequest is create/update for suppliers.
+type SupplierRequest struct {
+	Name          string  `json:"name"`
+	AdjustPercent float64 `json:"adjust_percent"`
 }
 
 // ActiveRequest toggles active state for tanks or multipliers.

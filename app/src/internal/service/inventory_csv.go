@@ -12,18 +12,31 @@ import (
 
 // inventoryCSVColumns returns export/import columns relevant for the category.
 func inventoryCSVColumns(category string) []string {
-	base := []string{"category", "name", "unit", "qty", "cost_price", "producer", "item_type", "link"}
+	base := []string{"category", "name", "unit", "qty", "cost_price", "producer", "supplier", "item_type", "link"}
 	switch category {
 	case CategoryMalt:
-		return []string{"category", "name", "unit", "qty", "cost_price", "producer", "item_type", "min_ebc", "max_ebc", "link"}
+		return []string{"category", "name", "unit", "qty", "cost_price", "producer", "supplier", "item_type", "min_ebc", "max_ebc", "link"}
 	case CategoryYeast:
 		return []string{
-			"category", "name", "unit", "qty", "cost_price", "producer", "item_type", "link",
+			"category", "name", "unit", "qty", "cost_price", "producer", "supplier", "item_type", "link",
 			"pitch_min_g_hl", "pitch_max_g_hl", "pack_size_g", "temp_min_c", "temp_max_c",
 		}
 	default:
 		return base
 	}
+}
+
+// inventoryCSVRequiredColumns are headers required on import (supplier is optional).
+func inventoryCSVRequiredColumns(category string) []string {
+	cols := inventoryCSVColumns(category)
+	out := make([]string, 0, len(cols))
+	for _, c := range cols {
+		if c == "supplier" {
+			continue
+		}
+		out = append(out, c)
+	}
+	return out
 }
 
 func inventoryCSVRow(item InventoryItem, cols []string) []string {
@@ -42,6 +55,8 @@ func inventoryCSVRow(item InventoryItem, cols []string) []string {
 			out[i] = formatCSVFloat(item.CostPrice)
 		case "producer":
 			out[i] = item.Producer
+		case "supplier":
+			out[i] = item.SupplierName
 		case "item_type":
 			out[i] = item.ItemType
 		case "min_ebc":
@@ -151,7 +166,7 @@ func (s *InventoryService) ImportInventoryCSV(actor Actor, category string, data
 	if len(records) == 0 {
 		return ImportResult{}, fmt.Errorf("empty csv")
 	}
-	idx, err := mapCSVHeader(records[0], inventoryCSVColumns(category))
+	idx, err := mapCSVHeader(records[0], inventoryCSVRequiredColumns(category))
 	if err != nil {
 		return ImportResult{}, err
 	}
@@ -191,6 +206,7 @@ func (s *InventoryService) importInventoryRow(actor Actor, category string, idx 
 	producer := strings.TrimSpace(csvCol(rec, idx, "producer"))
 	itemType := strings.TrimSpace(csvCol(rec, idx, "item_type"))
 	link := strings.TrimSpace(csvCol(rec, idx, "link"))
+	supplierName := strings.TrimSpace(csvCol(rec, idx, "supplier"))
 
 	qty, err := parseCSVFloat(csvCol(rec, idx, "qty"))
 	if err != nil {
@@ -229,6 +245,22 @@ func (s *InventoryService) importInventoryRow(actor Actor, category string, idx 
 		return "", fmt.Errorf("temp_max_c: %w", err)
 	}
 
+	var supplierID *int64
+	_, hasSupplierCol := idx["supplier"]
+	if hasSupplierCol {
+		if supplierName != "" {
+			var id int64
+			err := s.db.QueryRow(`SELECT id FROM suppliers WHERE name = ?`, supplierName).Scan(&id)
+			if errors.Is(err, sql.ErrNoRows) {
+				return "", fmt.Errorf("unknown supplier %q", supplierName)
+			}
+			if err != nil {
+				return "", err
+			}
+			supplierID = &id
+		}
+	}
+
 	in := InventoryItem{
 		Category:    category,
 		Name:        name,
@@ -245,6 +277,7 @@ func (s *InventoryService) importInventoryRow(actor Actor, category string, idx 
 		PackSizeG:   packSize,
 		TempMinC:    tempMin,
 		TempMaxC:    tempMax,
+		SupplierID:  supplierID,
 	}
 
 	existing, err := s.getByCategoryNameProducer(category, name, producer)
@@ -257,6 +290,9 @@ func (s *InventoryService) importInventoryRow(actor Actor, category string, idx 
 	if err != nil {
 		return "", err
 	}
+	if !hasSupplierCol {
+		in.SupplierID = existing.SupplierID
+	}
 	if _, err := s.Update(actor, existing.ID, in); err != nil {
 		return "", err
 	}
@@ -265,7 +301,7 @@ func (s *InventoryService) importInventoryRow(actor Actor, category string, idx 
 
 func (s *InventoryService) getByCategoryNameProducer(category, name, producer string) (*InventoryItem, error) {
 	item, err := scanInventoryItem(s.db.QueryRow(
-		`SELECT `+inventorySelectCols+` FROM inventory_items WHERE category = ? AND name = ? AND producer = ?`,
+		`SELECT `+inventorySelectCols+` FROM `+inventoryFrom+` WHERE i.category = ? AND i.name = ? AND i.producer = ?`,
 		category, name, producer,
 	))
 	if errors.Is(err, sql.ErrNoRows) {

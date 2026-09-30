@@ -490,6 +490,7 @@ func (h *Handler) Inventory(w http.ResponseWriter, r *http.Request) {
 				PackSizeG:   req.PackSizeG,
 				TempMinC:    req.TempMinC,
 				TempMaxC:    req.TempMaxC,
+				SupplierID:  req.SupplierID,
 			})
 			if err != nil {
 				h.writeErr(w, err)
@@ -633,6 +634,7 @@ func (h *Handler) Inventory(w http.ResponseWriter, r *http.Request) {
 			PackSizeG:   req.PackSizeG,
 			TempMinC:    req.TempMinC,
 			TempMaxC:    req.TempMaxC,
+			SupplierID:  req.SupplierID,
 		})
 		if err != nil {
 			h.writeErr(w, err)

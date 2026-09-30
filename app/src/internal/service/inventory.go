@@ -4,12 +4,20 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"math"
 	"time"
 
 	"brewhouse/internal/database"
 )
 
-const inventorySelectCols = `id, category, name, unit, qty, cost_price, producer, item_type, min_ebc, max_ebc, link, pitch_min_g_hl, pitch_max_g_hl, pack_size_g, temp_min_c, temp_max_c`
+const inventorySelectCols = `i.id, i.category, i.name, i.unit, i.qty, i.cost_price, i.producer, i.item_type, i.min_ebc, i.max_ebc, i.link, i.pitch_min_g_hl, i.pitch_max_g_hl, i.pack_size_g, i.temp_min_c, i.temp_max_c, i.supplier_id, COALESCE(s.name, ''), COALESCE(s.adjust_percent, 0)`
+
+const inventoryFrom = `inventory_items i LEFT JOIN suppliers s ON s.id = i.supplier_id`
+
+// EffectiveCost returns base cost adjusted by a supplier percentage.
+func EffectiveCost(base, adjustPercent float64) float64 {
+	return math.Round(base*(1+adjustPercent/100)*1e6) / 1e6
+}
 
 // InventoryService manages shared stock and wishlist orders.
 type InventoryService struct {
@@ -26,18 +34,43 @@ func scanInventoryItem(scanner interface {
 	Scan(dest ...any) error
 }) (InventoryItem, error) {
 	var item InventoryItem
+	var supplierID sql.NullInt64
 	err := scanner.Scan(
 		&item.ID, &item.Category, &item.Name, &item.Unit, &item.Qty, &item.CostPrice,
 		&item.Producer, &item.ItemType, &item.MinEBC, &item.MaxEBC, &item.Link,
 		&item.PitchMinGHl, &item.PitchMaxGHl, &item.PackSizeG, &item.TempMinC, &item.TempMaxC,
+		&supplierID, &item.SupplierName, &item.AdjustPercent,
 	)
-	return item, err
+	if err != nil {
+		return item, err
+	}
+	if supplierID.Valid {
+		id := supplierID.Int64
+		item.SupplierID = &id
+	}
+	item.EffectiveCostPrice = EffectiveCost(item.CostPrice, item.AdjustPercent)
+	return item, nil
+}
+
+func (s *InventoryService) resolveSupplierID(id *int64) (*int64, error) {
+	if id == nil || *id == 0 {
+		return nil, nil
+	}
+	var exists int64
+	err := s.db.QueryRow(`SELECT id FROM suppliers WHERE id = ?`, *id).Scan(&exists)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("supplier not found")
+	}
+	if err != nil {
+		return nil, err
+	}
+	return id, nil
 }
 
 // ListByCategory returns inventory items for a category.
 func (s *InventoryService) ListByCategory(category string) ([]InventoryItem, error) {
 	rows, err := s.db.Query(
-		`SELECT `+inventorySelectCols+` FROM inventory_items WHERE category = ? ORDER BY name, producer`,
+		`SELECT `+inventorySelectCols+` FROM `+inventoryFrom+` WHERE i.category = ? ORDER BY i.name, i.producer`,
 		category,
 	)
 	if err != nil {
@@ -59,7 +92,7 @@ func (s *InventoryService) ListByCategory(category string) ([]InventoryItem, err
 // ListAll returns all inventory items.
 func (s *InventoryService) ListAll() ([]InventoryItem, error) {
 	rows, err := s.db.Query(
-		`SELECT ` + inventorySelectCols + ` FROM inventory_items ORDER BY category, name, producer`,
+		`SELECT ` + inventorySelectCols + ` FROM ` + inventoryFrom + ` ORDER BY i.category, i.name, i.producer`,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list inventory: %w", err)
@@ -80,7 +113,7 @@ func (s *InventoryService) ListAll() ([]InventoryItem, error) {
 // Get returns one inventory item.
 func (s *InventoryService) Get(id int64) (*InventoryItem, error) {
 	item, err := scanInventoryItem(s.db.QueryRow(
-		`SELECT `+inventorySelectCols+` FROM inventory_items WHERE id = ?`, id,
+		`SELECT `+inventorySelectCols+` FROM `+inventoryFrom+` WHERE i.id = ?`, id,
 	))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
@@ -109,13 +142,17 @@ func (s *InventoryService) Create(actor Actor, in InventoryItem) (*InventoryItem
 	if in.Unit == "" {
 		in.Unit = "kg"
 	}
+	supplierID, err := s.resolveSupplierID(in.SupplierID)
+	if err != nil {
+		return nil, err
+	}
 	res, err := s.db.Exec(
 		`INSERT INTO inventory_items (category, name, unit, qty, cost_price, producer, item_type, min_ebc, max_ebc, link,
-			pitch_min_g_hl, pitch_max_g_hl, pack_size_g, temp_min_c, temp_max_c)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			pitch_min_g_hl, pitch_max_g_hl, pack_size_g, temp_min_c, temp_max_c, supplier_id)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		in.Category, in.Name, in.Unit, in.Qty, in.CostPrice,
 		in.Producer, in.ItemType, in.MinEBC, in.MaxEBC, in.Link,
-		in.PitchMinGHl, in.PitchMaxGHl, in.PackSizeG, in.TempMinC, in.TempMaxC,
+		in.PitchMinGHl, in.PitchMaxGHl, in.PackSizeG, in.TempMinC, in.TempMaxC, supplierID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("insert inventory: %w", err)
@@ -146,14 +183,20 @@ func (s *InventoryService) Update(actor Actor, id int64, in InventoryItem) (*Inv
 	if err != nil {
 		return nil, err
 	}
+	supplierID, err := s.resolveSupplierID(in.SupplierID)
+	if err != nil {
+		return nil, err
+	}
 	_, err = s.db.Exec(
 		`UPDATE inventory_items SET name = ?, unit = ?, qty = ?, cost_price = ?,
 		 producer = ?, item_type = ?, min_ebc = ?, max_ebc = ?, link = ?,
-		 pitch_min_g_hl = ?, pitch_max_g_hl = ?, pack_size_g = ?, temp_min_c = ?, temp_max_c = ?
+		 pitch_min_g_hl = ?, pitch_max_g_hl = ?, pack_size_g = ?, temp_min_c = ?, temp_max_c = ?,
+		 supplier_id = ?
 		 WHERE id = ?`,
 		in.Name, in.Unit, in.Qty, in.CostPrice,
 		in.Producer, in.ItemType, in.MinEBC, in.MaxEBC, in.Link,
-		in.PitchMinGHl, in.PitchMaxGHl, in.PackSizeG, in.TempMinC, in.TempMaxC, id,
+		in.PitchMinGHl, in.PitchMaxGHl, in.PackSizeG, in.TempMinC, in.TempMaxC,
+		supplierID, id,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("update inventory: %w", err)
@@ -334,15 +377,20 @@ func (s *InventoryService) insertOrderLineTx(db execQuerier, orderID, itemID int
 		return fmt.Errorf("qty must be positive")
 	}
 	item := &InventoryItem{}
+	var adjustPercent float64
 	err := db.QueryRow(
-		`SELECT id, category, name, cost_price FROM inventory_items WHERE id = ?`, itemID,
-	).Scan(&item.ID, &item.Category, &item.Name, &item.CostPrice)
+		`SELECT i.id, i.category, i.name, i.cost_price, COALESCE(s.adjust_percent, 0)
+		 FROM inventory_items i
+		 LEFT JOIN suppliers s ON s.id = i.supplier_id
+		 WHERE i.id = ?`, itemID,
+	).Scan(&item.ID, &item.Category, &item.Name, &item.CostPrice, &adjustPercent)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrNotFound
 	}
 	if err != nil {
 		return fmt.Errorf("get inventory: %w", err)
 	}
+	effectiveCost := EffectiveCost(item.CostPrice, adjustPercent)
 	if breweryID != nil {
 		var bid int64
 		err = db.QueryRow(`SELECT id FROM breweries WHERE id = ?`, *breweryID).Scan(&bid)
@@ -375,7 +423,7 @@ func (s *InventoryService) insertOrderLineTx(db execQuerier, orderID, itemID int
 	_, err = db.Exec(
 		`INSERT INTO inventory_order_lines (order_id, inventory_item_id, item_name, category, qty, cost_price, brewery_id, recipe_id)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		orderID, item.ID, item.Name, item.Category, qty, item.CostPrice, breweryID, recipeID,
+		orderID, item.ID, item.Name, item.Category, qty, effectiveCost, breweryID, recipeID,
 	)
 	if err != nil {
 		return fmt.Errorf("insert order line: %w", err)
