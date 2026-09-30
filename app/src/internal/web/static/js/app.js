@@ -1458,6 +1458,7 @@
 	async function loadInventory(panel) {
 		const category = panel.getAttribute("data-category");
 		const isMalt = category === "malt";
+		const isYeast = category === "yeast";
 		const defaultUnit = category === "hops" ? "g" : category === "yeast" ? "pack" : category === "equipment" ? "pcs" : "kg";
 		const list = panel.querySelector("#inventory-list");
 		const dialog = panel.querySelector("#inventory-dialog");
@@ -1472,6 +1473,9 @@
 		panel.querySelectorAll(".inventory-field--malt").forEach((el) => {
 			el.classList.toggle("is-role-hidden", !isMalt);
 		});
+		panel.querySelectorAll(".inventory-field--yeast").forEach((el) => {
+			el.classList.toggle("is-role-hidden", !isYeast);
+		});
 
 		function fillForm(item) {
 			form.reset();
@@ -1481,6 +1485,16 @@
 			form.elements.namedItem("producer").value = (item && item.producer) || "";
 			form.elements.namedItem("min_ebc").value = item && item.min_ebc != null ? item.min_ebc : 0;
 			form.elements.namedItem("max_ebc").value = item && item.max_ebc != null ? item.max_ebc : 0;
+			form.elements.namedItem("pitch_min_g_hl").value =
+				item && item.pitch_min_g_hl != null ? item.pitch_min_g_hl : 0;
+			form.elements.namedItem("pitch_max_g_hl").value =
+				item && item.pitch_max_g_hl != null ? item.pitch_max_g_hl : 0;
+			form.elements.namedItem("pack_size_g").value =
+				item && item.pack_size_g != null ? item.pack_size_g : 0;
+			form.elements.namedItem("temp_min_c").value =
+				item && item.temp_min_c != null ? item.temp_min_c : 0;
+			form.elements.namedItem("temp_max_c").value =
+				item && item.temp_max_c != null ? item.temp_max_c : 0;
 			form.elements.namedItem("link").value = (item && item.link) || "";
 			form.elements.namedItem("unit").value = (item && item.unit) || defaultUnit;
 			form.elements.namedItem("qty").value = item && item.qty != null ? item.qty : 0;
@@ -1502,6 +1516,11 @@
 				item_type: fd.get("item_type") || "",
 				min_ebc: parseFloat(fd.get("min_ebc")) || 0,
 				max_ebc: parseFloat(fd.get("max_ebc")) || 0,
+				pitch_min_g_hl: parseFloat(fd.get("pitch_min_g_hl")) || 0,
+				pitch_max_g_hl: parseFloat(fd.get("pitch_max_g_hl")) || 0,
+				pack_size_g: parseFloat(fd.get("pack_size_g")) || 0,
+				temp_min_c: parseFloat(fd.get("temp_min_c")) || 0,
+				temp_max_c: parseFloat(fd.get("temp_max_c")) || 0,
 				link: fd.get("link") || "",
 			};
 		}
@@ -2673,6 +2692,19 @@
 	async function loadToolsCalculators(panel) {
 		// Metric yield: points·L/kg (DME ≈ 44 PPG → ~370; LME ≈ 36 PPG → ~300).
 		const YIELD = { dme: 370, lme: 300 };
+		/** @type {Map<string, object>} */
+		const pitchYeastById = new Map();
+
+		function yeastPitchConfigured(item) {
+			return (
+				item &&
+				item.pitch_min_g_hl > 0 &&
+				item.pitch_max_g_hl >= item.pitch_min_g_hl &&
+				item.pack_size_g > 0 &&
+				item.temp_max_c > 0 &&
+				item.temp_max_c >= item.temp_min_c
+			);
+		}
 
 		function extractYield(type) {
 			return YIELD[type] || YIELD.dme;
@@ -2686,8 +2718,17 @@
 			return parseFloat(form.querySelector('[name="' + name + '"]').value);
 		}
 
+		function fmtG(g) {
+			return (Math.round(g * 10) / 10).toFixed(1) + " g";
+		}
+
+		function fmtTempRange(minC, maxC) {
+			return minC + "–" + maxC + " °C";
+		}
+
 		let taxCfg = { rate_sek: 2.28, free_max_abv: 2.8, discount: 1.0 };
 		const taxCfgEl = panel.querySelector("#calc-tax-config");
+		const yeastSelect = panel.querySelector("#calc-pitch-yeast");
 
 		function updateABV() {
 			const form = panel.querySelector("#calc-abv-form");
@@ -2770,11 +2811,80 @@
 			finalEl.textContent = finalVol.toFixed(2) + " L";
 		}
 
+		function clearPitchResults() {
+			const infoEl = panel.querySelector("#calc-pitch-info");
+			const rangeEl = panel.querySelector("#calc-pitch-range");
+			const selectedEl = panel.querySelector("#calc-pitch-selected");
+			const packsEl = panel.querySelector("#calc-pitch-packs");
+			const tempEl = panel.querySelector("#calc-pitch-temp");
+			if (infoEl) infoEl.textContent = "—";
+			if (rangeEl) rangeEl.textContent = "—";
+			if (selectedEl) selectedEl.textContent = "—";
+			if (packsEl) packsEl.textContent = "—";
+			if (tempEl) tempEl.textContent = "—";
+		}
+
+		function updatePitch() {
+			const form = panel.querySelector("#calc-pitch-form");
+			const infoEl = panel.querySelector("#calc-pitch-info");
+			const rangeEl = panel.querySelector("#calc-pitch-range");
+			const selectedEl = panel.querySelector("#calc-pitch-selected");
+			const packsEl = panel.querySelector("#calc-pitch-packs");
+			const tempEl = panel.querySelector("#calc-pitch-temp");
+			const yeastId = form.querySelector('[name="yeast"]').value;
+			const pitchLevel = form.querySelector('[name="pitch"]').value;
+			const vol = num(form, "volume");
+			const item = pitchYeastById.get(String(yeastId));
+			if (!item) {
+				clearPitchResults();
+				return;
+			}
+			const tempC = fmtTempRange(item.temp_min_c, item.temp_max_c);
+			if (infoEl) {
+				infoEl.textContent =
+					item.name +
+					(item.item_type ? " · " + item.item_type : "") +
+					" · " +
+					item.pitch_min_g_hl +
+					"–" +
+					item.pitch_max_g_hl +
+					" g/hl · pack " +
+					item.pack_size_g +
+					" g · " +
+					tempC;
+			}
+			if (Number.isNaN(vol) || vol <= 0) {
+				rangeEl.textContent = "—";
+				selectedEl.textContent = "—";
+				packsEl.textContent = "—";
+				tempEl.textContent = tempC;
+				return;
+			}
+			const hl = vol / 100;
+			const minG = hl * item.pitch_min_g_hl;
+			const maxG = hl * item.pitch_max_g_hl;
+			const midG = (minG + maxG) / 2;
+			let selectedG = midG;
+			if (pitchLevel === "low") {
+				selectedG = minG;
+			} else if (pitchLevel === "high") {
+				selectedG = maxG;
+			}
+			const packsExact = selectedG / item.pack_size_g;
+			const packsCeil = Math.ceil(packsExact);
+			rangeEl.textContent = fmtG(minG) + "–" + fmtG(maxG);
+			selectedEl.textContent = fmtG(selectedG);
+			packsEl.textContent =
+				packsCeil + " pack" + (packsCeil === 1 ? "" : "s") + " (" + packsExact.toFixed(2) + ")";
+			tempEl.textContent = tempC;
+		}
+
 		function refreshAll() {
 			updateABV();
 			updateTax();
 			updateExtract();
 			updateDilute();
+			updatePitch();
 		}
 
 		panel.addEventListener("input", (ev) => {
@@ -2794,6 +2904,9 @@
 			if (t.closest("#calc-dilute-form")) {
 				updateDilute();
 			}
+			if (t.closest("#calc-pitch-form")) {
+				updatePitch();
+			}
 		});
 		panel.addEventListener("change", (ev) => {
 			const t = ev.target;
@@ -2802,6 +2915,9 @@
 			}
 			if (t.closest("#calc-extract-form")) {
 				updateExtract();
+			}
+			if (t.closest("#calc-pitch-form")) {
+				updatePitch();
 			}
 		});
 
@@ -2822,6 +2938,45 @@
 				taxCfgEl.textContent = "Could not load tax config; using defaults. " + e.message;
 			}
 		}
+
+		if (yeastSelect) {
+			try {
+				const items = (await api("/api/inventory?category=yeast")) || [];
+				const configured = items.filter(yeastPitchConfigured);
+				pitchYeastById.clear();
+				yeastSelect.innerHTML = "";
+				if (configured.length === 0) {
+					const opt = document.createElement("option");
+					opt.value = "";
+					opt.textContent = "No yeast with pitch data";
+					opt.disabled = true;
+					opt.selected = true;
+					yeastSelect.appendChild(opt);
+				} else {
+					configured.forEach((item, i) => {
+						pitchYeastById.set(String(item.id), item);
+						const opt = document.createElement("option");
+						opt.value = String(item.id);
+						opt.textContent = item.item_type
+							? item.name + " (" + item.item_type + ")"
+							: item.name;
+						if (i === 0) {
+							opt.selected = true;
+						}
+						yeastSelect.appendChild(opt);
+					});
+				}
+			} catch (e) {
+				yeastSelect.innerHTML = "";
+				const opt = document.createElement("option");
+				opt.value = "";
+				opt.textContent = "Could not load yeast";
+				opt.disabled = true;
+				opt.selected = true;
+				yeastSelect.appendChild(opt);
+			}
+		}
+
 		refreshAll();
 	}
 
@@ -2911,6 +3066,7 @@
 		const sumCost = panel.querySelector("#economy-deliveries-sum-cost");
 		const sumTax = panel.querySelector("#economy-deliveries-sum-tax");
 		const sumNet = panel.querySelector("#economy-deliveries-sum-net");
+		const sumProfit = panel.querySelector("#economy-deliveries-sum-profit");
 		let rows = [];
 
 		const columnHelp = {
@@ -2951,6 +3107,10 @@
 				message:
 					"Invoice net: beer net × multiplier × volume. Tax is separate and not included.",
 			},
+			profit: {
+				title: "Est. profit",
+				message: "Net − Cost. Alcohol tax is separate.",
+			},
 			"net-per-l": {
 				title: "Net SEK/L",
 				message: "Beer net × multiplier (net divided by delivery volume).",
@@ -2967,6 +3127,7 @@
 			{ key: "cost", label: "Cost" },
 			{ key: "tax", label: "Tax" },
 			{ key: "net", label: "Net" },
+			{ key: "profit", label: "Est. profit" },
 			{ key: "net-per-l", label: "Net SEK/L" },
 		];
 
@@ -3011,12 +3172,14 @@
 				sumCost.textContent = "—";
 				sumNet.textContent = "—";
 				sumTax.textContent = "—";
+				sumProfit.textContent = "—";
 				return;
 			}
 			sumVol.textContent = fmtMoney(totals.volume) + " L";
 			sumCost.textContent = fmtMoney(totals.cost);
 			sumTax.textContent = fmtMoney(totals.tax);
 			sumNet.textContent = fmtMoney(totals.net);
+			sumProfit.textContent = fmtMoney(totals.profit);
 		}
 
 		function csvEscape(v) {
@@ -3039,6 +3202,7 @@
 				"Cost",
 				"Tax",
 				"Net",
+				"Est. profit",
 				"Net SEK/L",
 			];
 			const lines = [header.join(",")];
@@ -3047,6 +3211,10 @@
 					r.og != null && r.fg != null
 						? ((r.og - r.fg) * 131.25).toFixed(1)
 						: "";
+				const cost = r.cost != null ? Number(r.cost) : NaN;
+				const net = r.net != null ? Number(r.net) : NaN;
+				const profit =
+					!Number.isNaN(cost) && !Number.isNaN(net) ? (net - cost).toFixed(2) : "";
 				lines.push(
 					[
 						datePart(r.delivered_at),
@@ -3058,6 +3226,7 @@
 						r.cost != null ? Number(r.cost).toFixed(2) : "",
 						r.tax != null ? Number(r.tax).toFixed(2) : "",
 						r.net != null ? Number(r.net).toFixed(2) : "",
+						profit,
 						netPerLiter(r),
 					]
 						.map(csvEscape)
@@ -3093,12 +3262,15 @@
 					.sort((a, b) =>
 						String(a.delivered_at).localeCompare(String(b.delivered_at))
 					);
-				const totals = { volume: 0, cost: 0, tax: 0, net: 0 };
+				const totals = { volume: 0, cost: 0, tax: 0, net: 0, profit: 0 };
 				rows.forEach((r) => {
+					const cost = Number(r.cost) || 0;
+					const net = Number(r.net) || 0;
 					totals.volume += Number(r.delivery_volume) || 0;
-					totals.cost += Number(r.cost) || 0;
+					totals.cost += cost;
 					totals.tax += Number(r.tax) || 0;
-					totals.net += Number(r.net) || 0;
+					totals.net += net;
+					totals.profit += net - cost;
 				});
 				setSummary(totals);
 				if (!rows.length) {
@@ -3108,8 +3280,10 @@
 				}
 				list.innerHTML = helpTable(
 					rows
-						.map(
-							(r) =>
+						.map((r) => {
+							const cost = Number(r.cost) || 0;
+							const net = Number(r.net) || 0;
+							return (
 								"<tr><td>" +
 								esc(datePart(r.delivered_at)) +
 								"</td><td>" +
@@ -3129,9 +3303,12 @@
 								"</td><td>" +
 								fmtMoney(r.net) +
 								"</td><td>" +
+								fmtMoney(net - cost) +
+								"</td><td>" +
 								esc(netPerLiter(r)) +
 								"</td></tr>"
-						)
+							);
+						})
 						.join("")
 				);
 			} catch (e) {
@@ -3192,6 +3369,7 @@
 		const previewCost = panel.querySelector("#delivery-preview-cost");
 		const previewTax = panel.querySelector("#delivery-preview-tax");
 		const previewNet = panel.querySelector("#delivery-preview-net");
+		const previewProfit = panel.querySelector("#delivery-preview-profit");
 		const previewPerL = panel.querySelector("#delivery-preview-per-l");
 		let byID = {};
 		let taxCfg = { rate_sek: 2.28, free_max_abv: 2.8, discount: 1.0 };
@@ -3207,6 +3385,7 @@
 			previewCost.textContent = "—";
 			previewTax.textContent = "—";
 			previewNet.textContent = "—";
+			previewProfit.textContent = "—";
 			previewPerL.textContent = "—";
 		}
 
@@ -3249,6 +3428,7 @@
 			previewCost.textContent = fmtMoney(cost);
 			previewTax.textContent = fmtMoney(tax);
 			previewNet.textContent = fmtMoney(net);
+			previewProfit.textContent = fmtMoney(net - cost);
 			previewPerL.textContent = fmtMoney(perL);
 		}
 
@@ -3345,6 +3525,7 @@
 						"Cost",
 						"Tax",
 						"Net",
+						"Est. profit",
 						"",
 					],
 					relevant
@@ -3361,6 +3542,10 @@
 									r.id +
 									'">Revoke</button>';
 							}
+							const hasCostNet = r.cost != null && r.net != null;
+							const profit = hasCostNet
+								? fmtMoney((Number(r.net) || 0) - (Number(r.cost) || 0))
+								: "—";
 							return (
 								"<tr><td>" +
 								r.id +
@@ -3382,6 +3567,8 @@
 								fmtMoney(r.tax) +
 								"</td><td>" +
 								fmtMoney(r.net) +
+								"</td><td>" +
+								profit +
 								"</td><td>" +
 								btn +
 								"</td></tr>"

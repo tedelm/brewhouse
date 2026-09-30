@@ -8,12 +8,14 @@ import (
 	"brewhouse/internal/service"
 )
 
+const inventoryCSVTestHeader = "category,name,unit,qty,cost_price,producer,item_type,min_ebc,max_ebc,link,pitch_min_g_hl,pitch_max_g_hl,pack_size_g,temp_min_c,temp_max_c"
+
 func TestInventoryCSV_ExportImportUpsert(t *testing.T) {
 	_, users, _, inventory, _, _, _ := testDB(t)
 	_, admin := ensureAdminUser(t, users)
 
-	csv1 := "category,name,unit,qty,cost_price,producer,item_type,min_ebc,max_ebc,link\n" +
-		"hops,Cascade,g,100,12.5,Yakima,T90,0,0,https://example.com/cascade\n"
+	csv1 := inventoryCSVTestHeader + "\n" +
+		"hops,Cascade,g,100,12.5,Yakima,T90,0,0,https://example.com/cascade,0,0,0,0,0\n"
 	res, err := inventory.ImportInventoryCSV(admin, service.CategoryHops, []byte(csv1))
 	if err != nil {
 		t.Fatalf("import create: %v", err)
@@ -22,9 +24,9 @@ func TestInventoryCSV_ExportImportUpsert(t *testing.T) {
 		t.Fatalf("unexpected create result: %+v", res)
 	}
 
-	csv2 := "category,name,unit,qty,cost_price,producer,item_type,min_ebc,max_ebc,link\n" +
-		"hops,Cascade,g,250,15,Yakima,T90,0,0,https://example.com/cascade2\n" +
-		"hops,Citra,g,50,20,Yakima,T90,0,0,\n"
+	csv2 := inventoryCSVTestHeader + "\n" +
+		"hops,Cascade,g,250,15,Yakima,T90,0,0,https://example.com/cascade2,0,0,0,0,0\n" +
+		"hops,Citra,g,50,20,Yakima,T90,0,0,,0,0,0,0,0\n"
 	res, err = inventory.ImportInventoryCSV(admin, service.CategoryHops, []byte(csv2))
 	if err != nil {
 		t.Fatalf("import upsert: %v", err)
@@ -58,7 +60,7 @@ func TestInventoryCSV_ExportImportUpsert(t *testing.T) {
 		t.Fatalf("export: %v", err)
 	}
 	text := string(exported)
-	if !strings.Contains(text, "category,name,unit,qty,cost_price,producer,item_type,min_ebc,max_ebc,link") {
+	if !strings.Contains(text, inventoryCSVTestHeader) {
 		t.Fatalf("missing header: %s", text)
 	}
 	if !strings.Contains(text, "Cascade") || !strings.Contains(text, "Citra") {
@@ -75,8 +77,8 @@ func TestInventoryCSV_CategoryMismatch(t *testing.T) {
 	_, users, _, inventory, _, _, _ := testDB(t)
 	_, admin := ensureAdminUser(t, users)
 
-	csv := "category,name,unit,qty,cost_price,producer,item_type,min_ebc,max_ebc,link\n" +
-		"yeast,Wrong Cat,pack,1,1,,,0,0,\n"
+	csv := inventoryCSVTestHeader + "\n" +
+		"yeast,Wrong Cat,pack,1,1,,,0,0,,0,0,0,0,0\n"
 	res, err := inventory.ImportInventoryCSV(admin, service.CategoryHops, []byte(csv))
 	if err != nil {
 		t.Fatalf("import should succeed with row errors: %v", err)

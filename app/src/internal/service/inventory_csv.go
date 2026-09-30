@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-const inventoryCSVHeader = "category,name,unit,qty,cost_price,producer,item_type,min_ebc,max_ebc,link"
+const inventoryCSVHeader = "category,name,unit,qty,cost_price,producer,item_type,min_ebc,max_ebc,link,pitch_min_g_hl,pitch_max_g_hl,pack_size_g,temp_min_c,temp_max_c"
 
 // ExportInventoryCSV returns inventory items for a category as CSV.
 func (s *InventoryService) ExportInventoryCSV(category string) ([]byte, error) {
@@ -38,6 +38,11 @@ func (s *InventoryService) ExportInventoryCSV(category string) ([]byte, error) {
 			formatCSVFloat(item.MinEBC),
 			formatCSVFloat(item.MaxEBC),
 			item.Link,
+			formatCSVFloat(item.PitchMinGHl),
+			formatCSVFloat(item.PitchMaxGHl),
+			formatCSVFloat(item.PackSizeG),
+			formatCSVFloat(item.TempMinC),
+			formatCSVFloat(item.TempMaxC),
 		}); err != nil {
 			return nil, fmt.Errorf("write inventory csv row: %w", err)
 		}
@@ -111,6 +116,7 @@ func (s *InventoryService) ImportInventoryCSV(actor Actor, category string, data
 	idx, err := mapCSVHeader(records[0], []string{
 		"category", "name", "unit", "qty", "cost_price",
 		"producer", "item_type", "min_ebc", "max_ebc", "link",
+		"pitch_min_g_hl", "pitch_max_g_hl", "pack_size_g", "temp_min_c", "temp_max_c",
 	})
 	if err != nil {
 		return ImportResult{}, err
@@ -168,18 +174,43 @@ func (s *InventoryService) importInventoryRow(actor Actor, category string, idx 
 	if err != nil {
 		return "", fmt.Errorf("max_ebc: %w", err)
 	}
+	pitchMin, err := parseCSVFloat(csvCol(rec, idx, "pitch_min_g_hl"))
+	if err != nil {
+		return "", fmt.Errorf("pitch_min_g_hl: %w", err)
+	}
+	pitchMax, err := parseCSVFloat(csvCol(rec, idx, "pitch_max_g_hl"))
+	if err != nil {
+		return "", fmt.Errorf("pitch_max_g_hl: %w", err)
+	}
+	packSize, err := parseCSVFloat(csvCol(rec, idx, "pack_size_g"))
+	if err != nil {
+		return "", fmt.Errorf("pack_size_g: %w", err)
+	}
+	tempMin, err := parseCSVFloat(csvCol(rec, idx, "temp_min_c"))
+	if err != nil {
+		return "", fmt.Errorf("temp_min_c: %w", err)
+	}
+	tempMax, err := parseCSVFloat(csvCol(rec, idx, "temp_max_c"))
+	if err != nil {
+		return "", fmt.Errorf("temp_max_c: %w", err)
+	}
 
 	in := InventoryItem{
-		Category:  category,
-		Name:      name,
-		Unit:      unit,
-		Qty:       qty,
-		CostPrice: costPrice,
-		Producer:  producer,
-		ItemType:  itemType,
-		MinEBC:    minEBC,
-		MaxEBC:    maxEBC,
-		Link:      link,
+		Category:    category,
+		Name:        name,
+		Unit:        unit,
+		Qty:         qty,
+		CostPrice:   costPrice,
+		Producer:    producer,
+		ItemType:    itemType,
+		MinEBC:      minEBC,
+		MaxEBC:      maxEBC,
+		Link:        link,
+		PitchMinGHl: pitchMin,
+		PitchMaxGHl: pitchMax,
+		PackSizeG:   packSize,
+		TempMinC:    tempMin,
+		TempMaxC:    tempMax,
 	}
 
 	existing, err := s.getByCategoryNameProducer(category, name, producer)

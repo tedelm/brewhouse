@@ -33,7 +33,7 @@ func seedInventoryCatalogs(db *sql.DB) error {
 	if err := seedCategoryCSV(db, "hops", "g", hopsCSV, false); err != nil {
 		return err
 	}
-	if err := seedCategoryCSV(db, "yeast", "pack", yeastCSV, true); err != nil {
+	if err := seedYeast(db); err != nil {
 		return err
 	}
 	if err := seedCategoryCSV(db, "misc", "kg", miscCSV, false); err != nil {
@@ -68,6 +68,120 @@ func seedMalt(db *sql.DB) error {
 		}
 	}
 	return nil
+}
+
+// seedYeast inserts yeast rows from inventory export/import CSV when the category is empty.
+func seedYeast(db *sql.DB) error {
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM inventory_items WHERE category = 'yeast'`).Scan(&count); err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+
+	rows, err := parseYeastExportCSV(yeastCSV)
+	if err != nil {
+		return fmt.Errorf("parse yeast csv: %w", err)
+	}
+	for _, row := range rows {
+		if _, err := db.Exec(
+			`INSERT INTO inventory_items (
+				category, name, unit, qty, cost_price, producer, item_type,
+				min_ebc, max_ebc, link,
+				pitch_min_g_hl, pitch_max_g_hl, pack_size_g, temp_min_c, temp_max_c
+			) VALUES ('yeast', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			row.name, row.unit, row.qty, row.costPrice, row.producer, row.itemType,
+			row.minEBC, row.maxEBC, row.link,
+			row.pitchMin, row.pitchMax, row.packSize, row.tempMin, row.tempMax,
+		); err != nil {
+			return fmt.Errorf("insert yeast %q (%s): %w", row.name, row.producer, err)
+		}
+	}
+	return nil
+}
+
+type yeastExportSeedRow struct {
+	name, unit, producer, itemType, link string
+	qty, costPrice, minEBC, maxEBC     float64
+	pitchMin, pitchMax, packSize       float64
+	tempMin, tempMax                   float64
+}
+
+// parseYeastExportCSV parses inventory export/import format (comma-separated).
+func parseYeastExportCSV(data []byte) ([]yeastExportSeedRow, error) {
+	data = bytes.TrimPrefix(data, []byte("\ufeff"))
+	r := csv.NewReader(bytes.NewReader(data))
+	r.TrimLeadingSpace = true
+	records, err := r.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+	if len(records) < 2 {
+		return nil, fmt.Errorf("empty csv")
+	}
+	idx := map[string]int{}
+	for i, h := range records[0] {
+		key := strings.ToLower(strings.TrimSpace(h))
+		idx[key] = i
+	}
+	required := []string{
+		"category", "name", "unit", "qty", "cost_price", "producer", "item_type",
+		"min_ebc", "max_ebc", "link",
+		"pitch_min_g_hl", "pitch_max_g_hl", "pack_size_g", "temp_min_c", "temp_max_c",
+	}
+	for _, col := range required {
+		if colIndex(idx, col) < 0 {
+			return nil, fmt.Errorf("missing column %s", col)
+		}
+	}
+
+	get := func(rec []string, key string) string {
+		i := colIndex(idx, key)
+		if i < 0 || i >= len(rec) {
+			return ""
+		}
+		return cleanCSVField(rec[i])
+	}
+
+	var out []yeastExportSeedRow
+	seen := map[string]bool{}
+	for _, rec := range records[1:] {
+		if len(rec) == 0 {
+			continue
+		}
+		name := get(rec, "name")
+		if name == "" {
+			continue
+		}
+		producer := get(rec, "producer")
+		key := strings.ToLower(name) + "\x00" + strings.ToLower(producer)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		unit := get(rec, "unit")
+		if unit == "" {
+			unit = "pack"
+		}
+		out = append(out, yeastExportSeedRow{
+			name:      name,
+			unit:      unit,
+			producer:  producer,
+			itemType:  get(rec, "item_type"),
+			link:      get(rec, "link"),
+			qty:       parseFloatField(get(rec, "qty")),
+			costPrice: parseFloatField(get(rec, "cost_price")),
+			minEBC:    parseFloatField(get(rec, "min_ebc")),
+			maxEBC:    parseFloatField(get(rec, "max_ebc")),
+			pitchMin:  parseFloatField(get(rec, "pitch_min_g_hl")),
+			pitchMax:  parseFloatField(get(rec, "pitch_max_g_hl")),
+			packSize:  parseFloatField(get(rec, "pack_size_g")),
+			tempMin:   parseFloatField(get(rec, "temp_min_c")),
+			tempMax:   parseFloatField(get(rec, "temp_max_c")),
+		})
+	}
+	return out, nil
 }
 
 // seedCategoryCSV inserts hops/yeast/misc rows when the category is empty.

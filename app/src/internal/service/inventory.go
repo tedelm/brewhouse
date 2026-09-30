@@ -9,7 +9,7 @@ import (
 	"brewhouse/internal/database"
 )
 
-const inventorySelectCols = `id, category, name, unit, qty, cost_price, producer, item_type, min_ebc, max_ebc, link`
+const inventorySelectCols = `id, category, name, unit, qty, cost_price, producer, item_type, min_ebc, max_ebc, link, pitch_min_g_hl, pitch_max_g_hl, pack_size_g, temp_min_c, temp_max_c`
 
 // InventoryService manages shared stock and wishlist orders.
 type InventoryService struct {
@@ -29,6 +29,7 @@ func scanInventoryItem(scanner interface {
 	err := scanner.Scan(
 		&item.ID, &item.Category, &item.Name, &item.Unit, &item.Qty, &item.CostPrice,
 		&item.Producer, &item.ItemType, &item.MinEBC, &item.MaxEBC, &item.Link,
+		&item.PitchMinGHl, &item.PitchMaxGHl, &item.PackSizeG, &item.TempMinC, &item.TempMaxC,
 	)
 	return item, err
 }
@@ -109,10 +110,12 @@ func (s *InventoryService) Create(actor Actor, in InventoryItem) (*InventoryItem
 		in.Unit = "kg"
 	}
 	res, err := s.db.Exec(
-		`INSERT INTO inventory_items (category, name, unit, qty, cost_price, producer, item_type, min_ebc, max_ebc, link)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO inventory_items (category, name, unit, qty, cost_price, producer, item_type, min_ebc, max_ebc, link,
+			pitch_min_g_hl, pitch_max_g_hl, pack_size_g, temp_min_c, temp_max_c)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		in.Category, in.Name, in.Unit, in.Qty, in.CostPrice,
 		in.Producer, in.ItemType, in.MinEBC, in.MaxEBC, in.Link,
+		in.PitchMinGHl, in.PitchMaxGHl, in.PackSizeG, in.TempMinC, in.TempMaxC,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("insert inventory: %w", err)
@@ -145,9 +148,12 @@ func (s *InventoryService) Update(actor Actor, id int64, in InventoryItem) (*Inv
 	}
 	_, err = s.db.Exec(
 		`UPDATE inventory_items SET name = ?, unit = ?, qty = ?, cost_price = ?,
-		 producer = ?, item_type = ?, min_ebc = ?, max_ebc = ?, link = ? WHERE id = ?`,
+		 producer = ?, item_type = ?, min_ebc = ?, max_ebc = ?, link = ?,
+		 pitch_min_g_hl = ?, pitch_max_g_hl = ?, pack_size_g = ?, temp_min_c = ?, temp_max_c = ?
+		 WHERE id = ?`,
 		in.Name, in.Unit, in.Qty, in.CostPrice,
-		in.Producer, in.ItemType, in.MinEBC, in.MaxEBC, in.Link, id,
+		in.Producer, in.ItemType, in.MinEBC, in.MaxEBC, in.Link,
+		in.PitchMinGHl, in.PitchMaxGHl, in.PackSizeG, in.TempMinC, in.TempMaxC, id,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("update inventory: %w", err)

@@ -130,6 +130,15 @@ func inventoryCreateSummary(in InventoryItem) string {
 	if in.ItemType != "" {
 		parts = append(parts, "item_type="+in.ItemType)
 	}
+	if in.PitchMinGHl > 0 || in.PitchMaxGHl > 0 {
+		parts = append(parts, "pitch="+formatLogQty(in.PitchMinGHl)+"-"+formatLogQty(in.PitchMaxGHl)+" g/hl")
+	}
+	if in.PackSizeG > 0 {
+		parts = append(parts, "pack_size_g="+formatLogQty(in.PackSizeG))
+	}
+	if in.TempMaxC > 0 {
+		parts = append(parts, "temp="+formatLogQty(in.TempMinC)+"-"+formatLogQty(in.TempMaxC)+" C")
+	}
 	return "created item (" + strings.Join(parts, ", ") + ")"
 }
 
@@ -161,6 +170,21 @@ func inventoryUpdateSummary(before, after InventoryItem) string {
 	}
 	if before.Link != after.Link {
 		parts = append(parts, fmt.Sprintf("link: %q → %q", before.Link, after.Link))
+	}
+	if before.PitchMinGHl != after.PitchMinGHl {
+		parts = append(parts, fmt.Sprintf("pitch_min_g_hl: %s → %s", formatLogQty(before.PitchMinGHl), formatLogQty(after.PitchMinGHl)))
+	}
+	if before.PitchMaxGHl != after.PitchMaxGHl {
+		parts = append(parts, fmt.Sprintf("pitch_max_g_hl: %s → %s", formatLogQty(before.PitchMaxGHl), formatLogQty(after.PitchMaxGHl)))
+	}
+	if before.PackSizeG != after.PackSizeG {
+		parts = append(parts, fmt.Sprintf("pack_size_g: %s → %s", formatLogQty(before.PackSizeG), formatLogQty(after.PackSizeG)))
+	}
+	if before.TempMinC != after.TempMinC {
+		parts = append(parts, fmt.Sprintf("temp_min_c: %s → %s", formatLogQty(before.TempMinC), formatLogQty(after.TempMinC)))
+	}
+	if before.TempMaxC != after.TempMaxC {
+		parts = append(parts, fmt.Sprintf("temp_max_c: %s → %s", formatLogQty(before.TempMaxC), formatLogQty(after.TempMaxC)))
 	}
 	return strings.Join(parts, "; ")
 }

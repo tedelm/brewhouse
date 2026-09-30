@@ -475,16 +475,21 @@ func (h *Handler) Inventory(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			item, err := h.inventory.Create(actor, service.InventoryItem{
-				Category:  req.Category,
-				Name:      req.Name,
-				Unit:      req.Unit,
-				Qty:       req.Qty,
-				CostPrice: req.CostPrice,
-				Producer:  req.Producer,
-				ItemType:  req.ItemType,
-				MinEBC:    req.MinEBC,
-				MaxEBC:    req.MaxEBC,
-				Link:      req.Link,
+				Category:    req.Category,
+				Name:        req.Name,
+				Unit:        req.Unit,
+				Qty:         req.Qty,
+				CostPrice:   req.CostPrice,
+				Producer:    req.Producer,
+				ItemType:    req.ItemType,
+				MinEBC:      req.MinEBC,
+				MaxEBC:      req.MaxEBC,
+				Link:        req.Link,
+				PitchMinGHl: req.PitchMinGHl,
+				PitchMaxGHl: req.PitchMaxGHl,
+				PackSizeG:   req.PackSizeG,
+				TempMinC:    req.TempMinC,
+				TempMaxC:    req.TempMaxC,
 			})
 			if err != nil {
 				h.writeErr(w, err)
@@ -614,15 +619,20 @@ func (h *Handler) Inventory(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		item, err := h.inventory.Update(actor, id, service.InventoryItem{
-			Name:      req.Name,
-			Unit:      req.Unit,
-			Qty:       req.Qty,
-			CostPrice: req.CostPrice,
-			Producer:  req.Producer,
-			ItemType:  req.ItemType,
-			MinEBC:    req.MinEBC,
-			MaxEBC:    req.MaxEBC,
-			Link:      req.Link,
+			Name:        req.Name,
+			Unit:        req.Unit,
+			Qty:         req.Qty,
+			CostPrice:   req.CostPrice,
+			Producer:    req.Producer,
+			ItemType:    req.ItemType,
+			MinEBC:      req.MinEBC,
+			MaxEBC:      req.MaxEBC,
+			Link:        req.Link,
+			PitchMinGHl: req.PitchMinGHl,
+			PitchMaxGHl: req.PitchMaxGHl,
+			PackSizeG:   req.PackSizeG,
+			TempMinC:    req.TempMinC,
+			TempMaxC:    req.TempMaxC,
 		})
 		if err != nil {
 			h.writeErr(w, err)

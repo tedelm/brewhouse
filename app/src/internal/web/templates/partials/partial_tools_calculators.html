@@ -1,7 +1,7 @@
 <section class="panel" data-panel="tools-calculators">
 	<header class="panel__header">
 		<h1 class="panel__title">Calculators</h1>
-		<p class="panel__lead">Quick brewing helpers for ABV, Swedish alcohol tax, extract additions, and dilution. Results update as you type.</p>
+		<p class="panel__lead">Quick brewing helpers for ABV, Swedish alcohol tax, extract additions, dilution, and yeast pitch. Results update as you type.</p>
 	</header>
 
 	<div class="calc-block">
@@ -80,6 +80,35 @@
 		<p class="calc-block__result">
 			Water to add: <strong id="calc-dilute-water">—</strong>
 			· Final volume: <strong id="calc-dilute-final">—</strong>
+		</p>
+	</div>
+
+	<div class="calc-block">
+		<h2 class="calc-block__title">Yeast pitch rate</h2>
+		<p class="panel__lead">Dry yeast dosing by volume (g/hl) from Inventory → Yeast items with pitch fields configured. Choose Low / Mid / High within the strain’s range. 1 hl = 100 L.</p>
+		<p class="panel__lead" id="calc-pitch-info">—</p>
+		<form class="panel__form panel__form--inline" id="calc-pitch-form">
+			<label>Yeast
+				<select name="yeast" id="calc-pitch-yeast">
+					<option value="">Loading…</option>
+				</select>
+			</label>
+			<label>Volume (L)
+				<input name="volume" type="number" step="0.1" min="0.1" value="80" required>
+			</label>
+			<label>Pitch
+				<select name="pitch">
+					<option value="low">Low</option>
+					<option value="mid" selected>Mid</option>
+					<option value="high">High</option>
+				</select>
+			</label>
+		</form>
+		<p class="calc-block__result">
+			Range: <strong id="calc-pitch-range">—</strong>
+			· Selected: <strong id="calc-pitch-selected">—</strong>
+			· Packs: <strong id="calc-pitch-packs">—</strong>
+			· Temp: <strong id="calc-pitch-temp">—</strong>
 		</p>
 	</div>
 </section>

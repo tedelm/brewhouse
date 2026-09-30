@@ -84,6 +84,11 @@ func migrate(db *sql.DB) error {
 			min_ebc REAL NOT NULL DEFAULT 0,
 			max_ebc REAL NOT NULL DEFAULT 0,
 			link TEXT NOT NULL DEFAULT '',
+			pitch_min_g_hl REAL NOT NULL DEFAULT 0,
+			pitch_max_g_hl REAL NOT NULL DEFAULT 0,
+			pack_size_g REAL NOT NULL DEFAULT 0,
+			temp_min_c REAL NOT NULL DEFAULT 0,
+			temp_max_c REAL NOT NULL DEFAULT 0,
 			UNIQUE(category, name, producer)
 		)`,
 		`CREATE TABLE IF NOT EXISTS inventory_orders (
@@ -254,6 +259,9 @@ func migrate(db *sql.DB) error {
 	if err := ensureInventoryCatalogColumns(db); err != nil {
 		return fmt.Errorf("ensure inventory catalog columns: %w", err)
 	}
+	if err := ensureYeastPitchColumns(db); err != nil {
+		return fmt.Errorf("ensure yeast pitch columns: %w", err)
+	}
 	if err := migrateOrderStatuses(db); err != nil {
 		return fmt.Errorf("migrate order statuses: %w", err)
 	}
@@ -278,6 +286,76 @@ func migrate(db *sql.DB) error {
 
 	if err := seedDefaults(db); err != nil {
 		return fmt.Errorf("seed defaults: %w", err)
+	}
+	if err := ensureKnownYeastPitch(db); err != nil {
+		return fmt.Errorf("ensure known yeast pitch: %w", err)
+	}
+	return nil
+}
+
+// ensureYeastPitchColumns adds pitch-rate columns used by the yeast calculator.
+func ensureYeastPitchColumns(db *sql.DB) error {
+	cols := []struct {
+		name string
+		sql  string
+	}{
+		{"pitch_min_g_hl", `ALTER TABLE inventory_items ADD COLUMN pitch_min_g_hl REAL NOT NULL DEFAULT 0`},
+		{"pitch_max_g_hl", `ALTER TABLE inventory_items ADD COLUMN pitch_max_g_hl REAL NOT NULL DEFAULT 0`},
+		{"pack_size_g", `ALTER TABLE inventory_items ADD COLUMN pack_size_g REAL NOT NULL DEFAULT 0`},
+		{"temp_min_c", `ALTER TABLE inventory_items ADD COLUMN temp_min_c REAL NOT NULL DEFAULT 0`},
+		{"temp_max_c", `ALTER TABLE inventory_items ADD COLUMN temp_max_c REAL NOT NULL DEFAULT 0`},
+	}
+	for _, c := range cols {
+		if err := addColumnIfMissing(db, "inventory_items", c.name, c.sql); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ensureKnownYeastPitch inserts missing catalog yeasts and fills pitch fields when unset.
+// Catalog data comes from seed/yeast.csv (inventory export format).
+func ensureKnownYeastPitch(db *sql.DB) error {
+	rows, err := parseYeastExportCSV(yeastCSV)
+	if err != nil {
+		return fmt.Errorf("parse yeast catalog: %w", err)
+	}
+	for _, r := range rows {
+		var id int64
+		err := db.QueryRow(
+			`SELECT id FROM inventory_items WHERE category = 'yeast' AND name = ? AND producer = ?`,
+			r.name, r.producer,
+		).Scan(&id)
+		if err == sql.ErrNoRows {
+			if _, err := db.Exec(
+				`INSERT INTO inventory_items (
+					category, name, unit, qty, cost_price, producer, item_type,
+					min_ebc, max_ebc, link,
+					pitch_min_g_hl, pitch_max_g_hl, pack_size_g, temp_min_c, temp_max_c
+				) VALUES ('yeast', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				r.name, r.unit, r.qty, r.costPrice, r.producer, r.itemType,
+				r.minEBC, r.maxEBC, r.link,
+				r.pitchMin, r.pitchMax, r.packSize, r.tempMin, r.tempMax,
+			); err != nil {
+				return fmt.Errorf("insert yeast %q (%s): %w", r.name, r.producer, err)
+			}
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("lookup yeast %q (%s): %w", r.name, r.producer, err)
+		}
+		if r.pitchMin <= 0 {
+			continue
+		}
+		if _, err := db.Exec(
+			`UPDATE inventory_items SET
+				pitch_min_g_hl = ?, pitch_max_g_hl = ?, pack_size_g = ?,
+				temp_min_c = ?, temp_max_c = ?
+			 WHERE id = ? AND pitch_min_g_hl = 0`,
+			r.pitchMin, r.pitchMax, r.packSize, r.tempMin, r.tempMax, id,
+		); err != nil {
+			return fmt.Errorf("backfill yeast %q (%s): %w", r.name, r.producer, err)
+		}
 	}
 	return nil
 }
@@ -387,6 +465,11 @@ func ensureInventoryCatalogColumns(db *sql.DB) error {
 			min_ebc REAL NOT NULL DEFAULT 0,
 			max_ebc REAL NOT NULL DEFAULT 0,
 			link TEXT NOT NULL DEFAULT '',
+			pitch_min_g_hl REAL NOT NULL DEFAULT 0,
+			pitch_max_g_hl REAL NOT NULL DEFAULT 0,
+			pack_size_g REAL NOT NULL DEFAULT 0,
+			temp_min_c REAL NOT NULL DEFAULT 0,
+			temp_max_c REAL NOT NULL DEFAULT 0,
 			UNIQUE(category, name, producer)
 		)`)
 	if err != nil {

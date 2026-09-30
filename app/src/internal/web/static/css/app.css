@@ -1653,7 +1653,8 @@ body {
 	overflow: auto;
 }
 
-.panel__dialog .inventory-field--malt.is-role-hidden {
+.panel__dialog .inventory-field--malt.is-role-hidden,
+.panel__dialog .inventory-field--yeast.is-role-hidden {
 	display: none !important;
 }
 
