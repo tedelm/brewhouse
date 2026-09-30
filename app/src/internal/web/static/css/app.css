@@ -1096,6 +1096,14 @@ body {
 	line-height: 1.45;
 }
 
+.panel__hint {
+	display: block;
+	margin: 0.25rem 0 0;
+	color: #6b7280;
+	font-size: 0.85rem;
+	line-height: 1.35;
+}
+
 .guide-section {
 	margin: 1.5rem 0 0;
 	padding-top: 1.25rem;

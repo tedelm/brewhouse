@@ -1,54 +1,54 @@
-﻿name;category;type;producer;inventory_amount;cost_price_per_kg;link
-Ahtanum;hops;T90;;;;
-Amarillo;hops;T90;;;;
-American Noble Hops Cascade;hops;T90;;;;
-American Noble Hops Citra;hops;T90;;;;
-American Noble Hops Mosaic;hops;T90;;;;
-American Noble Hops Simcoe;hops;T90;;;;
-Azacca;hops;T90;;;;
-Bramling Cross;hops;T90;;;;
-Cascade;hops;T90;;;;
-Cashmere;hops;T90;;;;
-Centennial;hops;T90;;;;
-Chinook;hops;T90;;;;
-Citra;hops;T90;;;;
-Columbus/Tomahawk;hops;T90;;;;
-Cryo Cascade;hops;Cryo;;;;
-Cryo Citra;hops;Cryo;;;;
-Cryo Mosaic;hops;Cryo;;;;
-Cryo Pop Original Blend;hops;Cryo;;;;
-Dolcita (HBC 1019);hops;T90;;;;
-East Kent Golding;hops;T90;;;;
-El Dorado;hops;T90;;;;
-Ella;hops;T90;;;;
-Fuggle;hops;T90;;;;
-Galaxy;hops;T90;;;;
-Hallertau Blanc;hops;T90;;;;
-Hallertauer Mittelfrüh;hops;T90;;;;
-Harlequin;hops;T90;;;;
-Herkules;hops;T90;;;;
-Huell Melon;hops;T90;;;;
-Idaho 7;hops;T90;;;;
-Lemondrop;hops;T90;;;;
-Magnum;hops;T90;;;;
-Mandarina Bavaria;hops;T90;;;;
-Mosaic;hops;T90;;;;
-Motueka;hops;T90;;;;
-Moutere;hops;T90;;;;
-Nelson Sauvin;hops;T90;;;;
-Northern Brewer;hops;T90;;;;
-Perle;hops;T90;;;;
-Riwaka;hops;T90;;;;
-Saaz;hops;T90;;;;
-Sabro;hops;T90;;;;
-Simcoe;hops;T90;;;;
-Spalter Select;hops;T90;;;;
-Styrian Golding / Bobek;hops;T90;;;;
-Styrian Golding / Celeia;hops;T90;;;;
-Superdelic;hops;T90;;;;
-Taiheke;hops;T90;;;;
-Talus;hops;T90;;;;
-Target;hops;T90;;;;
-Tettnanger;hops;T90;;;;
-Wai-iti;hops;T90;;;;
-Willamette;hops;T90;;;;
+category,name,unit,qty,cost_price,producer,item_type,link
+hops,Ahtanum,g,0,0.8518,,T90,https://mr-malt.se/humle/usa/ahtanum/ahtanum-pellets-2025-50-g
+hops,Amarillo,g,0,0.7382,,T90,https://mr-malt.se/humle/usa/amarillo/amarillo-pellets-2025-50-g
+hops,American Noble Hops Cascade,g,0,0.4998,,T90,https://mr-malt.se/humle/usa/american-noble-hops-cascade/american-noble-hops-cascade-pellets-2025-50-g
+hops,American Noble Hops Citra,g,0,0.4998,,T90,https://mr-malt.se/humle/usa/american-noble-hops-citra/american-noble-hops-citra-pellets-2025-50-g
+hops,American Noble Hops Mosaic,g,0,0.4998,,T90,https://mr-malt.se/humle/usa/american-noble-hops-mosaic/american-noble-hops-mosaic-pellets-2025-50-g
+hops,American Noble Hops Simcoe,g,0,0.4732,,T90,https://mr-malt.se/humle/usa/american-noble-hops-simcoe/american-noble-hops-simcoe-pellets-2025-50-g
+hops,Azacca,g,0,0.7382,,T90,https://mr-malt.se/humle/usa/azacca/azacca-pellets-2025-50-g
+hops,Bramling Cross,g,0,0.6626,,T90,https://mr-malt.se/humle/england/bramling-cross/bramling-cross-pellets-2025-50-g
+hops,Cascade,g,0,0.6626,,T90,https://mr-malt.se/humle/usa/cascade/cascade-pellets-2025-50-g
+hops,Cashmere,g,0,0.6626,,T90,https://mr-malt.se/humle/usa/cashmere/cashmere-pellets-2025-50-g
+hops,Centennial,g,0,0.7382,,T90,https://mr-malt.se/humle/usa/centennial/centennial-pellets-2025-50-g
+hops,Chinook,g,0,0.7382,,T90,https://mr-malt.se/humle/usa/chinook/chinook-pellets-2025-50-g
+hops,Citra,g,0,0.9276,,T90,https://mr-malt.se/humle/usa/citra/citra-pellets-2025-50-g
+hops,Columbus/Tomahawk,g,0,0.5488,,T90,https://mr-malt.se/humle/usa/columbus-tomahawk/columbus-tomahawk-pellets-2025-50-g
+hops,Cryo Cascade,g,0,1.3062,,Cryo,https://mr-malt.se/humle/usa/cascade/cryo-cascade-pellets-2025-50-g
+hops,Cryo Citra,g,0,1.8738,,Cryo,https://mr-malt.se/humle/usa/citra/cryo-citra-pellets-2025-50-g
+hops,Cryo Mosaic,g,0,1.6846,,Cryo,https://mr-malt.se/humle/usa/mosaic/cryo-mosaic-pellets-2025-50-g
+hops,Cryo Pop Original Blend,g,0,1.8738,,Cryo,https://mr-malt.se/humle/usa/cryo-pop-original-blend/cryo-pop-original-blend-pellets-2025-50-g
+hops,Dolcita (HBC 1019),g,0,0.9276,,T90,https://mr-malt.se/humle/usa/dolcita/dolcita-hbc-1019-pellets-2025-50-g
+hops,East Kent Golding,g,0,0.7382,,T90,https://mr-malt.se/humle/england/east-kent-golding/east-kent-golding-pellets-2025-50-g
+hops,El Dorado,g,0,0.6626,,T90,https://mr-malt.se/humle/usa/eldorado/el-dorado-pellets-2025-50-g
+hops,Ella,g,0,0.6436,,T90,https://mr-malt.se/humle/australien/ella/ella-pellets-2024-50-g
+hops,Fuggle,g,0,0.6626,,T90,https://mr-malt.se/humle/england/fuggle/fuggle-pellets-2025-50-g
+hops,Galaxy,g,0,1.0220,,T90,https://mr-malt.se/humle/australien/galaxy/galaxy-pellets-2025-50-g
+hops,Hallertau Blanc,g,0,0.4732,,T90,https://mr-malt.se/humle/tyskland/hallertau-blanc/hallertau-blanc-pellets-2025-50-g
+hops,Hallertauer Mittelfrüh,g,0,0.4732,,T90,https://mr-malt.se/humle/tyskland/hallertauer-mittelfruh/hallertauer-mittelfruh-pellets-2025-50-g
+hops,Harlequin,g,0,0.7382,,T90,https://mr-malt.se/humle/england/harlequin/harlequin-pellets-2025-50-g
+hops,Herkules,g,0,0.4732,,T90,https://mr-malt.se/humle/tyskland/herkules/herkules-pellets-2025-50-g
+hops,Huell Melon,g,0,0.5488,,T90,https://mr-malt.se/humle/tyskland/huell-melon/huell-melon-pellets-2025-50-g
+hops,Idaho 7,g,0,0.7382,,T90,https://mr-malt.se/humle/usa/idaho-7/idaho-7-pellets-2025-50-g
+hops,Lemondrop,g,0,0.8518,,T90,https://mr-malt.se/humle/usa/lemondrop/lemondrop-pellets-2025-50-g
+hops,Magnum,g,0,0.6626,,T90,https://mr-malt.se/humle/tyskland/magnum/magnum-pellets-2025-50-g
+hops,Mandarina Bavaria,g,0,0.6626,,T90,https://mr-malt.se/humle/tyskland/mandarina-bavaria/mandarina-bavaria-pellets-2025-50-g
+hops,Mosaic,g,0,0.9276,,T90,https://mr-malt.se/humle/usa/mosaic/mosaic-pellets-2025-50-g
+hops,Motueka,g,0,0.9000,,T90,https://mr-malt.se/humle/nya-zeeland/motueka/motueka-pellets-2026-50-g
+hops,Moutere,g,0,0.6436,,T90,https://mr-malt.se/humle/nya-zeeland/moutere/moutere-pellets-2024-50-g
+hops,Nelson Sauvin,g,0,0.9000,,T90,https://mr-malt.se/humle/nya-zeeland/nelson-sauvin/nelson-sauvin-pellets-2026-50-g
+hops,Northern Brewer,g,0,0.4732,,T90,https://mr-malt.se/humle/tyskland/northern-brewer/northern-brewer-pellets-2025-50-g
+hops,Perle,g,0,0.6626,,T90,https://mr-malt.se/humle/tyskland/perle/perle-pellets-2025-50-g
+hops,Riwaka,g,0,0.9000,,T90,https://mr-malt.se/humle/nya-zeeland/riwaka/riwaka-pellets-2026-50-g
+hops,Saaz,g,0,0.6626,,T90,https://mr-malt.se/humle/tjeckien/saaz/saaz-pellets-2025-50-g
+hops,Sabro,g,0,0.8518,,T90,https://mr-malt.se/humle/usa/sabro/sabro-pellets-2025-50-g
+hops,Simcoe,g,0,0.9276,,T90,https://mr-malt.se/humle/usa/simcoe/simcoe-pellets-2025-50-g
+hops,Spalter Select,g,0,0.5488,,T90,https://mr-malt.se/humle/tyskland/spalter-select/spalter-select-pellets-2025-50-g
+hops,Styrian Golding / Bobek,g,0,0.5488,,T90,https://mr-malt.se/humle/slovenien/styrian-golding-bobek/styrian-golding-bobek-pellets-2025-50-g
+hops,Styrian Golding / Celeia,g,0,0.6626,,T90,https://mr-malt.se/humle/slovenien/styrian-golding-celeia/styrian-golding-celeia-pellets-2025-50-g
+hops,Superdelic,g,0,0.9276,,T90,https://mr-malt.se/humle/nya-zeeland/superdelic/superdelic-pellets-2025-50-g
+hops,Taiheke,g,0,0.9276,,T90,https://mr-malt.se/humle/nya-zeeland/taiheke/taiheke-pellets-2025-50-g
+hops,Talus,g,0,0.9276,,T90,https://mr-malt.se/humle/usa/talus/talus-pellets-2025-50-g
+hops,Target,g,0,0.6626,,T90,https://mr-malt.se/humle/england/target/target-pellets-2025-50-g
+hops,Tettnanger,g,0,0,,T90,https://mr-malt.se/humle/tyskland/tettnanger/
+hops,Wai-iti,g,0,0.8518,,T90,https://mr-malt.se/humle/nya-zeeland/wai-iti/wai-iti-pellets-2025-50-g
+hops,Willamette,g,0,0.7382,,T90,https://mr-malt.se/humle/usa/willamette/willamette-pellets-2025-50-g

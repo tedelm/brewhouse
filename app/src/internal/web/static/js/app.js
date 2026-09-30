@@ -164,6 +164,13 @@
 		return key;
 	}
 
+	function isPasswordComplex(password) {
+		if (!password || [...password].length < 8) {
+			return false;
+		}
+		return /[^A-Za-z0-9]/.test(password);
+	}
+
 	function currencyCode() {
 		if (window.BH_I18N && typeof window.BH_I18N.currencyCode === "function") {
 			return window.BH_I18N.currencyCode();
@@ -3898,9 +3905,14 @@
 				return;
 			}
 			const fd = new FormData(userForm);
+			const password = String(fd.get("password") || "");
+			if (!isPasswordComplex(password)) {
+				await appInfo({ title: noticeTitle(), message: t("common.password_invalid") });
+				return;
+			}
 			const body = {
 				username: fd.get("username"),
-				password: fd.get("password"),
+				password: password,
 				email: fd.get("email"),
 				first_name: fd.get("first_name"),
 				last_name: fd.get("last_name"),
@@ -3973,6 +3985,11 @@
 			}
 			const fd = new FormData(resetForm);
 			const id = fd.get("user_id");
+			const password = String(fd.get("password") || "");
+			if (!isPasswordComplex(password)) {
+				await appInfo({ title: noticeTitle(), message: t("common.password_invalid") });
+				return;
+			}
 			try {
 				await api("/api/users/" + id, {
 					method: "PATCH",
@@ -3986,7 +4003,7 @@
 						phone: fd.get("phone"),
 						instagram: fd.get("instagram"),
 						role: fd.get("role"),
-						password: fd.get("password"),
+						password: password,
 					}),
 				});
 				resetForm.reset();

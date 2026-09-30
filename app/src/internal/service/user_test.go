@@ -16,7 +16,7 @@ func TestUser_CreateWithEmailAndBreweryMembership(t *testing.T) {
 		t.Fatalf("brewery: %v", err)
 	}
 
-	created, err := users.Create("alice", "secret", "alice@brew.test", service.RoleUser, service.UserContact{
+	created, err := users.Create("alice", "secret1!", "alice@brew.test", service.RoleUser, service.UserContact{
 		FirstName:    "Alice",
 		LastName:     "Brewer",
 		AddressLine1: "Street 1",
@@ -79,7 +79,7 @@ func TestUser_CreateAdminWithoutBrewery(t *testing.T) {
 		t.Fatalf("brewery: %v", err)
 	}
 
-	created, err := users.Create("boss", "secret", "boss@brew.test", service.RoleAdmin, service.UserContact{})
+	created, err := users.Create("boss", "secret1!", "boss@brew.test", service.RoleAdmin, service.UserContact{})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -112,11 +112,35 @@ func TestMembershipRoleForCreate(t *testing.T) {
 
 func TestUser_CreateRequiresEmailAndValidRole(t *testing.T) {
 	_, users, _, _, _, _, _ := testDB(t)
-	if _, err := users.Create("x", "y", "", service.RoleUser, service.UserContact{}); err == nil {
+	if _, err := users.Create("x", "secret1!", "", service.RoleUser, service.UserContact{}); err == nil {
 		t.Fatal("expected email required")
 	}
-	if _, err := users.Create("x", "y", "x@y.z", "brewery_admin", service.UserContact{}); err == nil {
+	if _, err := users.Create("x", "secret1!", "x@y.z", "brewery_admin", service.UserContact{}); err == nil {
 		t.Fatal("expected invalid role")
+	}
+}
+
+func TestUser_CreatePasswordComplexity(t *testing.T) {
+	_, users, _, _, _, _, _ := testDB(t)
+	cases := []struct {
+		pw   string
+		want string
+	}{
+		{"short!", "at least 8 characters"},
+		{"nospecial", "special character"},
+		{"12345678", "special character"},
+	}
+	for _, tc := range cases {
+		_, err := users.Create("pwuser", tc.pw, "pw@brew.test", service.RoleUser, service.UserContact{})
+		if err == nil {
+			t.Fatalf("expected error for password %q", tc.pw)
+		}
+		if !strings.Contains(err.Error(), tc.want) {
+			t.Fatalf("password %q: expected %q in error, got %v", tc.pw, tc.want, err)
+		}
+	}
+	if _, err := users.Create("pwok", "goodpass!", "pwok@brew.test", service.RoleUser, service.UserContact{}); err != nil {
+		t.Fatalf("valid password: %v", err)
 	}
 }
 
@@ -124,13 +148,13 @@ func TestUser_CreateRejectsInvalidInstagram(t *testing.T) {
 	_, users, _, _, _, _, _ := testDB(t)
 	invalid := []string{"@handle", "instagram.com/x", "ftp://instagram.com/x", "not a url"}
 	for _, ig := range invalid {
-		if _, err := users.Create("iguser", "secret", "ig@brew.test", service.RoleUser, service.UserContact{Instagram: ig}); err == nil {
+		if _, err := users.Create("iguser", "secret1!", "ig@brew.test", service.RoleUser, service.UserContact{Instagram: ig}); err == nil {
 			t.Fatalf("expected invalid instagram %q", ig)
 		} else if !strings.Contains(err.Error(), "instagram") {
 			t.Fatalf("expected instagram error for %q, got %v", ig, err)
 		}
 	}
-	if _, err := users.Create("igok", "secret", "igok@brew.test", service.RoleUser, service.UserContact{
+	if _, err := users.Create("igok", "secret1!", "igok@brew.test", service.RoleUser, service.UserContact{
 		Instagram: "https://www.instagram.com/brewhouse",
 	}); err != nil {
 		t.Fatalf("valid instagram: %v", err)
@@ -139,14 +163,14 @@ func TestUser_CreateRejectsInvalidInstagram(t *testing.T) {
 
 func TestUser_UpdateProfile(t *testing.T) {
 	_, users, _, _, _, _, _ := testDB(t)
-	created, err := users.Create("cara", "oldpass", "cara@old.test", service.RoleUser, service.UserContact{
+	created, err := users.Create("cara", "oldpass1!", "cara@old.test", service.RoleUser, service.UserContact{
 		FirstName: "Cara",
 		Phone:     "111",
 	})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
-	updated, err := users.UpdateProfile(created.ID, "cara@new.test", "newpass", service.UserContact{
+	updated, err := users.UpdateProfile(created.ID, "cara@new.test", "newpass1!", service.UserContact{
 		FirstName:    "Caroline",
 		LastName:     "Lager",
 		AddressLine1: "Brew St 3",
@@ -162,10 +186,10 @@ func TestUser_UpdateProfile(t *testing.T) {
 	if updated.FirstName != "Caroline" || updated.LastName != "Lager" || updated.Instagram != "http://instagram.com/cara" {
 		t.Fatalf("contact=%#v", updated)
 	}
-	if _, err := users.Authenticate("cara", "oldpass"); err != service.ErrInvalidCredentials {
+	if _, err := users.Authenticate("cara", "oldpass1!"); err != service.ErrInvalidCredentials {
 		t.Fatalf("old password should fail, got %v", err)
 	}
-	if _, err := users.Authenticate("cara", "newpass"); err != nil {
+	if _, err := users.Authenticate("cara", "newpass1!"); err != nil {
 		t.Fatalf("new password auth: %v", err)
 	}
 	emailOnly, err := users.UpdateProfile(created.ID, "cara@keep.test", "", service.UserContact{
@@ -182,7 +206,7 @@ func TestUser_UpdateProfile(t *testing.T) {
 	if emailOnly.Phone != "" {
 		t.Fatalf("phone should be cleared, got %q", emailOnly.Phone)
 	}
-	if _, err := users.Authenticate("cara", "newpass"); err != nil {
+	if _, err := users.Authenticate("cara", "newpass1!"); err != nil {
 		t.Fatalf("password should be unchanged: %v", err)
 	}
 	if _, err := users.UpdateProfile(created.ID, "cara@keep.test", "", service.UserContact{Instagram: "@bad"}); err == nil {
@@ -192,7 +216,7 @@ func TestUser_UpdateProfile(t *testing.T) {
 
 func TestUser_UpdateContact(t *testing.T) {
 	_, users, _, _, _, _, _ := testDB(t)
-	created, err := users.Create("dave", "secret", "dave@brew.test", service.RoleUser, service.UserContact{})
+	created, err := users.Create("dave", "secret1!", "dave@brew.test", service.RoleUser, service.UserContact{})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -217,7 +241,7 @@ func TestUser_UpdateContact(t *testing.T) {
 
 func TestUser_SetActiveBlocksLogin(t *testing.T) {
 	_, users, _, _, _, _, _ := testDB(t)
-	created, err := users.Create("bob", "secret", "bob@brew.test", service.RoleUser, service.UserContact{})
+	created, err := users.Create("bob", "secret1!", "bob@brew.test", service.RoleUser, service.UserContact{})
 	if err != nil {
 		t.Fatalf("create: %v", err)
 	}
@@ -250,14 +274,14 @@ func TestUser_SetActiveBlocksLogin(t *testing.T) {
 		t.Fatal("user missing from list")
 	}
 
-	if _, err := users.Authenticate("bob", "secret"); err != service.ErrInvalidCredentials {
+	if _, err := users.Authenticate("bob", "secret1!"); err != service.ErrInvalidCredentials {
 		t.Fatalf("expected ErrInvalidCredentials, got %v", err)
 	}
 
 	if _, err := users.SetActive(created.ID, true); err != nil {
 		t.Fatalf("reactivate: %v", err)
 	}
-	if _, err := users.Authenticate("bob", "secret"); err != nil {
+	if _, err := users.Authenticate("bob", "secret1!"); err != nil {
 		t.Fatalf("auth after reactivate: %v", err)
 	}
 }

@@ -15,7 +15,10 @@
 		<form method="dialog" class="panel__form" id="iam-user-form">
 			<h2 data-i18n="iam.users.dialog">User</h2>
 			<label><span data-i18n="common.username">Username</span> <input name="username" required autocomplete="username"></label>
-			<label><span data-i18n="common.password">Password</span> <input name="password" type="password" required autocomplete="new-password"></label>
+			<label><span data-i18n="common.password">Password</span>
+				<input name="password" type="password" required autocomplete="new-password" minlength="8">
+				<small class="panel__hint" data-i18n="common.password_hint">Min 8 characters, at least one special character</small>
+			</label>
 			<label><span data-i18n="common.email">Email</span> <input name="email" type="email" required autocomplete="email"></label>
 			<label><span data-i18n="iam.users.first_name">First name</span> <input name="first_name" autocomplete="given-name"></label>
 			<label><span data-i18n="iam.users.last_name">Last name</span> <input name="last_name" autocomplete="family-name"></label>
@@ -83,7 +86,8 @@
 				<input name="username" readonly>
 			</label>
 			<label><span data-i18n="iam.users.new_password">New password</span>
-				<input name="password" type="password" required autocomplete="new-password">
+				<input name="password" type="password" required autocomplete="new-password" minlength="8">
+				<small class="panel__hint" data-i18n="common.password_hint">Min 8 characters, at least one special character</small>
 			</label>
 			<div class="panel__dialog-actions">
 				<button type="submit" class="btn btn--primary" value="save" data-i18n="common.save">Save</button>

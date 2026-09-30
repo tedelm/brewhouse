@@ -35,6 +35,8 @@
   "common.phone": "Phone",
   "common.username": "Username",
   "common.password": "Password",
+  "common.password_hint": "Min 8 characters, at least one special character",
+  "common.password_invalid": "Password must be at least 8 characters and include a special character",
   "common.role": "Role",
   "common.brewery": "Brewery",
   "common.user": "User",

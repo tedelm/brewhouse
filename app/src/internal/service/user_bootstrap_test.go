@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-var sha256HexRE = regexp.MustCompile(`^[0-9a-f]{64}$`)
+var sha256HexRE = regexp.MustCompile(`^[0-9a-f]{64}!$`)
 
 func TestEnsureDefaultAdmin_BootstrapAndClear(t *testing.T) {
 	_, users, _, _, _, _, _ := testDB(t)
@@ -18,7 +18,7 @@ func TestEnsureDefaultAdmin_BootstrapAndClear(t *testing.T) {
 		t.Fatal("expected created=true")
 	}
 	if !sha256HexRE.MatchString(plain) {
-		t.Fatalf("expected 64-hex password, got %q", plain)
+		t.Fatalf("expected 64-hex password with trailing !, got %q", plain)
 	}
 
 	user, pass, pending, err := users.BootstrapCredentials()

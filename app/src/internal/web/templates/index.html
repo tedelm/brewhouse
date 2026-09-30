@@ -265,10 +265,11 @@
 							<input name="instagram" id="profile-instagram" type="url" placeholder="https://instagram.com/…" data-i18n-attr="placeholder:profile.instagram_placeholder" autocomplete="url">
 						</label>
 						<label><span data-i18n="profile.new_password">New password</span>
-							<input name="password" id="profile-password" type="password" autocomplete="new-password" placeholder="Leave blank to keep current" data-i18n-attr="placeholder:profile.password_placeholder">
+							<input name="password" id="profile-password" type="password" autocomplete="new-password" minlength="8" placeholder="Leave blank to keep current" data-i18n-attr="placeholder:profile.password_placeholder">
+							<small class="panel__hint" data-i18n="common.password_hint">Min 8 characters, at least one special character</small>
 						</label>
 						<label><span data-i18n="profile.confirm_password">Confirm new password</span>
-							<input name="password_confirm" id="profile-password-confirm" type="password" autocomplete="new-password" placeholder="Leave blank to keep current" data-i18n-attr="placeholder:profile.password_placeholder">
+							<input name="password_confirm" id="profile-password-confirm" type="password" autocomplete="new-password" minlength="8" placeholder="Leave blank to keep current" data-i18n-attr="placeholder:profile.password_placeholder">
 						</label>
 						<p class="panel__error" id="profile-error" hidden></p>
 						<div class="panel__dialog-actions">

@@ -8,14 +8,16 @@ import (
 	"brewhouse/internal/service"
 )
 
-const inventoryCSVTestHeader = "category,name,unit,qty,cost_price,producer,item_type,min_ebc,max_ebc,link,pitch_min_g_hl,pitch_max_g_hl,pack_size_g,temp_min_c,temp_max_c"
+const hopsCSVHeader = "category,name,unit,qty,cost_price,producer,item_type,link"
+const maltCSVHeader = "category,name,unit,qty,cost_price,producer,item_type,min_ebc,max_ebc,link"
+const yeastCSVHeader = "category,name,unit,qty,cost_price,producer,item_type,link,pitch_min_g_hl,pitch_max_g_hl,pack_size_g,temp_min_c,temp_max_c"
 
 func TestInventoryCSV_ExportImportUpsert(t *testing.T) {
 	_, users, _, inventory, _, _, _ := testDB(t)
 	_, admin := ensureAdminUser(t, users)
 
-	csv1 := inventoryCSVTestHeader + "\n" +
-		"hops,Cascade,g,100,12.5,Yakima,T90,0,0,https://example.com/cascade,0,0,0,0,0\n"
+	csv1 := hopsCSVHeader + "\n" +
+		"hops,Cascade,g,100,12.5,Yakima,T90,https://example.com/cascade\n"
 	res, err := inventory.ImportInventoryCSV(admin, service.CategoryHops, []byte(csv1))
 	if err != nil {
 		t.Fatalf("import create: %v", err)
@@ -24,9 +26,9 @@ func TestInventoryCSV_ExportImportUpsert(t *testing.T) {
 		t.Fatalf("unexpected create result: %+v", res)
 	}
 
-	csv2 := inventoryCSVTestHeader + "\n" +
-		"hops,Cascade,g,250,15,Yakima,T90,0,0,https://example.com/cascade2,0,0,0,0,0\n" +
-		"hops,Citra,g,50,20,Yakima,T90,0,0,,0,0,0,0,0\n"
+	csv2 := hopsCSVHeader + "\n" +
+		"hops,Cascade,g,250,15,Yakima,T90,https://example.com/cascade2\n" +
+		"hops,Citra,g,50,20,Yakima,T90,\n"
 	res, err = inventory.ImportInventoryCSV(admin, service.CategoryHops, []byte(csv2))
 	if err != nil {
 		t.Fatalf("import upsert: %v", err)
@@ -60,8 +62,11 @@ func TestInventoryCSV_ExportImportUpsert(t *testing.T) {
 		t.Fatalf("export: %v", err)
 	}
 	text := string(exported)
-	if !strings.Contains(text, inventoryCSVTestHeader) {
+	if !strings.Contains(text, hopsCSVHeader) {
 		t.Fatalf("missing header: %s", text)
+	}
+	if strings.Contains(text, "min_ebc") || strings.Contains(text, "pitch_min_g_hl") {
+		t.Fatalf("hops export should omit malt/yeast columns: %s", text)
 	}
 	if !strings.Contains(text, "Cascade") || !strings.Contains(text, "Citra") {
 		t.Fatalf("missing rows: %s", text)
@@ -77,8 +82,8 @@ func TestInventoryCSV_CategoryMismatch(t *testing.T) {
 	_, users, _, inventory, _, _, _ := testDB(t)
 	_, admin := ensureAdminUser(t, users)
 
-	csv := inventoryCSVTestHeader + "\n" +
-		"yeast,Wrong Cat,pack,1,1,,,0,0,,0,0,0,0,0\n"
+	csv := hopsCSVHeader + "\n" +
+		"yeast,Wrong Cat,pack,1,1,,,\n"
 	res, err := inventory.ImportInventoryCSV(admin, service.CategoryHops, []byte(csv))
 	if err != nil {
 		t.Fatalf("import should succeed with row errors: %v", err)
@@ -88,6 +93,47 @@ func TestInventoryCSV_CategoryMismatch(t *testing.T) {
 	}
 	if len(res.Errors) == 0 || !strings.Contains(res.Errors[0], "does not match") {
 		t.Fatalf("expected category mismatch error, got %+v", res.Errors)
+	}
+}
+
+func TestInventoryCSV_ExportCategoryColumns(t *testing.T) {
+	_, users, _, inventory, _, _, _ := testDB(t)
+	_, admin := ensureAdminUser(t, users)
+
+	if _, err := inventory.Create(admin, service.InventoryItem{
+		Category: service.CategoryMalt, Name: "Pale", Unit: "kg", Qty: 1, MinEBC: 2, MaxEBC: 4,
+	}); err != nil {
+		t.Fatalf("create malt: %v", err)
+	}
+	if _, err := inventory.Create(admin, service.InventoryItem{
+		Category: service.CategoryYeast, Name: "US-05", Unit: "pack", Qty: 1,
+		PitchMinGHl: 50, PitchMaxGHl: 80, PackSizeG: 11.5, TempMinC: 18, TempMaxC: 26,
+	}); err != nil {
+		t.Fatalf("create yeast: %v", err)
+	}
+
+	maltCSV, err := inventory.ExportInventoryCSV(service.CategoryMalt)
+	if err != nil {
+		t.Fatalf("export malt: %v", err)
+	}
+	maltText := string(maltCSV)
+	if !strings.HasPrefix(maltText, maltCSVHeader+"\n") {
+		t.Fatalf("malt header mismatch: %s", maltText)
+	}
+	if strings.Contains(maltText, "pitch_min_g_hl") {
+		t.Fatalf("malt export should omit yeast columns: %s", maltText)
+	}
+
+	yeastCSV, err := inventory.ExportInventoryCSV(service.CategoryYeast)
+	if err != nil {
+		t.Fatalf("export yeast: %v", err)
+	}
+	yeastText := string(yeastCSV)
+	if !strings.HasPrefix(yeastText, yeastCSVHeader+"\n") {
+		t.Fatalf("yeast header mismatch: %s", yeastText)
+	}
+	if strings.Contains(yeastText, "min_ebc") {
+		t.Fatalf("yeast export should omit malt columns: %s", yeastText)
 	}
 }
 

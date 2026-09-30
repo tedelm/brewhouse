@@ -51,6 +51,13 @@
 		return key;
 	}
 
+	function isPasswordComplex(password) {
+		if (!password || [...password].length < 8) {
+			return false;
+		}
+		return /[^A-Za-z0-9]/.test(password);
+	}
+
 	function authHeaders() {
 		const token = sessionStorage.getItem("brewhouse_token") || "";
 		return {
@@ -678,6 +685,12 @@
 			if (password !== passwordConfirm) {
 				profileError.hidden = false;
 				profileError.textContent = t("profile.password_mismatch");
+				profileDialog.showModal();
+				return;
+			}
+			if (password && !isPasswordComplex(password)) {
+				profileError.hidden = false;
+				profileError.textContent = t("common.password_invalid");
 				profileDialog.showModal();
 				return;
 			}

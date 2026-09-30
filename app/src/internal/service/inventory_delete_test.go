@@ -33,7 +33,7 @@ func TestInventoryDelete_NonAdminForbidden(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create brewery: %v", err)
 	}
-	suUser, err := users.Create("invsu", "pass", "invsu@test.local", service.RoleSuperuser, service.UserContact{})
+	suUser, err := users.Create("invsu", "pass123!", "invsu@test.local", service.RoleSuperuser, service.UserContact{})
 	if err != nil {
 		t.Fatalf("create superuser: %v", err)
 	}

@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"brewhouse/internal/database"
 
@@ -78,6 +80,25 @@ func validateInstagramURL(raw string) error {
 	}
 	if u.Host == "" {
 		return fmt.Errorf("instagram must be a valid http or https URL")
+	}
+	return nil
+}
+
+// validatePassword requires at least 8 characters and one special character
+// (any rune that is not a letter or digit).
+func validatePassword(password string) error {
+	if utf8.RuneCountInString(password) < 8 {
+		return fmt.Errorf("password must be at least 8 characters")
+	}
+	hasSpecial := false
+	for _, r := range password {
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) {
+			hasSpecial = true
+			break
+		}
+	}
+	if !hasSpecial {
+		return fmt.Errorf("password must contain at least one special character")
 	}
 	return nil
 }
@@ -265,6 +286,9 @@ func (s *UserService) Create(username, password, email, role string, contact Use
 	if username == "" || password == "" {
 		return nil, fmt.Errorf("username and password required")
 	}
+	if err := validatePassword(password); err != nil {
+		return nil, err
+	}
 	if email == "" {
 		return nil, fmt.Errorf("email required")
 	}
@@ -319,6 +343,9 @@ func (s *UserService) Update(id int64, username, password, email, role string, c
 	}
 
 	if password != "" {
+		if err := validatePassword(password); err != nil {
+			return nil, err
+		}
 		hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 		if err != nil {
 			return nil, fmt.Errorf("hash password: %w", err)
@@ -357,6 +384,9 @@ func (s *UserService) UpdateProfile(id int64, email, password string, contact Us
 		return nil, err
 	}
 	if password != "" {
+		if err := validatePassword(password); err != nil {
+			return nil, err
+		}
 		hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 		if err != nil {
 			return nil, fmt.Errorf("hash password: %w", err)
@@ -424,12 +454,13 @@ func MembershipRoleForCreate(userRole string) string {
 	return userRole
 }
 
-// generateSHA256Password returns 64 hex chars from SHA-256 of 32 random bytes.
+// generateSHA256Password returns 64 hex chars from SHA-256 of 32 random bytes, plus "!"
+// so the bootstrap password meets complexity rules (special character).
 func generateSHA256Password() (string, error) {
 	buf := make([]byte, 32)
 	if _, err := rand.Read(buf); err != nil {
 		return "", fmt.Errorf("generate password entropy: %w", err)
 	}
 	sum := sha256.Sum256(buf)
-	return hex.EncodeToString(sum[:]), nil
+	return hex.EncodeToString(sum[:]) + "!", nil
 }

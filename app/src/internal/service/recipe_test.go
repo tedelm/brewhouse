@@ -59,7 +59,7 @@ func TestRecipe_CreateCheckoutAndDeleteRestoresStock(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create brewery: %v", err)
 	}
-	member, err := users.Create("brewer", "pass", "brewer@test.local", service.RoleUser, service.UserContact{})
+	member, err := users.Create("brewer", "pass123!", "brewer@test.local", service.RoleUser, service.UserContact{})
 	if err != nil {
 		t.Fatalf("create user: %v", err)
 	}

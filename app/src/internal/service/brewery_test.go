@@ -128,7 +128,7 @@ func TestBrewery_Logo_BreweryAdminCanSetAndClear(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create brewery: %v", err)
 	}
-	manager, err := users.Create("logoadmin", "pass", "logoadmin@test.local", service.RoleUser, service.UserContact{})
+	manager, err := users.Create("logoadmin", "pass123!", "logoadmin@test.local", service.RoleUser, service.UserContact{})
 	if err != nil {
 		t.Fatalf("create manager: %v", err)
 	}
@@ -172,7 +172,7 @@ func TestBrewery_Logo_PlainMemberForbidden(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create brewery: %v", err)
 	}
-	member, err := users.Create("logomember", "pass", "logomember@test.local", service.RoleUser, service.UserContact{})
+	member, err := users.Create("logomember", "pass123!", "logomember@test.local", service.RoleUser, service.UserContact{})
 	if err != nil {
 		t.Fatalf("create member: %v", err)
 	}

@@ -35,6 +35,8 @@
   "common.phone": "Telefon",
   "common.username": "Användarnamn",
   "common.password": "Lösenord",
+  "common.password_hint": "Minst 8 tecken, minst ett specialtecken",
+  "common.password_invalid": "Lösenordet måste vara minst 8 tecken och innehålla ett specialtecken",
   "common.role": "Roll",
   "common.brewery": "Bryggeri",
   "common.user": "Användare",

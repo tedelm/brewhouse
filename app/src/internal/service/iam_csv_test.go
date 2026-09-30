@@ -14,7 +14,7 @@ func TestUsersCSV_ExportImportUpsertSkipsPassword(t *testing.T) {
 
 	csv1 := "" +
 		"username,password,email,role,active,first_name,last_name,address_line1,address_line2,phone,instagram\n" +
-		"alice,secret1,alice@brew.test,user,1,Alice,A,,,,,\n"
+		"alice,secret1!,alice@brew.test,user,1,Alice,A,,,,,\n"
 	res, err := users.ImportUsersCSV(admin, []byte(csv1))
 	if err != nil {
 		t.Fatalf("import create: %v", err)
@@ -22,7 +22,7 @@ func TestUsersCSV_ExportImportUpsertSkipsPassword(t *testing.T) {
 	if res.Created != 1 || res.Updated != 0 || res.Failed != 0 {
 		t.Fatalf("unexpected create result: %+v", res)
 	}
-	if _, err := users.Authenticate("alice", "secret1"); err != nil {
+	if _, err := users.Authenticate("alice", "secret1!"); err != nil {
 		t.Fatalf("auth after create: %v", err)
 	}
 
@@ -36,13 +36,13 @@ func TestUsersCSV_ExportImportUpsertSkipsPassword(t *testing.T) {
 	if res.Created != 0 || res.Updated != 1 || res.Failed != 0 {
 		t.Fatalf("unexpected update result: %+v", res)
 	}
-	if _, err := users.Authenticate("alice", "secret1"); err != nil {
+	if _, err := users.Authenticate("alice", "secret1!"); err != nil {
 		t.Fatalf("old password should still work: %v", err)
 	}
 	if _, err := users.Authenticate("alice", "changed-password"); !errors.Is(err, service.ErrInvalidCredentials) {
 		t.Fatalf("csv password on update should be ignored, got %v", err)
 	}
-	u, err := users.Authenticate("alice", "secret1")
+	u, err := users.Authenticate("alice", "secret1!")
 	if err != nil {
 		t.Fatalf("reauth: %v", err)
 	}
@@ -147,11 +147,11 @@ func TestMembersCSV_ExportImportAddUpdateNoDelete(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create brewery: %v", err)
 	}
-	alice, err := users.Create("alice", "secret", "alice@brew.test", service.RoleUser, service.UserContact{})
+	alice, err := users.Create("alice", "secret1!", "alice@brew.test", service.RoleUser, service.UserContact{})
 	if err != nil {
 		t.Fatalf("create alice: %v", err)
 	}
-	bob, err := users.Create("bob", "secret", "bob@brew.test", service.RoleUser, service.UserContact{})
+	bob, err := users.Create("bob", "secret1!", "bob@brew.test", service.RoleUser, service.UserContact{})
 	if err != nil {
 		t.Fatalf("create bob: %v", err)
 	}
@@ -207,7 +207,7 @@ func TestMembersCSV_ExportImportAddUpdateNoDelete(t *testing.T) {
 		t.Fatalf("bob should remain user, got %q", bobRole)
 	}
 
-	cara, err := users.Create("cara", "secret", "cara@brew.test", service.RoleUser, service.UserContact{})
+	cara, err := users.Create("cara", "secret1!", "cara@brew.test", service.RoleUser, service.UserContact{})
 	if err != nil {
 		t.Fatalf("create cara: %v", err)
 	}

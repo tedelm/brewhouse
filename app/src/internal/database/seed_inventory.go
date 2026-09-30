@@ -27,62 +27,37 @@ var miscCSV []byte
 var equipmentCSV []byte
 
 func seedInventoryCatalogs(db *sql.DB) error {
-	if err := seedMalt(db); err != nil {
+	if err := seedInventoryExportCSV(db, "malt", maltCSV); err != nil {
 		return err
 	}
-	if err := seedCategoryCSV(db, "hops", "g", hopsCSV, false); err != nil {
+	if err := seedInventoryExportCSV(db, "hops", hopsCSV); err != nil {
 		return err
 	}
-	if err := seedYeast(db); err != nil {
+	if err := seedInventoryExportCSV(db, "yeast", yeastCSV); err != nil {
 		return err
 	}
-	if err := seedCategoryCSV(db, "misc", "kg", miscCSV, false); err != nil {
+	if err := seedInventoryExportCSV(db, "misc", miscCSV); err != nil {
 		return err
 	}
-	if err := seedCategoryCSV(db, "equipment", "pcs", equipmentCSV, false); err != nil {
+	if err := seedInventoryExportCSV(db, "equipment", equipmentCSV); err != nil {
 		return err
 	}
 	return nil
 }
 
-func seedMalt(db *sql.DB) error {
+// seedInventoryExportCSV inserts rows from inventory export/import CSV when the category is empty.
+func seedInventoryExportCSV(db *sql.DB, category string, data []byte) error {
 	var count int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM inventory_items WHERE category = 'malt'`).Scan(&count); err != nil {
+	if err := db.QueryRow(`SELECT COUNT(*) FROM inventory_items WHERE category = ?`, category).Scan(&count); err != nil {
 		return err
 	}
 	if count > 0 {
 		return nil
 	}
 
-	rows, err := parseMaltCSV(maltCSV)
+	rows, err := parseInventoryExportCSV(data, category)
 	if err != nil {
-		return fmt.Errorf("parse malt csv: %w", err)
-	}
-	for _, row := range rows {
-		if _, err := db.Exec(
-			`INSERT INTO inventory_items (category, name, unit, qty, cost_price, producer, item_type, min_ebc, max_ebc, link)
-			 VALUES ('malt', ?, 'kg', 0, ?, ?, ?, ?, ?, ?)`,
-			row.name, row.cost, row.producer, row.itemType, row.minEBC, row.maxEBC, row.link,
-		); err != nil {
-			return fmt.Errorf("insert malt %q (%s): %w", row.name, row.producer, err)
-		}
-	}
-	return nil
-}
-
-// seedYeast inserts yeast rows from inventory export/import CSV when the category is empty.
-func seedYeast(db *sql.DB) error {
-	var count int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM inventory_items WHERE category = 'yeast'`).Scan(&count); err != nil {
-		return err
-	}
-	if count > 0 {
-		return nil
-	}
-
-	rows, err := parseYeastExportCSV(yeastCSV)
-	if err != nil {
-		return fmt.Errorf("parse yeast csv: %w", err)
+		return fmt.Errorf("parse %s csv: %w", category, err)
 	}
 	for _, row := range rows {
 		if _, err := db.Exec(
@@ -90,26 +65,54 @@ func seedYeast(db *sql.DB) error {
 				category, name, unit, qty, cost_price, producer, item_type,
 				min_ebc, max_ebc, link,
 				pitch_min_g_hl, pitch_max_g_hl, pack_size_g, temp_min_c, temp_max_c
-			) VALUES ('yeast', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			row.name, row.unit, row.qty, row.costPrice, row.producer, row.itemType,
+			) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			category, row.name, row.unit, row.qty, row.costPrice, row.producer, row.itemType,
 			row.minEBC, row.maxEBC, row.link,
 			row.pitchMin, row.pitchMax, row.packSize, row.tempMin, row.tempMax,
 		); err != nil {
-			return fmt.Errorf("insert yeast %q (%s): %w", row.name, row.producer, err)
+			return fmt.Errorf("insert %s %q (%s): %w", category, row.name, row.producer, err)
 		}
 	}
 	return nil
 }
 
-type yeastExportSeedRow struct {
+type inventoryExportSeedRow struct {
 	name, unit, producer, itemType, link string
-	qty, costPrice, minEBC, maxEBC     float64
-	pitchMin, pitchMax, packSize       float64
-	tempMin, tempMax                   float64
+	qty, costPrice, minEBC, maxEBC       float64
+	pitchMin, pitchMax, packSize         float64
+	tempMin, tempMax                     float64
 }
 
-// parseYeastExportCSV parses inventory export/import format (comma-separated).
-func parseYeastExportCSV(data []byte) ([]yeastExportSeedRow, error) {
+func defaultUnitForCategory(category string) string {
+	switch category {
+	case "hops":
+		return "g"
+	case "yeast":
+		return "pack"
+	case "equipment":
+		return "pcs"
+	default:
+		return "kg"
+	}
+}
+
+// inventorySeedColumns returns export/import columns relevant for the category (mirrors service).
+func inventorySeedColumns(category string) []string {
+	switch category {
+	case "malt":
+		return []string{"category", "name", "unit", "qty", "cost_price", "producer", "item_type", "min_ebc", "max_ebc", "link"}
+	case "yeast":
+		return []string{
+			"category", "name", "unit", "qty", "cost_price", "producer", "item_type", "link",
+			"pitch_min_g_hl", "pitch_max_g_hl", "pack_size_g", "temp_min_c", "temp_max_c",
+		}
+	default:
+		return []string{"category", "name", "unit", "qty", "cost_price", "producer", "item_type", "link"}
+	}
+}
+
+// parseInventoryExportCSV parses inventory export/import format (comma-separated).
+func parseInventoryExportCSV(data []byte, category string) ([]inventoryExportSeedRow, error) {
 	data = bytes.TrimPrefix(data, []byte("\ufeff"))
 	r := csv.NewReader(bytes.NewReader(data))
 	r.TrimLeadingSpace = true
@@ -125,12 +128,7 @@ func parseYeastExportCSV(data []byte) ([]yeastExportSeedRow, error) {
 		key := strings.ToLower(strings.TrimSpace(h))
 		idx[key] = i
 	}
-	required := []string{
-		"category", "name", "unit", "qty", "cost_price", "producer", "item_type",
-		"min_ebc", "max_ebc", "link",
-		"pitch_min_g_hl", "pitch_max_g_hl", "pack_size_g", "temp_min_c", "temp_max_c",
-	}
-	for _, col := range required {
+	for _, col := range inventorySeedColumns(category) {
 		if colIndex(idx, col) < 0 {
 			return nil, fmt.Errorf("missing column %s", col)
 		}
@@ -144,7 +142,8 @@ func parseYeastExportCSV(data []byte) ([]yeastExportSeedRow, error) {
 		return cleanCSVField(rec[i])
 	}
 
-	var out []yeastExportSeedRow
+	defaultUnit := defaultUnitForCategory(category)
+	var out []inventoryExportSeedRow
 	seen := map[string]bool{}
 	for _, rec := range records[1:] {
 		if len(rec) == 0 {
@@ -162,9 +161,9 @@ func parseYeastExportCSV(data []byte) ([]yeastExportSeedRow, error) {
 		seen[key] = true
 		unit := get(rec, "unit")
 		if unit == "" {
-			unit = "pack"
+			unit = defaultUnit
 		}
-		out = append(out, yeastExportSeedRow{
+		out = append(out, inventoryExportSeedRow{
 			name:      name,
 			unit:      unit,
 			producer:  producer,
@@ -182,176 +181,6 @@ func parseYeastExportCSV(data []byte) ([]yeastExportSeedRow, error) {
 		})
 	}
 	return out, nil
-}
-
-// seedCategoryCSV inserts hops/yeast/misc rows when the category is empty.
-func seedCategoryCSV(db *sql.DB, category, unit string, data []byte, joinSubType bool) error {
-	var count int
-	if err := db.QueryRow(`SELECT COUNT(*) FROM inventory_items WHERE category = ?`, category).Scan(&count); err != nil {
-		return err
-	}
-	if count > 0 {
-		return nil
-	}
-
-	rows, err := parseInventoryCSV(data, joinSubType)
-	if err != nil {
-		return fmt.Errorf("parse %s csv: %w", category, err)
-	}
-	for _, row := range rows {
-		if _, err := db.Exec(
-			`INSERT INTO inventory_items (category, name, unit, qty, cost_price, producer, item_type, min_ebc, max_ebc, link)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, ?)`,
-			category, row.name, unit, row.qty, row.cost, row.producer, row.itemType, row.link,
-		); err != nil {
-			return fmt.Errorf("insert %s %q: %w", category, row.name, err)
-		}
-	}
-	return nil
-}
-
-type inventorySeedRow struct {
-	name     string
-	producer string
-	itemType string
-	qty      float64
-	cost     float64
-	minEBC   float64
-	maxEBC   float64
-	link     string
-}
-
-type maltSeedRow = inventorySeedRow
-
-func parseInventoryCSV(data []byte, joinSubType bool) ([]inventorySeedRow, error) {
-	records, idx, err := readSemicolonCSV(data)
-	if err != nil {
-		return nil, err
-	}
-	if colIndex(idx, "name") < 0 {
-		return nil, fmt.Errorf("missing column name")
-	}
-
-	var out []inventorySeedRow
-	seen := map[string]bool{}
-	for _, rec := range records[1:] {
-		if len(rec) == 0 {
-			continue
-		}
-		get := func(keys ...string) string {
-			for _, key := range keys {
-				if i := colIndex(idx, key); i >= 0 && i < len(rec) {
-					return cleanCSVField(rec[i])
-				}
-			}
-			return ""
-		}
-		name := get("name")
-		if name == "" {
-			continue
-		}
-		producer := get("producer")
-		itemType := get("type")
-		if joinSubType {
-			if sub := get("sub_type", "subtype"); sub != "" {
-				if itemType != "" {
-					itemType = itemType + " / " + sub
-				} else {
-					itemType = sub
-				}
-			}
-		}
-		key := strings.ToLower(name) + "\x00" + strings.ToLower(producer)
-		if seen[key] {
-			continue
-		}
-		seen[key] = true
-		out = append(out, inventorySeedRow{
-			name:     name,
-			producer: producer,
-			itemType: itemType,
-			qty:      parseFloatField(get("inventory_amount", "qty")),
-			cost:     parseFloatField(get("cost_price_per_kg", "cost_price")),
-			link:     get("link"),
-		})
-	}
-	return out, nil
-}
-
-func parseMaltCSV(data []byte) ([]maltSeedRow, error) {
-	records, idx, err := readSemicolonCSV(data)
-	if err != nil {
-		return nil, err
-	}
-	for _, key := range []string{"name", "type", "producer", "min_ebc", "max_ebc", "cost_price_per_kg", "link"} {
-		if colIndex(idx, key) < 0 {
-			return nil, fmt.Errorf("missing column %s", key)
-		}
-	}
-
-	best := map[string]maltSeedRow{}
-	for _, rec := range records[1:] {
-		if len(rec) == 0 {
-			continue
-		}
-		get := func(key string) string {
-			i := colIndex(idx, key)
-			if i < 0 || i >= len(rec) {
-				return ""
-			}
-			return cleanCSVField(rec[i])
-		}
-		name := get("name")
-		producer := get("producer")
-		if name == "" {
-			continue
-		}
-		row := maltSeedRow{
-			name:     name,
-			producer: producer,
-			itemType: get("type"),
-			minEBC:   parseFloatField(get("min_ebc")),
-			maxEBC:   parseFloatField(get("max_ebc")),
-			cost:     parseFloatField(get("cost_price_per_kg")),
-			link:     get("link"),
-		}
-		key := strings.ToLower(name) + "\x00" + strings.ToLower(producer)
-		if prev, ok := best[key]; ok {
-			if maltTypeRank(row.itemType) <= maltTypeRank(prev.itemType) {
-				continue
-			}
-		}
-		best[key] = row
-	}
-
-	out := make([]maltSeedRow, 0, len(best))
-	for _, row := range best {
-		out = append(out, row)
-	}
-	return out, nil
-}
-
-func readSemicolonCSV(data []byte) ([][]string, map[string]int, error) {
-	data = bytes.TrimPrefix(data, []byte{0xEF, 0xBB, 0xBF})
-	r := csv.NewReader(bytes.NewReader(data))
-	r.Comma = ';'
-	r.FieldsPerRecord = -1
-	r.LazyQuotes = true
-
-	records, err := r.ReadAll()
-	if err != nil {
-		return nil, nil, err
-	}
-	if len(records) < 2 {
-		return nil, nil, fmt.Errorf("empty csv")
-	}
-
-	idx := map[string]int{}
-	for i, h := range records[0] {
-		key := strings.ToLower(strings.TrimSpace(strings.TrimPrefix(h, "\ufeff")))
-		idx[key] = i
-	}
-	return records, idx, nil
 }
 
 func colIndex(idx map[string]int, name string) int {
@@ -383,18 +212,4 @@ func parseFloatField(s string) float64 {
 		return 0
 	}
 	return v
-}
-
-// maltTypeRank prefers grain-specific types over generic catalog labels when deduping.
-func maltTypeRank(t string) int {
-	switch strings.ToLower(strings.TrimSpace(t)) {
-	case "wheat", "rye", "oats":
-		return 3
-	case "extract":
-		return 2
-	case "caramel", "roasted", "basemalt":
-		return 1
-	default:
-		return 0
-	}
 }

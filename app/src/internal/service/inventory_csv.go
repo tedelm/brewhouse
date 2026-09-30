@@ -10,7 +10,60 @@ import (
 	"strings"
 )
 
-const inventoryCSVHeader = "category,name,unit,qty,cost_price,producer,item_type,min_ebc,max_ebc,link,pitch_min_g_hl,pitch_max_g_hl,pack_size_g,temp_min_c,temp_max_c"
+// inventoryCSVColumns returns export/import columns relevant for the category.
+func inventoryCSVColumns(category string) []string {
+	base := []string{"category", "name", "unit", "qty", "cost_price", "producer", "item_type", "link"}
+	switch category {
+	case CategoryMalt:
+		return []string{"category", "name", "unit", "qty", "cost_price", "producer", "item_type", "min_ebc", "max_ebc", "link"}
+	case CategoryYeast:
+		return []string{
+			"category", "name", "unit", "qty", "cost_price", "producer", "item_type", "link",
+			"pitch_min_g_hl", "pitch_max_g_hl", "pack_size_g", "temp_min_c", "temp_max_c",
+		}
+	default:
+		return base
+	}
+}
+
+func inventoryCSVRow(item InventoryItem, cols []string) []string {
+	out := make([]string, len(cols))
+	for i, col := range cols {
+		switch col {
+		case "category":
+			out[i] = item.Category
+		case "name":
+			out[i] = item.Name
+		case "unit":
+			out[i] = item.Unit
+		case "qty":
+			out[i] = formatCSVFloat(item.Qty)
+		case "cost_price":
+			out[i] = formatCSVFloat(item.CostPrice)
+		case "producer":
+			out[i] = item.Producer
+		case "item_type":
+			out[i] = item.ItemType
+		case "min_ebc":
+			out[i] = formatCSVFloat(item.MinEBC)
+		case "max_ebc":
+			out[i] = formatCSVFloat(item.MaxEBC)
+		case "link":
+			out[i] = item.Link
+		case "pitch_min_g_hl":
+			out[i] = formatCSVFloat(item.PitchMinGHl)
+		case "pitch_max_g_hl":
+			out[i] = formatCSVFloat(item.PitchMaxGHl)
+		case "pack_size_g":
+			out[i] = formatCSVFloat(item.PackSizeG)
+		case "temp_min_c":
+			out[i] = formatCSVFloat(item.TempMinC)
+		case "temp_max_c":
+			out[i] = formatCSVFloat(item.TempMaxC)
+		}
+	}
+	return out
+}
 
 // ExportInventoryCSV returns inventory items for a category as CSV.
 func (s *InventoryService) ExportInventoryCSV(category string) ([]byte, error) {
@@ -21,29 +74,14 @@ func (s *InventoryService) ExportInventoryCSV(category string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	cols := inventoryCSVColumns(category)
 	var buf bytes.Buffer
 	w := csv.NewWriter(&buf)
-	if err := w.Write(strings.Split(inventoryCSVHeader, ",")); err != nil {
+	if err := w.Write(cols); err != nil {
 		return nil, fmt.Errorf("write inventory csv header: %w", err)
 	}
 	for _, item := range items {
-		if err := w.Write([]string{
-			item.Category,
-			item.Name,
-			item.Unit,
-			formatCSVFloat(item.Qty),
-			formatCSVFloat(item.CostPrice),
-			item.Producer,
-			item.ItemType,
-			formatCSVFloat(item.MinEBC),
-			formatCSVFloat(item.MaxEBC),
-			item.Link,
-			formatCSVFloat(item.PitchMinGHl),
-			formatCSVFloat(item.PitchMaxGHl),
-			formatCSVFloat(item.PackSizeG),
-			formatCSVFloat(item.TempMinC),
-			formatCSVFloat(item.TempMaxC),
-		}); err != nil {
+		if err := w.Write(inventoryCSVRow(item, cols)); err != nil {
 			return nil, fmt.Errorf("write inventory csv row: %w", err)
 		}
 	}
@@ -113,11 +151,7 @@ func (s *InventoryService) ImportInventoryCSV(actor Actor, category string, data
 	if len(records) == 0 {
 		return ImportResult{}, fmt.Errorf("empty csv")
 	}
-	idx, err := mapCSVHeader(records[0], []string{
-		"category", "name", "unit", "qty", "cost_price",
-		"producer", "item_type", "min_ebc", "max_ebc", "link",
-		"pitch_min_g_hl", "pitch_max_g_hl", "pack_size_g", "temp_min_c", "temp_max_c",
-	})
+	idx, err := mapCSVHeader(records[0], inventoryCSVColumns(category))
 	if err != nil {
 		return ImportResult{}, err
 	}

@@ -321,7 +321,7 @@ func ensureYeastPitchColumns(db *sql.DB) error {
 // ensureKnownYeastPitch inserts missing catalog yeasts and fills pitch fields when unset.
 // Catalog data comes from seed/yeast.csv (inventory export format).
 func ensureKnownYeastPitch(db *sql.DB) error {
-	rows, err := parseYeastExportCSV(yeastCSV)
+	rows, err := parseInventoryExportCSV(yeastCSV, "yeast")
 	if err != nil {
 		return fmt.Errorf("parse yeast catalog: %w", err)
 	}
