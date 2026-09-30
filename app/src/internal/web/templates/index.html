@@ -26,7 +26,7 @@
 				width="120"
 				height="120"
 			>
-			<div class="splash__progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-label="Loading">
+			<div class="splash__progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" data-i18n-attr="aria-label:splash.loading">
 				<div class="splash__progress-fill is-loading"></div>
 			</div>
 			<p class="splash__version">{{.AppVersion}}</p>
@@ -43,41 +43,43 @@
 			>
 			<form class="login__form" id="login-form" autocomplete="on">
 				<label class="login__label" for="username">
-					<span class="visually-hidden">Username</span>
+					<span class="visually-hidden" data-i18n="login.username">Username</span>
 					<input
 						class="login__input"
 						id="username"
 						name="username"
 						type="text"
 						placeholder="Username"
+						data-i18n-attr="placeholder:login.username"
 						required
 						autocomplete="username"
 					>
 				</label>
 				<label class="login__label" for="password">
-					<span class="visually-hidden">Password</span>
+					<span class="visually-hidden" data-i18n="login.password">Password</span>
 					<input
 						class="login__input"
 						id="password"
 						name="password"
 						type="password"
 						placeholder="Password"
+						data-i18n-attr="placeholder:login.password"
 						required
 						autocomplete="current-password"
 					>
 				</label>
 				<p class="login__error" id="login-error" hidden></p>
-				<button class="login__button" type="submit">Login</button>
+				<button class="login__button" type="submit" data-i18n="login.submit">Login</button>
 			</form>
 			<div class="login__bootstrap" id="bootstrap-credentials" hidden>
-				<p class="login__bootstrap-lead">First-time admin credentials. Save this password in a secure place — it will disappear after your first login.</p>
+				<p class="login__bootstrap-lead" data-i18n="login.bootstrap_lead">First-time admin credentials. Save this password in a secure place — it will disappear after your first login.</p>
 				<label class="login__label">
-					<span class="visually-hidden">Bootstrap username</span>
-					<input class="login__input" id="bootstrap-username" type="text" readonly placeholder="Username">
+					<span class="visually-hidden" data-i18n="login.bootstrap_username">Bootstrap username</span>
+					<input class="login__input" id="bootstrap-username" type="text" readonly placeholder="Username" data-i18n-attr="placeholder:login.username">
 				</label>
 				<label class="login__label">
-					<span class="visually-hidden">Bootstrap password</span>
-					<input class="login__input" id="bootstrap-password" type="text" readonly placeholder="Generated password">
+					<span class="visually-hidden" data-i18n="login.bootstrap_password">Bootstrap password</span>
+					<input class="login__input" id="bootstrap-password" type="text" readonly placeholder="Generated password" data-i18n-attr="placeholder:login.generated_password">
 				</label>
 			</div>
 			<p class="login__success" id="login-success" hidden></p>
@@ -86,7 +88,7 @@
 		<div class="shell-stage">
 			<div class="shell" id="shell">
 				<aside class="shell__sidebar" id="shell-sidebar">
-					<button type="button" class="shell__brand" id="shell-brand-home" aria-label="Home">
+					<button type="button" class="shell__brand" id="shell-brand-home" data-i18n-attr="aria-label:common.home">
 						<img
 							class="shell__brand-logo"
 							id="shell-brand-logo"
@@ -97,94 +99,95 @@
 						>
 						<span class="shell__brand-name">Brewhouse</span>
 					</button>
-					<button type="button" class="shell__collapse" id="shell-collapse" aria-label="Collapse navigation" aria-expanded="true">
+					<button type="button" class="shell__collapse" id="shell-collapse" data-i18n-attr="aria-label:nav.collapse" aria-expanded="true">
 						<span class="shell__collapse-icon" aria-hidden="true"></span>
 					</button>
-					<nav class="shell__nav" aria-label="Main">
+					<nav class="shell__nav" data-i18n-attr="aria-label:nav.main">
 						<section class="shell__nav-section" data-nav-roles="user,superuser,admin">
 							<button type="button" class="shell__nav-header" aria-expanded="false">
 								<span class="material-symbols-outlined" aria-hidden="true">sports_bar</span>
-								<span class="shell__nav-label">Brewing</span>
+								<span class="shell__nav-label" data-i18n="nav.brewing">Brewing</span>
 								<span class="material-symbols-outlined shell__nav-chevron" aria-hidden="true">expand_more</span>
 							</button>
 							<div class="shell__nav-panel">
-								<a class="shell__nav-sublink" href="/app/guide" hx-get="/app/guide" hx-target="#main-content" hx-swap="innerHTML">Brewery 101</a>
-								<a class="shell__nav-sublink" href="/app/recipes" hx-get="/app/recipes" hx-target="#main-content" hx-swap="innerHTML">Recipes <span class="shell__nav-count shell__nav-count--created" data-recipes-nav-count hidden></span></a>
-								<a class="shell__nav-sublink" href="/app/schedule" hx-get="/app/schedule" hx-target="#main-content" hx-swap="innerHTML">Schedule <span class="shell__nav-count shell__nav-count--created" data-schedule-nav-count hidden></span></a>
-								<a class="shell__nav-sublink" href="/app/brewday" hx-get="/app/brewday" hx-target="#main-content" hx-swap="innerHTML">Brewday <span class="shell__nav-count shell__nav-count--brewday" data-brewday-nav-count hidden></span></a>
-								<a class="shell__nav-sublink" href="/app/delivery" hx-get="/app/delivery" hx-target="#main-content" hx-swap="innerHTML">Delivery <span class="shell__nav-count shell__nav-count--ready_for_delivery" data-delivery-nav-count hidden></span></a>
+								<a class="shell__nav-sublink" href="/app/guide" hx-get="/app/guide" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.guide">Brewery 101</span></a>
+								<a class="shell__nav-sublink" href="/app/recipes" hx-get="/app/recipes" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.recipes">Recipes</span> <span class="shell__nav-count shell__nav-count--created" data-recipes-nav-count hidden></span></a>
+								<a class="shell__nav-sublink" href="/app/schedule" hx-get="/app/schedule" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.schedule">Schedule</span> <span class="shell__nav-count shell__nav-count--created" data-schedule-nav-count hidden></span></a>
+								<a class="shell__nav-sublink" href="/app/brewday" hx-get="/app/brewday" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.brewday">Brewday</span> <span class="shell__nav-count shell__nav-count--brewday" data-brewday-nav-count hidden></span></a>
+								<a class="shell__nav-sublink" href="/app/delivery" hx-get="/app/delivery" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.delivery">Delivery</span> <span class="shell__nav-count shell__nav-count--ready_for_delivery" data-delivery-nav-count hidden></span></a>
 							</div>
 						</section>
 						<section class="shell__nav-section" data-nav-roles="user,superuser,admin">
 							<button type="button" class="shell__nav-header" aria-expanded="false">
 								<span class="material-symbols-outlined" aria-hidden="true">inventory_2</span>
-								<span class="shell__nav-label">Inventory</span>
+								<span class="shell__nav-label" data-i18n="nav.inventory">Inventory</span>
 								<span class="material-symbols-outlined shell__nav-chevron" aria-hidden="true">expand_more</span>
 							</button>
 							<div class="shell__nav-panel">
-								<a class="shell__nav-sublink" href="/app/inventory/malt" hx-get="/app/inventory/malt" hx-target="#main-content" hx-swap="innerHTML">Malt</a>
-								<a class="shell__nav-sublink" href="/app/inventory/hops" hx-get="/app/inventory/hops" hx-target="#main-content" hx-swap="innerHTML">Hops</a>
-								<a class="shell__nav-sublink" href="/app/inventory/yeast" hx-get="/app/inventory/yeast" hx-target="#main-content" hx-swap="innerHTML">Yeast</a>
-								<a class="shell__nav-sublink" href="/app/inventory/misc" hx-get="/app/inventory/misc" hx-target="#main-content" hx-swap="innerHTML">Misc</a>
-								<a class="shell__nav-sublink" href="/app/inventory/equipment" hx-get="/app/inventory/equipment" hx-target="#main-content" hx-swap="innerHTML">Equipment</a>
-								<a class="shell__nav-sublink" href="/app/inventory/orders" hx-get="/app/inventory/orders" hx-target="#main-content" hx-swap="innerHTML">Orders <span class="shell__nav-count shell__nav-count--planning" data-orders-nav-count hidden></span></a>
+								<a class="shell__nav-sublink" href="/app/inventory/malt" hx-get="/app/inventory/malt" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.inventory.malt">Malt</span></a>
+								<a class="shell__nav-sublink" href="/app/inventory/hops" hx-get="/app/inventory/hops" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.inventory.hops">Hops</span></a>
+								<a class="shell__nav-sublink" href="/app/inventory/yeast" hx-get="/app/inventory/yeast" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.inventory.yeast">Yeast</span></a>
+								<a class="shell__nav-sublink" href="/app/inventory/misc" hx-get="/app/inventory/misc" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.inventory.misc">Misc</span></a>
+								<a class="shell__nav-sublink" href="/app/inventory/equipment" hx-get="/app/inventory/equipment" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.inventory.equipment">Equipment</span></a>
+								<a class="shell__nav-sublink" href="/app/inventory/orders" hx-get="/app/inventory/orders" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.inventory.orders">Orders</span> <span class="shell__nav-count shell__nav-count--planning" data-orders-nav-count hidden></span></a>
 							</div>
 						</section>
 						<section class="shell__nav-section" data-nav-roles="user,superuser,admin">
 							<button type="button" class="shell__nav-header" aria-expanded="false">
 								<span class="material-symbols-outlined" aria-hidden="true">sanitizer</span>
-								<span class="shell__nav-label">Hygiene</span>
+								<span class="shell__nav-label" data-i18n="nav.hygiene">Hygiene</span>
 								<span class="material-symbols-outlined shell__nav-chevron" aria-hidden="true">expand_more</span>
 							</button>
 							<div class="shell__nav-panel">
-								<a class="shell__nav-sublink" href="/app/hygiene" hx-get="/app/hygiene" hx-target="#main-content" hx-swap="innerHTML">Routines</a>
+								<a class="shell__nav-sublink" href="/app/hygiene" hx-get="/app/hygiene" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.hygiene.routines">Routines</span></a>
 							</div>
 						</section>
 						<section class="shell__nav-section" data-nav-roles="user,superuser,admin">
 							<button type="button" class="shell__nav-header" aria-expanded="false">
 								<span class="material-symbols-outlined" aria-hidden="true">build</span>
-								<span class="shell__nav-label">Tools</span>
+								<span class="shell__nav-label" data-i18n="nav.tools">Tools</span>
 								<span class="material-symbols-outlined shell__nav-chevron" aria-hidden="true">expand_more</span>
 							</button>
 							<div class="shell__nav-panel">
-								<a class="shell__nav-sublink" href="/app/tools/calculators" hx-get="/app/tools/calculators" hx-target="#main-content" hx-swap="innerHTML">Calculators</a>
+								<a class="shell__nav-sublink" href="/app/tools/calculators" hx-get="/app/tools/calculators" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.tools.calculators">Calculators</span></a>
 							</div>
 						</section>
 						<section class="shell__nav-section" data-nav-roles="admin">
 							<button type="button" class="shell__nav-header" aria-expanded="false">
 								<span class="material-symbols-outlined" aria-hidden="true">payments</span>
-								<span class="shell__nav-label">Economy</span>
+								<span class="shell__nav-label" data-i18n="nav.economy">Economy</span>
 								<span class="material-symbols-outlined shell__nav-chevron" aria-hidden="true">expand_more</span>
 							</button>
 							<div class="shell__nav-panel">
-								<a class="shell__nav-sublink" href="/app/economy" hx-get="/app/economy" hx-target="#main-content" hx-swap="innerHTML">Tax rates</a>
-								<a class="shell__nav-sublink" href="/app/economy/deliveries" hx-get="/app/economy/deliveries" hx-target="#main-content" hx-swap="innerHTML">Monthly deliveries</a>
+								<a class="shell__nav-sublink" href="/app/economy" hx-get="/app/economy" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.economy.tax_rates">Tax rates</span></a>
+								<a class="shell__nav-sublink" href="/app/economy/deliveries" hx-get="/app/economy/deliveries" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.economy.monthly_deliveries">Monthly deliveries</span></a>
 							</div>
 						</section>
 						<section class="shell__nav-section" data-nav-roles="user,superuser,admin">
 							<button type="button" class="shell__nav-header" aria-expanded="false">
 								<span class="material-symbols-outlined" aria-hidden="true">group</span>
-								<span class="shell__nav-label">IAM</span>
+								<span class="shell__nav-label" data-i18n="nav.iam">IAM</span>
 								<span class="material-symbols-outlined shell__nav-chevron" aria-hidden="true">expand_more</span>
 							</button>
 							<div class="shell__nav-panel">
-								<a class="shell__nav-sublink" href="/app/iam/users" hx-get="/app/iam/users" hx-target="#main-content" hx-swap="innerHTML" data-nav-roles="admin">Users</a>
-								<a class="shell__nav-sublink" href="/app/iam/breweries" hx-get="/app/iam/breweries" hx-target="#main-content" hx-swap="innerHTML">Breweries</a>
+								<a class="shell__nav-sublink" href="/app/iam/users" hx-get="/app/iam/users" hx-target="#main-content" hx-swap="innerHTML" data-nav-roles="admin"><span data-i18n="nav.iam.users">Users</span></a>
+								<a class="shell__nav-sublink" href="/app/iam/breweries" hx-get="/app/iam/breweries" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.iam.breweries">Breweries</span></a>
 							</div>
 						</section>
 						<section class="shell__nav-section" data-nav-roles="admin">
 							<button type="button" class="shell__nav-header" aria-expanded="false">
 								<span class="material-symbols-outlined" aria-hidden="true">settings</span>
-								<span class="shell__nav-label">Settings</span>
+								<span class="shell__nav-label" data-i18n="nav.settings">Settings</span>
 								<span class="material-symbols-outlined shell__nav-chevron" aria-hidden="true">expand_more</span>
 							</button>
 							<div class="shell__nav-panel">
-								<a class="shell__nav-sublink" href="/app/settings/brand" hx-get="/app/settings/brand" hx-target="#main-content" hx-swap="innerHTML">Brand</a>
-								<a class="shell__nav-sublink" href="/app/settings/tanks" hx-get="/app/settings/tanks" hx-target="#main-content" hx-swap="innerHTML">Tanks</a>
-								<a class="shell__nav-sublink" href="/app/settings/multipliers" hx-get="/app/settings/multipliers" hx-target="#main-content" hx-swap="innerHTML">Multipliers</a>
-								<a class="shell__nav-sublink" href="/app/settings/beer-price" hx-get="/app/settings/beer-price" hx-target="#main-content" hx-swap="innerHTML">Beer net price</a>
-								<a class="shell__nav-sublink" href="/app/settings/hygiene" hx-get="/app/settings/hygiene" hx-target="#main-content" hx-swap="innerHTML">Hygiene routines</a>
-								<a class="shell__nav-sublink" href="/app/settings/backup" hx-get="/app/settings/backup" hx-target="#main-content" hx-swap="innerHTML">Backup</a>
+								<a class="shell__nav-sublink" href="/app/settings/brand" hx-get="/app/settings/brand" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.settings.brand">Brand</span></a>
+								<a class="shell__nav-sublink" href="/app/settings/tanks" hx-get="/app/settings/tanks" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.settings.tanks">Tanks</span></a>
+								<a class="shell__nav-sublink" href="/app/settings/multipliers" hx-get="/app/settings/multipliers" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.settings.multipliers">Multipliers</span></a>
+								<a class="shell__nav-sublink" href="/app/settings/beer-price" hx-get="/app/settings/beer-price" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.settings.beer_price">Beer net price</span></a>
+								<a class="shell__nav-sublink" href="/app/settings/regional" hx-get="/app/settings/regional" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.settings.regional">Regional</span></a>
+								<a class="shell__nav-sublink" href="/app/settings/hygiene" hx-get="/app/settings/hygiene" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.settings.hygiene">Hygiene routines</span></a>
+								<a class="shell__nav-sublink" href="/app/settings/backup" hx-get="/app/settings/backup" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.settings.backup">Backup</span></a>
 							</div>
 						</section>
 					</nav>
@@ -192,7 +195,7 @@
 				</aside>
 				<div class="shell__main">
 					<header class="shell__topbar">
-						<button type="button" class="shell__topbar-brand" id="shell-topbar-brand" aria-label="Home">
+						<button type="button" class="shell__topbar-brand" id="shell-topbar-brand" data-i18n-attr="aria-label:common.home">
 							<img class="shell__brand-logo" src="/logo" alt="" width="36" height="36">
 							<span class="shell__topbar-brand-name">Brewhouse</span>
 						</button>
@@ -201,7 +204,7 @@
 								type="button"
 								class="shell__profile"
 								id="shell-profile"
-								aria-label="Profile"
+								data-i18n-attr="aria-label:profile.aria"
 								aria-expanded="false"
 								aria-haspopup="true"
 								aria-controls="shell-profile-menu"
@@ -211,11 +214,11 @@
 							</button>
 							<div class="shell__profile-menu" id="shell-profile-menu" hidden role="menu">
 								<label class="shell__profile-menu-item shell__profile-menu-item--toggle" id="shell-profile-admin-wrap" hidden>
-									<span>Admin mode</span>
+									<span data-i18n="profile.admin_mode">Admin mode</span>
 									<input type="checkbox" id="shell-profile-admin" role="switch">
 								</label>
-								<button type="button" class="shell__profile-menu-item" role="menuitem" id="shell-profile-view">View profile</button>
-								<button type="button" class="shell__profile-menu-item" role="menuitem" id="shell-profile-logout">Logout</button>
+								<button type="button" class="shell__profile-menu-item" role="menuitem" id="shell-profile-view" data-i18n="profile.view">View profile</button>
+								<button type="button" class="shell__profile-menu-item" role="menuitem" id="shell-profile-logout" data-i18n="profile.logout">Logout</button>
 							</div>
 						</div>
 					</header>
@@ -226,51 +229,51 @@
 								<img class="shell__welcome-logo" src="/logo" alt="" width="120" height="120">
 							</div>
 							<p class="shell__welcome-brand">Brewhouse</p>
-							<h1 class="shell__welcome-title">From recipe to the pub</h1>
-							<p class="shell__welcome-text">Pick a section in the navigation, or start with the batch pipeline guide.</p>
-							<a class="btn btn--primary shell__welcome-cta" href="/app/guide" hx-get="/app/guide" hx-target="#main-content" hx-swap="innerHTML">Brewery 101</a>
-							<p class="shell__welcome-tip" id="shell-welcome-admin-tip" hidden>Admin accounts: open your profile menu and turn on <strong>Admin mode</strong> for Economy, IAM, and Settings.</p>
+							<h1 class="shell__welcome-title" data-i18n="shell.welcome.title">From recipe to the pub</h1>
+							<p class="shell__welcome-text" data-i18n="shell.welcome.text">Pick a section in the navigation, or start with the batch pipeline guide.</p>
+							<a class="btn btn--primary shell__welcome-cta" href="/app/guide" hx-get="/app/guide" hx-target="#main-content" hx-swap="innerHTML" data-i18n="shell.welcome.cta">Brewery 101</a>
+							<p class="shell__welcome-tip" id="shell-welcome-admin-tip" hidden data-i18n-html="shell.welcome.admin_tip">Admin accounts: open your profile menu and turn on <strong>Admin mode</strong> for Economy, IAM, and Settings.</p>
 						</section>
 					</main>
 				</div>
 
 				<dialog class="panel__dialog" id="profile-dialog">
 					<form method="dialog" class="panel__form" id="profile-form">
-						<h2>Profile</h2>
-						<label>Username
+						<h2 data-i18n="profile.title">Profile</h2>
+						<label><span data-i18n="profile.username">Username</span>
 							<input name="username" id="profile-username" readonly>
 						</label>
-						<label>Email
+						<label><span data-i18n="profile.email">Email</span>
 							<input name="email" id="profile-email" type="email" required autocomplete="email">
 						</label>
-						<label>First name
+						<label><span data-i18n="profile.first_name">First name</span>
 							<input name="first_name" id="profile-first-name" autocomplete="given-name">
 						</label>
-						<label>Last name
+						<label><span data-i18n="profile.last_name">Last name</span>
 							<input name="last_name" id="profile-last-name" autocomplete="family-name">
 						</label>
-						<label>Address line 1
+						<label><span data-i18n="profile.address_line1">Address line 1</span>
 							<input name="address_line1" id="profile-address-line1" autocomplete="address-line1">
 						</label>
-						<label>Address line 2
+						<label><span data-i18n="profile.address_line2">Address line 2</span>
 							<input name="address_line2" id="profile-address-line2" autocomplete="address-line2">
 						</label>
-						<label>Phone
+						<label><span data-i18n="profile.phone">Phone</span>
 							<input name="phone" id="profile-phone" type="tel" autocomplete="tel">
 						</label>
-						<label>Instagram
-							<input name="instagram" id="profile-instagram" type="url" placeholder="https://instagram.com/…" autocomplete="url">
+						<label><span data-i18n="profile.instagram">Instagram</span>
+							<input name="instagram" id="profile-instagram" type="url" placeholder="https://instagram.com/…" data-i18n-attr="placeholder:profile.instagram_placeholder" autocomplete="url">
 						</label>
-						<label>New password
-							<input name="password" id="profile-password" type="password" autocomplete="new-password" placeholder="Leave blank to keep current">
+						<label><span data-i18n="profile.new_password">New password</span>
+							<input name="password" id="profile-password" type="password" autocomplete="new-password" placeholder="Leave blank to keep current" data-i18n-attr="placeholder:profile.password_placeholder">
 						</label>
-						<label>Confirm new password
-							<input name="password_confirm" id="profile-password-confirm" type="password" autocomplete="new-password" placeholder="Leave blank to keep current">
+						<label><span data-i18n="profile.confirm_password">Confirm new password</span>
+							<input name="password_confirm" id="profile-password-confirm" type="password" autocomplete="new-password" placeholder="Leave blank to keep current" data-i18n-attr="placeholder:profile.password_placeholder">
 						</label>
 						<p class="panel__error" id="profile-error" hidden></p>
 						<div class="panel__dialog-actions">
-							<button type="submit" class="btn btn--primary" value="save">Save</button>
-							<button type="submit" class="btn" value="cancel" formnovalidate>Cancel</button>
+							<button type="submit" class="btn btn--primary" value="save" data-i18n="common.save">Save</button>
+							<button type="submit" class="btn" value="cancel" formnovalidate data-i18n="common.cancel">Cancel</button>
 						</div>
 					</form>
 				</dialog>
@@ -279,99 +282,100 @@
 					type="button"
 					class="shell__nav-fab"
 					id="shell-nav-fab"
-					aria-label="Open navigation"
+					data-i18n-attr="aria-label:nav.open"
 					aria-expanded="false"
 					aria-controls="shell-nav-sheet"
 				>
 					<span class="material-symbols-outlined shell__nav-fab-icon" aria-hidden="true">menu</span>
 				</button>
 				<div class="shell__nav-backdrop" id="shell-nav-backdrop" hidden></div>
-				<nav class="shell__nav-sheet" id="shell-nav-sheet" aria-label="Main" aria-hidden="true">
+				<nav class="shell__nav-sheet" id="shell-nav-sheet" data-i18n-attr="aria-label:nav.main" aria-hidden="true">
 					<div class="shell__sheet-handle" aria-hidden="true"></div>
 					<section class="shell__sheet-section" data-nav-roles="user,superuser,admin">
 						<button type="button" class="shell__sheet-header" aria-expanded="false">
 							<span class="material-symbols-outlined" aria-hidden="true">sports_bar</span>
-							<span class="shell__nav-label">Brewing</span>
+							<span class="shell__nav-label" data-i18n="nav.brewing">Brewing</span>
 							<span class="material-symbols-outlined shell__sheet-chevron" aria-hidden="true">expand_more</span>
 						</button>
 						<div class="shell__sheet-panel">
-							<a class="shell__sheet-link" href="/app/guide" hx-get="/app/guide" hx-target="#main-content" hx-swap="innerHTML">Brewery 101</a>
-							<a class="shell__sheet-link" href="/app/recipes" hx-get="/app/recipes" hx-target="#main-content" hx-swap="innerHTML">Recipes <span class="shell__nav-count shell__nav-count--created" data-recipes-nav-count hidden></span></a>
-							<a class="shell__sheet-link" href="/app/schedule" hx-get="/app/schedule" hx-target="#main-content" hx-swap="innerHTML">Schedule <span class="shell__nav-count shell__nav-count--created" data-schedule-nav-count hidden></span></a>
-							<a class="shell__sheet-link" href="/app/brewday" hx-get="/app/brewday" hx-target="#main-content" hx-swap="innerHTML">Brewday <span class="shell__nav-count shell__nav-count--brewday" data-brewday-nav-count hidden></span></a>
-							<a class="shell__sheet-link" href="/app/delivery" hx-get="/app/delivery" hx-target="#main-content" hx-swap="innerHTML">Delivery <span class="shell__nav-count shell__nav-count--ready_for_delivery" data-delivery-nav-count hidden></span></a>
+							<a class="shell__sheet-link" href="/app/guide" hx-get="/app/guide" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.guide">Brewery 101</span></a>
+							<a class="shell__sheet-link" href="/app/recipes" hx-get="/app/recipes" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.recipes">Recipes</span> <span class="shell__nav-count shell__nav-count--created" data-recipes-nav-count hidden></span></a>
+							<a class="shell__sheet-link" href="/app/schedule" hx-get="/app/schedule" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.schedule">Schedule</span> <span class="shell__nav-count shell__nav-count--created" data-schedule-nav-count hidden></span></a>
+							<a class="shell__sheet-link" href="/app/brewday" hx-get="/app/brewday" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.brewday">Brewday</span> <span class="shell__nav-count shell__nav-count--brewday" data-brewday-nav-count hidden></span></a>
+							<a class="shell__sheet-link" href="/app/delivery" hx-get="/app/delivery" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.delivery">Delivery</span> <span class="shell__nav-count shell__nav-count--ready_for_delivery" data-delivery-nav-count hidden></span></a>
 						</div>
 					</section>
 					<section class="shell__sheet-section" data-nav-roles="user,superuser,admin">
 						<button type="button" class="shell__sheet-header" aria-expanded="false">
 							<span class="material-symbols-outlined" aria-hidden="true">inventory_2</span>
-							<span class="shell__nav-label">Inventory</span>
+							<span class="shell__nav-label" data-i18n="nav.inventory">Inventory</span>
 							<span class="material-symbols-outlined shell__sheet-chevron" aria-hidden="true">expand_more</span>
 						</button>
 						<div class="shell__sheet-panel">
-							<a class="shell__sheet-link" href="/app/inventory/malt" hx-get="/app/inventory/malt" hx-target="#main-content" hx-swap="innerHTML">Malt</a>
-							<a class="shell__sheet-link" href="/app/inventory/hops" hx-get="/app/inventory/hops" hx-target="#main-content" hx-swap="innerHTML">Hops</a>
-							<a class="shell__sheet-link" href="/app/inventory/yeast" hx-get="/app/inventory/yeast" hx-target="#main-content" hx-swap="innerHTML">Yeast</a>
-							<a class="shell__sheet-link" href="/app/inventory/misc" hx-get="/app/inventory/misc" hx-target="#main-content" hx-swap="innerHTML">Misc</a>
-							<a class="shell__sheet-link" href="/app/inventory/equipment" hx-get="/app/inventory/equipment" hx-target="#main-content" hx-swap="innerHTML">Equipment</a>
-							<a class="shell__sheet-link" href="/app/inventory/orders" hx-get="/app/inventory/orders" hx-target="#main-content" hx-swap="innerHTML">Orders <span class="shell__nav-count shell__nav-count--planning" data-orders-nav-count hidden></span></a>
+							<a class="shell__sheet-link" href="/app/inventory/malt" hx-get="/app/inventory/malt" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.inventory.malt">Malt</span></a>
+							<a class="shell__sheet-link" href="/app/inventory/hops" hx-get="/app/inventory/hops" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.inventory.hops">Hops</span></a>
+							<a class="shell__sheet-link" href="/app/inventory/yeast" hx-get="/app/inventory/yeast" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.inventory.yeast">Yeast</span></a>
+							<a class="shell__sheet-link" href="/app/inventory/misc" hx-get="/app/inventory/misc" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.inventory.misc">Misc</span></a>
+							<a class="shell__sheet-link" href="/app/inventory/equipment" hx-get="/app/inventory/equipment" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.inventory.equipment">Equipment</span></a>
+							<a class="shell__sheet-link" href="/app/inventory/orders" hx-get="/app/inventory/orders" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.inventory.orders">Orders</span> <span class="shell__nav-count shell__nav-count--planning" data-orders-nav-count hidden></span></a>
 						</div>
 					</section>
 					<section class="shell__sheet-section" data-nav-roles="user,superuser,admin">
 						<button type="button" class="shell__sheet-header" aria-expanded="false">
 							<span class="material-symbols-outlined" aria-hidden="true">sanitizer</span>
-							<span class="shell__nav-label">Hygiene</span>
+							<span class="shell__nav-label" data-i18n="nav.hygiene">Hygiene</span>
 							<span class="material-symbols-outlined shell__sheet-chevron" aria-hidden="true">expand_more</span>
 						</button>
 						<div class="shell__sheet-panel">
-							<a class="shell__sheet-link" href="/app/hygiene" hx-get="/app/hygiene" hx-target="#main-content" hx-swap="innerHTML">Routines</a>
+							<a class="shell__sheet-link" href="/app/hygiene" hx-get="/app/hygiene" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.hygiene.routines">Routines</span></a>
 						</div>
 					</section>
 					<section class="shell__sheet-section" data-nav-roles="user,superuser,admin">
 						<button type="button" class="shell__sheet-header" aria-expanded="false">
 							<span class="material-symbols-outlined" aria-hidden="true">build</span>
-							<span class="shell__nav-label">Tools</span>
+							<span class="shell__nav-label" data-i18n="nav.tools">Tools</span>
 							<span class="material-symbols-outlined shell__sheet-chevron" aria-hidden="true">expand_more</span>
 						</button>
 						<div class="shell__sheet-panel">
-							<a class="shell__sheet-link" href="/app/tools/calculators" hx-get="/app/tools/calculators" hx-target="#main-content" hx-swap="innerHTML">Calculators</a>
+							<a class="shell__sheet-link" href="/app/tools/calculators" hx-get="/app/tools/calculators" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.tools.calculators">Calculators</span></a>
 						</div>
 					</section>
 					<section class="shell__sheet-section" data-nav-roles="admin">
 						<button type="button" class="shell__sheet-header" aria-expanded="false">
 							<span class="material-symbols-outlined" aria-hidden="true">payments</span>
-							<span class="shell__nav-label">Economy</span>
+							<span class="shell__nav-label" data-i18n="nav.economy">Economy</span>
 							<span class="material-symbols-outlined shell__sheet-chevron" aria-hidden="true">expand_more</span>
 						</button>
 						<div class="shell__sheet-panel">
-							<a class="shell__sheet-link" href="/app/economy" hx-get="/app/economy" hx-target="#main-content" hx-swap="innerHTML">Tax rates</a>
-							<a class="shell__sheet-link" href="/app/economy/deliveries" hx-get="/app/economy/deliveries" hx-target="#main-content" hx-swap="innerHTML">Monthly deliveries</a>
+							<a class="shell__sheet-link" href="/app/economy" hx-get="/app/economy" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.economy.tax_rates">Tax rates</span></a>
+							<a class="shell__sheet-link" href="/app/economy/deliveries" hx-get="/app/economy/deliveries" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.economy.monthly_deliveries">Monthly deliveries</span></a>
 						</div>
 					</section>
 					<section class="shell__sheet-section" data-nav-roles="user,superuser,admin">
 						<button type="button" class="shell__sheet-header" aria-expanded="false">
 							<span class="material-symbols-outlined" aria-hidden="true">group</span>
-							<span class="shell__nav-label">IAM</span>
+							<span class="shell__nav-label" data-i18n="nav.iam">IAM</span>
 							<span class="material-symbols-outlined shell__sheet-chevron" aria-hidden="true">expand_more</span>
 						</button>
 						<div class="shell__sheet-panel">
-							<a class="shell__sheet-link" href="/app/iam/users" hx-get="/app/iam/users" hx-target="#main-content" hx-swap="innerHTML" data-nav-roles="admin">Users</a>
-							<a class="shell__sheet-link" href="/app/iam/breweries" hx-get="/app/iam/breweries" hx-target="#main-content" hx-swap="innerHTML">Breweries</a>
+							<a class="shell__sheet-link" href="/app/iam/users" hx-get="/app/iam/users" hx-target="#main-content" hx-swap="innerHTML" data-nav-roles="admin"><span data-i18n="nav.iam.users">Users</span></a>
+							<a class="shell__sheet-link" href="/app/iam/breweries" hx-get="/app/iam/breweries" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.iam.breweries">Breweries</span></a>
 						</div>
 					</section>
 					<section class="shell__sheet-section" data-nav-roles="admin">
 						<button type="button" class="shell__sheet-header" aria-expanded="false">
 							<span class="material-symbols-outlined" aria-hidden="true">settings</span>
-							<span class="shell__nav-label">Settings</span>
+							<span class="shell__nav-label" data-i18n="nav.settings">Settings</span>
 							<span class="material-symbols-outlined shell__sheet-chevron" aria-hidden="true">expand_more</span>
 						</button>
 						<div class="shell__sheet-panel">
-							<a class="shell__sheet-link" href="/app/settings/brand" hx-get="/app/settings/brand" hx-target="#main-content" hx-swap="innerHTML">Brand</a>
-							<a class="shell__sheet-link" href="/app/settings/tanks" hx-get="/app/settings/tanks" hx-target="#main-content" hx-swap="innerHTML">Tanks</a>
-							<a class="shell__sheet-link" href="/app/settings/multipliers" hx-get="/app/settings/multipliers" hx-target="#main-content" hx-swap="innerHTML">Multipliers</a>
-							<a class="shell__sheet-link" href="/app/settings/beer-price" hx-get="/app/settings/beer-price" hx-target="#main-content" hx-swap="innerHTML">Beer net price</a>
-							<a class="shell__sheet-link" href="/app/settings/hygiene" hx-get="/app/settings/hygiene" hx-target="#main-content" hx-swap="innerHTML">Hygiene routines</a>
-							<a class="shell__sheet-link" href="/app/settings/backup" hx-get="/app/settings/backup" hx-target="#main-content" hx-swap="innerHTML">Backup</a>
+							<a class="shell__sheet-link" href="/app/settings/brand" hx-get="/app/settings/brand" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.settings.brand">Brand</span></a>
+							<a class="shell__sheet-link" href="/app/settings/tanks" hx-get="/app/settings/tanks" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.settings.tanks">Tanks</span></a>
+							<a class="shell__sheet-link" href="/app/settings/multipliers" hx-get="/app/settings/multipliers" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.settings.multipliers">Multipliers</span></a>
+							<a class="shell__sheet-link" href="/app/settings/beer-price" hx-get="/app/settings/beer-price" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.settings.beer_price">Beer net price</span></a>
+							<a class="shell__sheet-link" href="/app/settings/regional" hx-get="/app/settings/regional" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.settings.regional">Regional</span></a>
+							<a class="shell__sheet-link" href="/app/settings/hygiene" hx-get="/app/settings/hygiene" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.settings.hygiene">Hygiene routines</span></a>
+							<a class="shell__sheet-link" href="/app/settings/backup" hx-get="/app/settings/backup" hx-target="#main-content" hx-swap="innerHTML"><span data-i18n="nav.settings.backup">Backup</span></a>
 						</div>
 					</section>
 					<p class="shell__version shell__version--sheet">{{.AppVersion}}</p>
@@ -381,34 +385,35 @@
 	</div>
 	<dialog class="panel__dialog" id="app-confirm-dialog">
 		<form method="dialog" class="panel__form" id="app-confirm-form">
-			<h2 id="app-confirm-title">Confirm</h2>
+			<h2 id="app-confirm-title" data-i18n="dialog.confirm">Confirm</h2>
 			<p id="app-confirm-message"></p>
 			<div class="panel__dialog-actions">
-				<button type="submit" class="btn btn--primary" value="confirm">Confirm</button>
-				<button type="submit" class="btn" value="cancel" formnovalidate>Cancel</button>
+				<button type="submit" class="btn btn--primary" value="confirm" data-i18n="dialog.confirm">Confirm</button>
+				<button type="submit" class="btn" value="cancel" formnovalidate data-i18n="dialog.cancel">Cancel</button>
 			</div>
 		</form>
 	</dialog>
 	<dialog class="panel__dialog" id="app-info-dialog">
 		<form method="dialog" class="panel__form" id="app-info-form">
-			<h2 id="app-info-title">Info</h2>
+			<h2 id="app-info-title" data-i18n="dialog.info">Info</h2>
 			<p id="app-info-message"></p>
 			<div class="panel__dialog-actions">
-				<button type="submit" class="btn btn--primary" value="close">Close</button>
+				<button type="submit" class="btn btn--primary" value="close" data-i18n="dialog.close">Close</button>
 			</div>
 		</form>
 	</dialog>
 	<dialog class="panel__dialog" id="app-prompt-dialog">
 		<form method="dialog" class="panel__form" id="app-prompt-form">
-			<h2 id="app-prompt-title">Input</h2>
+			<h2 id="app-prompt-title" data-i18n="dialog.input">Input</h2>
 			<div id="app-prompt-fields"></div>
 			<div class="panel__dialog-actions">
-				<button type="submit" class="btn btn--primary" value="save">Save</button>
-				<button type="submit" class="btn" value="cancel" formnovalidate>Cancel</button>
+				<button type="submit" class="btn btn--primary" value="save" data-i18n="dialog.save">Save</button>
+				<button type="submit" class="btn" value="cancel" formnovalidate data-i18n="dialog.cancel">Cancel</button>
 			</div>
 		</form>
 	</dialog>
 	<script src="/static/js/wasm_exec.js"></script>
+	<script src="/static/js/i18n.js"></script>
 	<script src="/static/js/wasm_loader.js"></script>
 	<script src="/static/js/app.js"></script>
 </body>

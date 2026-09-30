@@ -227,6 +227,12 @@ type BeerPriceRequest struct {
 	MinNetSEKPerLiter float64 `json:"min_net_sek_per_liter"`
 }
 
+// RegionalRequest is update for display currency and UI language.
+type RegionalRequest struct {
+	CurrencyCode string `json:"currency_code"`
+	Language     string `json:"language"`
+}
+
 // HygieneRoutineRequest is create/update for hygiene routines.
 type HygieneRoutineRequest struct {
 	Name        string `json:"name"`

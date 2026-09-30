@@ -315,6 +315,49 @@ func validTaxDiscount(d float64) bool {
 	}
 }
 
+// GetRegionalConfig returns display currency and language (defaults SEK/en).
+func (s *SettingsService) GetRegionalConfig() (*RegionalConfig, error) {
+	cfg := &RegionalConfig{}
+	err := s.db.QueryRow(
+		`SELECT currency_code, language FROM regional_config WHERE id = 1`,
+	).Scan(&cfg.CurrencyCode, &cfg.Language)
+	if errors.Is(err, sql.ErrNoRows) {
+		return &RegionalConfig{CurrencyCode: "SEK", Language: "en"}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get regional config: %w", err)
+	}
+	return cfg, nil
+}
+
+// UpdateRegionalConfig updates display currency and language.
+func (s *SettingsService) UpdateRegionalConfig(actor Actor, currencyCode, language string) (*RegionalConfig, error) {
+	if err := s.requireAdmin(actor); err != nil {
+		return nil, err
+	}
+	currencyCode = strings.ToUpper(strings.TrimSpace(currencyCode))
+	language = strings.ToLower(strings.TrimSpace(language))
+	switch currencyCode {
+	case "SEK", "EUR", "USD":
+	default:
+		return nil, fmt.Errorf("currency_code must be SEK, EUR, or USD")
+	}
+	switch language {
+	case "en", "sv":
+	default:
+		return nil, fmt.Errorf("language must be en or sv")
+	}
+	_, err := s.db.Exec(
+		`INSERT INTO regional_config (id, currency_code, language) VALUES (1, ?, ?)
+		 ON CONFLICT(id) DO UPDATE SET currency_code = excluded.currency_code, language = excluded.language`,
+		currencyCode, language,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return s.GetRegionalConfig()
+}
+
 // GetBeerPriceConfig returns min net SEK/L (defaults to 0 if missing).
 func (s *SettingsService) GetBeerPriceConfig() (*BeerPriceConfig, error) {
 	cfg := &BeerPriceConfig{}

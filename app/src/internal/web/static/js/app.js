@@ -97,12 +97,12 @@
 
 	function formatImportResult(result) {
 		const parts = [
-			"Created: " + (result.created || 0),
-			"Updated: " + (result.updated || 0),
-			"Failed: " + (result.failed || 0),
+			t("js.import.created", { n: result.created || 0 }),
+			t("js.import.updated", { n: result.updated || 0 }),
+			t("js.import.failed", { n: result.failed || 0 }),
 		];
 		if (result.errors && result.errors.length) {
-			parts.push("", "Errors:", result.errors.join("\n"));
+			parts.push("", t("js.import.errors"), result.errors.join("\n"));
 		}
 		return parts.join("\n");
 	}
@@ -142,7 +142,78 @@
 		if (n == null || n === "" || Number.isNaN(Number(n))) {
 			return "";
 		}
+		const amount = Number(n).toFixed(2);
+		const suffix =
+			window.BH_I18N && typeof window.BH_I18N.currencySuffix === "function"
+				? window.BH_I18N.currencySuffix()
+				: " SEK";
+		return amount + suffix;
+	}
+
+	function fmtMoneyAmount(n) {
+		if (n == null || n === "" || Number.isNaN(Number(n))) {
+			return "";
+		}
 		return Number(n).toFixed(2);
+	}
+
+	function t(key, vars) {
+		if (window.BH_I18N && typeof window.BH_I18N.t === "function") {
+			return window.BH_I18N.t(key, vars);
+		}
+		return key;
+	}
+
+	function currencyCode() {
+		if (window.BH_I18N && typeof window.BH_I18N.currencyCode === "function") {
+			return window.BH_I18N.currencyCode();
+		}
+		return "SEK";
+	}
+
+	function currencyPerLiter() {
+		if (window.BH_I18N && typeof window.BH_I18N.currencyPerLiter === "function") {
+			return window.BH_I18N.currencyPerLiter();
+		}
+		return "SEK/L";
+	}
+
+	function noticeTitle() {
+		return t("js.notice");
+	}
+
+	function statusText(status) {
+		const s = String(status || "").trim();
+		if (!s) {
+			return "";
+		}
+		const key = "js.status." + s.replace(/\s+/g, "_");
+		const translated = t(key);
+		return translated === key ? s : translated;
+	}
+
+	function categoryText(category) {
+		const c = String(category || "")
+			.trim()
+			.toLowerCase();
+		if (!c) {
+			return "";
+		}
+		const key = "js.category." + c;
+		const translated = t(key);
+		return translated === key ? category : translated;
+	}
+
+	async function syncRegionalFromServer() {
+		if (!token() || !window.BH_I18N) {
+			return;
+		}
+		try {
+			const cfg = await api("/api/settings/regional");
+			await window.BH_I18N.applyRegional(cfg);
+		} catch (_) {
+			/* ignore until authenticated / seeded */
+		}
 	}
 
 	function fmtSG(v, fallback) {
@@ -175,7 +246,7 @@
 		if (!dialog || !titleEl || !messageEl) {
 			return Promise.resolve(false);
 		}
-		titleEl.textContent = (opts && opts.title) || "Confirm";
+		titleEl.textContent = (opts && opts.title) || t("js.confirm");
 		messageEl.textContent = (opts && opts.message) || "";
 		return new Promise((resolve) => {
 			const onClose = () => {
@@ -194,7 +265,7 @@
 		if (!dialog || !titleEl || !messageEl) {
 			return Promise.resolve();
 		}
-		titleEl.textContent = (opts && opts.title) || "Info";
+		titleEl.textContent = (opts && opts.title) || t("js.info");
 		messageEl.textContent = (opts && opts.message) || "";
 		return new Promise((resolve) => {
 			const onClose = () => {
@@ -206,41 +277,34 @@
 		});
 	}
 
-	const PIPELINE_GUIDE = {
-		recipe_created: {
-			title: "Recipe created",
-			message:
-				"Next step: open Schedule in the Brewing menu and book a brew day and fermenter for this batch.",
-		},
-		scheduled: {
-			title: "Scheduled",
-			message:
-				"Next step: open Brewday and record original gravity (OG) and brew volume for this batch.",
-		},
-		brewday_recorded: {
-			title: "Brewday recorded",
-			message:
-				"Next step: confirm cleaning is done — use Mark hygiene done on Brewday, or Hygiene → Routines.",
-		},
-		hygiene_done: {
-			title: "Hygiene done",
-			message:
-				"Next step: open Delivery to set final gravity (FG), delivery volume, beer net, and multiplier.",
-		},
-		ready_for_delivery: {
-			title: "Ready for delivery",
-			message:
-				"Next step: when the batch goes to the pub, click Deliver on the Delivery page.",
-		},
-		delivered: {
-			title: "Delivered",
-			message:
-				"This batch is delivered. You can hide it from Recipes when you are finished with it.",
-		},
-	};
-
 	function pipelineGuide(step) {
-		return PIPELINE_GUIDE[step] || { title: "Next step", message: "" };
+		const map = {
+			recipe_created: {
+				title: t("js.pipeline.recipe_created.title"),
+				message: t("js.pipeline.recipe_created.message"),
+			},
+			scheduled: {
+				title: t("js.pipeline.scheduled.title"),
+				message: t("js.pipeline.scheduled.message"),
+			},
+			brewday_recorded: {
+				title: t("js.pipeline.brewday.title"),
+				message: t("js.pipeline.brewday.message"),
+			},
+			hygiene_done: {
+				title: t("js.pipeline.hygiene.title"),
+				message: t("js.pipeline.hygiene.message"),
+			},
+			ready_for_delivery: {
+				title: t("js.pipeline.ready.title"),
+				message: t("js.pipeline.ready.message"),
+			},
+			delivered: {
+				title: t("js.pipeline.delivered.title"),
+				message: t("js.pipeline.delivered.message"),
+			},
+		};
+		return map[step] || { title: t("js.next_step"), message: "" };
 	}
 
 	function appPrompt(opts) {
@@ -252,7 +316,7 @@
 			return Promise.resolve(null);
 		}
 		const fields = (opts && opts.fields) || [];
-		titleEl.textContent = (opts && opts.title) || "Input";
+		titleEl.textContent = (opts && opts.title) || t("js.input");
 		fieldsEl.innerHTML = fields
 			.map((f) => {
 				const type = f.type || "text";
@@ -434,7 +498,7 @@
 
 	function showForbidden(panel) {
 		panel.innerHTML =
-			'<p class="panel__empty">Please elevate to admin to access this page.</p>';
+			'<p class="panel__empty">' + esc(t("js.forbidden")) + "</p>";
 	}
 
 	document.body.addEventListener("htmx:configRequest", (event) => {
@@ -464,6 +528,9 @@
 
 	document.body.addEventListener("htmx:afterSwap", (event) => {
 		if (event.detail.target && event.detail.target.id === "main-content") {
+			if (window.BH_I18N && typeof window.BH_I18N.applyI18n === "function") {
+				window.BH_I18N.applyI18n(event.detail.target);
+			}
 			initPanel(event.detail.target);
 			if (window.Brewhouse && typeof window.Brewhouse.onNavigate === "function") {
 				window.Brewhouse.onNavigate();
@@ -511,6 +578,7 @@
 			"settings-tanks": loadSettingsTanks,
 			"settings-multipliers": loadSettingsMultipliers,
 			"settings-beer-price": loadSettingsBeerPrice,
+			"settings-regional": loadSettingsRegional,
 			"settings-hygiene": loadSettingsHygiene,
 			"settings-backup": loadSettingsBackup,
 		};
@@ -557,10 +625,10 @@
 				brewerySel.disabled = true;
 				form.elements.namedItem("name").value = recipe.name || "";
 				if (titleEl) {
-					titleEl.textContent = "Edit recipe";
+					titleEl.textContent = t("js.recipes.edit");
 				}
 				if (saveBtn) {
-					saveBtn.textContent = "Save";
+					saveBtn.textContent = t("common.save");
 				}
 				const ings = recipe.ingredients || [];
 				ings.forEach((ing) =>
@@ -571,22 +639,22 @@
 				brewerySel.disabled = false;
 				form.elements.namedItem("name").value = "";
 				if (titleEl) {
-					titleEl.textContent = "New recipe";
+					titleEl.textContent = t("js.recipes.new");
 				}
 				if (saveBtn) {
-					saveBtn.textContent = "Create";
+					saveBtn.textContent = t("js.recipes.create");
 				}
 			}
 			dialog.showModal();
 		}
 
 		async function refresh() {
-			list.textContent = "Loading…";
+			list.textContent = t("js.loading");
 			try {
 				const qs = showHidden() ? "?include_hidden=1" : "";
 				const recipes = await api("/api/recipes" + qs);
 				if (!recipes || !recipes.length) {
-					list.innerHTML = "<p class=\"panel__empty\">No recipes yet.</p>";
+					list.innerHTML = "<p class=\"panel__empty\">" + esc(t("js.recipes.empty")) + "</p>";
 					refreshBrewingNavCounts();
 					return;
 				}
@@ -627,7 +695,7 @@
 				function renderIngDetail(r) {
 					const ings = r.ingredients || [];
 					if (!ings.length) {
-						return '<p class="panel__empty">No ingredients reserved.</p>';
+						return '<p class="panel__empty">' + esc(t("js.recipes.no_ingredients")) + "</p>";
 					}
 					const rows = ings
 						.map((ing) => {
@@ -636,7 +704,7 @@
 								"<tr><td>" +
 								esc(ing.item_name || "") +
 								"</td><td>" +
-								esc(ing.category || "") +
+								esc(categoryText(ing.category || "")) +
 								"</td><td>" +
 								(ing.qty ?? "") +
 								unit +
@@ -651,7 +719,7 @@
 						.join("");
 					return (
 						'<table class="data-table data-table--nested"><thead><tr>' +
-						"<th>Ingredient</th><th>Category</th><th>Need</th><th>Checked out</th><th>Status</th>" +
+						"<th>" + esc(t("js.recipes.ing.ingredient")) + "</th><th>" + esc(t("js.recipes.ing.category")) + "</th><th>" + esc(t("js.recipes.ing.need")) + "</th><th>" + esc(t("js.recipes.ing.checked_out")) + "</th><th>" + esc(t("js.recipes.ing.status")) + "</th>" +
 						"</tr></thead><tbody>" +
 						rows +
 						"</tbody></table>"
@@ -664,34 +732,34 @@
 							actions +=
 								'<button type="button" class="btn btn--small" data-edit-recipe="' +
 								r.id +
-								'">Edit</button> ';
+								'">' + esc(t("common.edit")) + "</button> ";
 							actions +=
 								'<button type="button" class="btn btn--small" data-del-recipe="' +
 								r.id +
-								'">Delete</button>';
+								'">' + esc(t("common.delete")) + "</button>";
 						}
 						if (r.status === "delivered" && r.active !== false) {
 							actions +=
 								' <button type="button" class="btn btn--small" data-hide-recipe="' +
 								r.id +
-								'">Hide</button>';
+								'">' + esc(t("js.recipes.hide")) + "</button>";
 						}
 						if (r.status === "delivered" && r.active === false) {
 							actions +=
 								' <button type="button" class="btn btn--small" data-unhide-recipe="' +
 								r.id +
-								'">Unhide</button>';
+								'">' + esc(t("js.recipes.unhide")) + "</button>";
 						}
 						if (r.status === "ready_for_delivery") {
 							actions +=
 								' <button type="button" class="btn btn--small" data-deliver="' +
 								r.id +
-								'">Deliver</button>';
+								'">' + esc(t("js.recipes.deliver")) + "</button>";
 						}
 						const statusLabel =
 							r.status === "delivered" && r.active === false
-								? "delivered (hidden)"
-								: r.status;
+								? t("js.recipes.delivered_hidden")
+								: statusText(r.status);
 						const statusKey =
 							r.status === "delivered" && r.active === false ? "delivered" : r.status;
 						const ingStatus = r.ingredient_status || "ok";
@@ -724,7 +792,7 @@
 					.join("");
 				list.innerHTML =
 					'<div class="table-scroll"><table class="data-table"><thead><tr>' +
-					"<th>ID</th><th>Name</th><th>Brewery</th><th>Status</th><th>Ingredients</th><th>Actions</th>" +
+					"<th>" + esc(t("js.recipes.col.id")) + "</th><th>" + esc(t("js.recipes.col.name")) + "</th><th>" + esc(t("js.recipes.col.brewery")) + "</th><th>" + esc(t("js.recipes.col.status")) + "</th><th>" + esc(t("js.recipes.col.ingredients")) + "</th><th>" + esc(t("js.recipes.col.actions")) + "</th>" +
 					"</tr></thead><tbody>" +
 					body +
 					"</tbody></table></div>";
@@ -738,10 +806,8 @@
 			const lead = panel.querySelector("#recipe-shortfall-lead");
 			if (lead) {
 				lead.textContent = orderId
-					? "Available stock was checked out. Missing amounts were added to planning order #" +
-					  orderId +
-					  "."
-					: "Available stock was checked out. Missing amounts could not be ordered automatically.";
+					? t("js.recipes.shortfall_with_order", { id: orderId })
+					: t("js.recipes.shortfall_no_order");
 			}
 			shortfallNotice.hidden = true;
 			shortfallError.hidden = true;
@@ -750,7 +816,7 @@
 					(s) =>
 						"<li>" +
 						esc(s.name) +
-						" — missing " +
+						" — " + t("js.recipes.missing") + " " +
 						esc(String(s.missing)) +
 						"</li>"
 				)
@@ -766,14 +832,14 @@
 		}
 
 		panel.addEventListener("click", async (ev) => {
-			const t = ev.target;
-			if (!(t instanceof HTMLElement)) {
+			const el = ev.target;
+			if (!(el instanceof HTMLElement)) {
 				return;
 			}
-			if (t.getAttribute("data-action") === "recipe-refresh") {
+			if (el.getAttribute("data-action") === "recipe-refresh") {
 				refresh();
 			}
-			const toggleBtn = t.closest("[data-toggle-ingredients]");
+			const toggleBtn = el.closest("[data-toggle-ingredients]");
 			if (toggleBtn) {
 				const id = toggleBtn.getAttribute("data-toggle-ingredients");
 				const detail = list.querySelector('.recipe-ings-detail[data-ings-for="' + id + '"]');
@@ -792,33 +858,33 @@
 				}
 				return;
 			}
-			if (t.getAttribute("data-action") === "recipe-new") {
+			if (el.getAttribute("data-action") === "recipe-new") {
 				try {
 					await openRecipeDialog(null);
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 			}
-			if (t.getAttribute("data-action") === "recipe-remove-ing") {
-				const row = t.closest(".ing-row");
+			if (el.getAttribute("data-action") === "recipe-remove-ing") {
+				const row = el.closest(".ing-row");
 				if (row) {
 					row.remove();
 				}
 			}
-			if (t.hasAttribute("data-edit-recipe")) {
-				const id = t.getAttribute("data-edit-recipe");
+			if (el.hasAttribute("data-edit-recipe")) {
+				const id = el.getAttribute("data-edit-recipe");
 				try {
 					const recipe = await api("/api/recipes/" + id);
 					await openRecipeDialog(recipe);
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 			}
-			if (t.hasAttribute("data-del-recipe")) {
-				const id = t.getAttribute("data-del-recipe");
+			if (el.hasAttribute("data-del-recipe")) {
+				const id = el.getAttribute("data-del-recipe");
 				const ok = await appConfirm({
-					title: "Delete recipe",
-					message: "Delete recipe #" + id + " and restore checked-out inventory?",
+					title: t("js.recipes.delete_title"),
+					message: t("js.recipes.delete_message", { id: id }),
 				});
 				if (!ok) {
 					return;
@@ -827,11 +893,11 @@
 					await api("/api/recipes/" + id, { method: "DELETE" });
 					refresh();
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 			}
-			if (t.hasAttribute("data-hide-recipe")) {
-				const id = t.getAttribute("data-hide-recipe");
+			if (el.hasAttribute("data-hide-recipe")) {
+				const id = el.getAttribute("data-hide-recipe");
 				try {
 					await api("/api/recipes/" + id + "/active", {
 						method: "POST",
@@ -839,11 +905,11 @@
 					});
 					refresh();
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 			}
-			if (t.hasAttribute("data-unhide-recipe")) {
-				const id = t.getAttribute("data-unhide-recipe");
+			if (el.hasAttribute("data-unhide-recipe")) {
+				const id = el.getAttribute("data-unhide-recipe");
 				try {
 					await api("/api/recipes/" + id + "/active", {
 						method: "POST",
@@ -851,26 +917,26 @@
 					});
 					refresh();
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 			}
-			if (t.hasAttribute("data-deliver")) {
-				const id = t.getAttribute("data-deliver");
+			if (el.hasAttribute("data-deliver")) {
+				const id = el.getAttribute("data-deliver");
 				try {
 					await api("/api/recipes/" + id + "/deliver", { method: "POST" });
 					refresh();
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 			}
 		});
 
 		panel.addEventListener("mousedown", (ev) => {
-			const t = ev.target;
-			if (!(t instanceof HTMLElement)) {
+			const el = ev.target;
+			if (!(el instanceof HTMLElement)) {
 				return;
 			}
-			const suggestion = t.closest(".ing-search-results__btn");
+			const suggestion = el.closest(".ing-search-results__btn");
 			if (!suggestion) {
 				return;
 			}
@@ -952,13 +1018,15 @@
 		refresh();
 	}
 
-	const RECIPE_ING_CATEGORIES = [
-		{ id: "malt", label: "Malt" },
-		{ id: "hops", label: "Hops" },
-		{ id: "yeast", label: "Yeast" },
-		{ id: "misc", label: "Misc" },
-		{ id: "equipment", label: "Equipment" },
-	];
+	function recipeIngCategories() {
+		return [
+			{ id: "malt", label: t("js.category.malt") },
+			{ id: "hops", label: t("js.category.hops") },
+			{ id: "yeast", label: t("js.category.yeast") },
+			{ id: "misc", label: t("js.category.misc") },
+			{ id: "equipment", label: t("js.category.equipment") },
+		];
+	}
 
 	function unitOptions(selected) {
 		const units = ["kg", "g", "L", "ml", "pcs", "pack"];
@@ -974,7 +1042,7 @@
 		if (!wrap) {
 			return;
 		}
-		wrap.innerHTML = RECIPE_ING_CATEGORIES.map(
+		wrap.innerHTML = recipeIngCategories().map(
 			(cat) =>
 				'<div class="recipe-ing-section" data-category="' +
 				esc(cat.id) +
@@ -983,9 +1051,9 @@
 				esc(cat.label) +
 				"</h3>" +
 				'<div class="ing-search-wrap">' +
-				'<input type="search" class="ing-search" placeholder="Search ' +
-				esc(cat.label.toLowerCase()) +
-				' by name…" autocomplete="off">' +
+				'<input type="search" class="ing-search" placeholder="' +
+				esc(t("js.recipes.search", { category: cat.label.toLowerCase() })) +
+				'" autocomplete="off">' +
 				'<ul class="ing-search-results" hidden></ul>' +
 				"</div>" +
 				'<div class="ing-section-rows"></div>' +
@@ -1017,7 +1085,7 @@
 					)
 					.slice(0, 12);
 				if (!matches.length) {
-					results.innerHTML = '<li class="ing-search-results__empty">No matches</li>';
+					results.innerHTML = '<li class="ing-search-results__empty">' + esc(t("js.recipes.no_matches")) + "</li>";
 					results.hidden = false;
 					return;
 				}
@@ -1029,10 +1097,8 @@
 							'">' +
 							esc(i.name) +
 							(i.producer ? " — " + esc(i.producer) : "") +
-							' <span class="ing-search-results__stock">(stock ' +
-							esc(String(i.qty)) +
-							" " +
-							esc(i.unit || "") +
+							' <span class="ing-search-results__stock">(' +
+							esc(t("js.recipes.stock", { qty: i.qty, unit: i.unit || "" })) +
 							")</span></button></li>"
 					)
 					.join("");
@@ -1086,18 +1152,22 @@
 			esc(item.name) +
 			(item.producer ? " <span class=\"ing-row__producer\">(" + esc(item.producer) + ")</span>" : "") +
 			"</span>" +
-			'<label>Qty <input name="qty" type="number" step="any" value="' +
+			'<label>' +
+			esc(t("common.qty")) +
+			' <input name="qty" type="number" step="any" value="' +
 			(qty != null ? qty : 1) +
 			'" min="0"></label>' +
-			"<label>Unit <select name=\"unit\">" +
+			"<label>" +
+			esc(t("common.unit")) +
+			' <select name="unit">' +
 			unitOptions(rowUnit) +
 			"</select></label>" +
-			'<span class="ing-row__stock">In stock: ' +
-			esc(String(item.qty)) +
-			" " +
-			esc(item.unit || "") +
+			'<span class="ing-row__stock">' +
+			esc(t("js.recipes.in_stock", { qty: item.qty, unit: item.unit || "" })) +
 			"</span>" +
-			'<button type="button" class="btn btn--small" data-action="recipe-remove-ing">Remove</button>';
+			'<button type="button" class="btn btn--small" data-action="recipe-remove-ing">' +
+			esc(t("common.remove")) +
+			"</button>";
 		section.appendChild(div);
 	}
 
@@ -1114,7 +1184,7 @@
 			return;
 		}
 		if (!recipes || !recipes.length) {
-			selectEl.innerHTML = '<option value="">' + esc(emptyLabel || "No recipes") + "</option>";
+			selectEl.innerHTML = '<option value="">' + esc(emptyLabel || t("js.recipes.no_recipes")) + "</option>";
 			return;
 		}
 		selectEl.innerHTML = recipes
@@ -1130,7 +1200,7 @@
 		const recipeSel = panel.querySelector("#schedule-recipe");
 
 		async function refresh() {
-			list.textContent = "Loading…";
+			list.textContent = t("js.loading");
 			try {
 				const [tanks, recipes, bookings] = await Promise.all([
 					api("/api/settings/tanks?active=1"),
@@ -1143,14 +1213,14 @@
 				const bookable = (recipes || []).filter(
 					(r) => r.status === "created" || r.status === "scheduled"
 				);
-				fillRecipeSelect(recipeSel, bookable, "No bookable recipes");
+				fillRecipeSelect(recipeSel, bookable, t("js.schedule.no_bookable"));
 				if (!bookings || !bookings.length) {
-					list.innerHTML = "<p class=\"panel__empty\">No bookings in range.</p>";
+					list.innerHTML = "<p class=\"panel__empty\">" + esc(t("js.schedule.empty")) + "</p>";
 					refreshBrewingNavCounts();
 					return;
 				}
 				list.innerHTML = table(
-					["Date", "End date", "Brewery", "Recipe", "Tank", "Actions"],
+					[t("js.schedule.col.date"), t("js.schedule.col.end_date"), t("js.schedule.col.brewery"), t("js.schedule.col.recipe"), t("js.schedule.col.tank"), t("js.schedule.col.actions")],
 					bookings
 						.map((b) => {
 							let actions = "";
@@ -1158,7 +1228,7 @@
 								actions =
 									'<button type="button" class="btn btn--small" data-action="schedule-unbook" data-recipe-id="' +
 									b.recipe_id +
-									'">Remove</button>';
+									'">' + esc(t("common.remove")) + "</button>";
 							}
 							return (
 								"<tr><td>" +
@@ -1186,20 +1256,20 @@
 
 		panel.querySelector('[data-action="schedule-refresh"]').addEventListener("click", refresh);
 		panel.addEventListener("click", async (ev) => {
-			const t = ev.target;
-			if (!(t instanceof HTMLElement)) {
+			const el = ev.target;
+			if (!(el instanceof HTMLElement)) {
 				return;
 			}
-			if (t.getAttribute("data-action") !== "schedule-unbook") {
+			if (el.getAttribute("data-action") !== "schedule-unbook") {
 				return;
 			}
-			const recipeId = t.getAttribute("data-recipe-id");
+			const recipeId = el.getAttribute("data-recipe-id");
 			if (!recipeId) {
 				return;
 			}
 			const ok = await appConfirm({
-				title: "Remove from schedule",
-				message: "Remove this recipe from the schedule? The batch stays; bookings are cleared.",
+				title: t("js.schedule.remove_title"),
+				message: t("js.schedule.remove_message"),
 			});
 			if (!ok) {
 				return;
@@ -1208,7 +1278,7 @@
 				await api("/api/recipes/" + recipeId + "/schedule", { method: "DELETE" });
 				refresh();
 			} catch (e) {
-				await appInfo({ title: "Notice", message: e.message });
+				await appInfo({ title: noticeTitle(), message: e.message });
 			}
 		});
 		form.addEventListener("submit", async (ev) => {
@@ -1270,7 +1340,7 @@
 		}
 
 		async function refresh(preferId) {
-			list.textContent = "Loading…";
+			list.textContent = t("js.loading");
 			try {
 				const recipes = await api("/api/recipes");
 				const selectable = (recipes || []).filter(
@@ -1284,18 +1354,18 @@
 					byID[String(r.id)] = r;
 				});
 				const prev = preferId != null ? String(preferId) : recipeSel.value;
-				fillRecipeSelect(recipeSel, selectable, "No batches ready");
+				fillRecipeSelect(recipeSel, selectable, t("js.brewday.no_ready"));
 				if (prev && byID[prev]) {
 					recipeSel.value = prev;
 				}
 				fillBrewdayFields(byID[recipeSel.value]);
 				if (!selectable.length) {
-					list.innerHTML = "<p class=\"panel__empty\">No scheduled, brewday, or hygiene-done batches.</p>";
+					list.innerHTML = "<p class=\"panel__empty\">" + esc(t("js.brewday.empty")) + "</p>";
 					refreshBrewingNavCounts();
 					return;
 				}
 				list.innerHTML = table(
-					["ID", "Name", "Brewery", "Status", "OG", "Brew vol (L)", ""],
+					[t("js.brewday.col.id"), t("js.brewday.col.name"), t("js.brewday.col.brewery"), t("js.brewday.col.status"), t("js.brewday.col.og"), t("js.brewday.col.brew_vol"), ""],
 					selectable
 						.map((r) => {
 							let actions = "";
@@ -1303,22 +1373,22 @@
 								actions =
 									'<button type="button" class="btn btn--small" data-action="brewday-edit" data-id="' +
 									r.id +
-									'">Edit</button> ' +
+									'">' + esc(t("common.edit")) + "</button> " +
 									'<button type="button" class="btn btn--small btn--primary" data-action="brewday-hygiene-done" data-id="' +
 									r.id +
-									'">Mark hygiene done</button> ' +
+									'">' + esc(t("js.brewday.mark_hygiene")) + "</button> " +
 									'<button type="button" class="btn btn--small" data-action="brewday-revoke" data-id="' +
 									r.id +
-									'">Remove brewday</button>';
+									'">' + esc(t("js.brewday.remove")) + "</button>";
 							}
 							if (r.status === "hygiene_done") {
 								actions =
 									'<button type="button" class="btn btn--small" data-action="brewday-edit" data-id="' +
 									r.id +
-									'">Edit</button> ' +
+									'">' + esc(t("common.edit")) + "</button> " +
 									'<button type="button" class="btn btn--small" data-action="brewday-hygiene-revoke" data-id="' +
 									r.id +
-									'">Revoke hygiene</button>';
+									'">' + esc(t("js.brewday.revoke_hygiene")) + "</button>";
 							}
 							return (
 								"<tr><td>" +
@@ -1328,7 +1398,7 @@
 								"</td><td>" +
 								esc(r.brewery_name || "") +
 								"</td><td>" +
-								statusPill(r.status) +
+								statusPill(r.status, statusText(r.status)) +
 								"</td><td>" +
 								fmtSG(r.og, "") +
 								"</td><td>" +
@@ -1353,12 +1423,12 @@
 			fillBrewdayFields(byID[recipeSel.value]);
 		});
 		panel.addEventListener("click", async (ev) => {
-			const t = ev.target;
-			if (!(t instanceof HTMLElement)) {
+			const el = ev.target;
+			if (!(el instanceof HTMLElement)) {
 				return;
 			}
-			const action = t.getAttribute("data-action");
-			const id = t.getAttribute("data-id");
+			const action = el.getAttribute("data-action");
+			const id = el.getAttribute("data-id");
 			if (action === "brewday-edit") {
 				const key = String(id);
 				let recipe = byID[key];
@@ -1373,17 +1443,14 @@
 					}
 					selectRecipeForEdit(key);
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 				return;
 			}
 			if (action === "brewday-revoke") {
 				const ok = await appConfirm({
-					title: "Remove brewday",
-					message:
-						"Undo brewday completed for recipe #" +
-						id +
-						"? OG and brew volume are cleared; the schedule booking stays.",
+					title: t("js.brewday.remove_title"),
+					message: t("js.brewday.remove_message", { id: id }),
 				});
 				if (!ok) {
 					return;
@@ -1392,17 +1459,14 @@
 					await api("/api/recipes/" + id + "/brewday/revoke", { method: "POST" });
 					refresh();
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 				return;
 			}
 			if (action === "brewday-hygiene-revoke") {
 				const ok = await appConfirm({
-					title: "Revoke hygiene",
-					message:
-						"Undo hygiene done for recipe #" +
-						id +
-						"? Status returns to brewday so you can edit OG/volume again.",
+					title: t("js.brewday.revoke_hygiene_title"),
+					message: t("js.brewday.revoke_hygiene_message", { id: id }),
 				});
 				if (!ok) {
 					return;
@@ -1411,7 +1475,7 @@
 					await api("/api/recipes/" + id + "/hygiene/revoke", { method: "POST" });
 					refresh(id);
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 				return;
 			}
@@ -1419,8 +1483,8 @@
 				return;
 			}
 			const ok = await appConfirm({
-				title: "Hygiene complete",
-				message: "Confirm that all hygiene routines are done for recipe #" + id + "?",
+				title: t("js.hygiene.complete_title"),
+				message: t("js.brewday.hygiene_message", { id: id }),
 			});
 			if (!ok) {
 				return;
@@ -1430,7 +1494,7 @@
 				refresh();
 				await appInfo(pipelineGuide("hygiene_done"));
 			} catch (e) {
-				await appInfo({ title: "Notice", message: e.message });
+				await appInfo({ title: noticeTitle(), message: e.message });
 			}
 		});
 		form.addEventListener("submit", async (ev) => {
@@ -1500,7 +1564,7 @@
 			form.elements.namedItem("qty").value = item && item.qty != null ? item.qty : 0;
 			form.elements.namedItem("cost_price").value = item && item.cost_price != null ? item.cost_price : 0;
 			if (titleEl) {
-				titleEl.textContent = item && item.id ? "Edit item" : "Inventory item";
+				titleEl.textContent = item && item.id ? t("js.inventory.edit_item") : t("js.inventory.item");
 			}
 		}
 
@@ -1578,7 +1642,7 @@
 				}
 			}
 			if (!entries || !entries.length) {
-				logListEl.innerHTML = "<p class=\"panel__empty\">No changes logged yet.</p>";
+				logListEl.innerHTML = "<p class=\"panel__empty\">" + esc(t("js.inventory.no_log")) + "</p>";
 				return;
 			}
 			logListEl.innerHTML =
@@ -1597,7 +1661,7 @@
 			let offset = reset ? 0 : logOffsets.get(id) || 0;
 			if (reset) {
 				logOffsets.set(id, 0);
-				els.logList.textContent = "Loading…";
+				els.logList.textContent = t("js.loading");
 				if (els.moreBtn) {
 					els.moreBtn.hidden = true;
 				}
@@ -1639,17 +1703,17 @@
 		}
 
 		async function refresh() {
-			list.textContent = "Loading…";
+			list.textContent = t("js.loading");
 			logOffsets.clear();
 			try {
 				const items = await api("/api/inventory?category=" + encodeURIComponent(category));
 				if (!items || !items.length) {
-					list.innerHTML = "<p class=\"panel__empty\">No items.</p>";
+					list.innerHTML = "<p class=\"panel__empty\">" + esc(t("js.inventory.empty")) + "</p>";
 					return;
 				}
 				const headers = isMalt
-					? ["Name", "Type", "Producer", "EBC", "Qty", "Cost", "", ""]
-					: ["Name", "Type", "Producer", "Unit", "Qty", "Cost", "", ""];
+					? [t("js.inventory.col.name"), t("js.inventory.col.type"), t("js.inventory.col.producer"), t("js.inventory.col.ebc"), t("js.inventory.col.qty"), t("js.inventory.col.cost"), "", ""]
+					: [t("js.inventory.col.name"), t("js.inventory.col.type"), t("js.inventory.col.producer"), t("js.inventory.col.unit"), t("js.inventory.col.qty"), t("js.inventory.col.cost"), "", ""];
 				list.innerHTML = table(
 					headers,
 					items
@@ -1661,26 +1725,26 @@
 							const linkCell = i.link
 								? '<a href="' +
 								  esc(i.link) +
-								  '" target="_blank" rel="noopener noreferrer">Link</a>'
+								  '" target="_blank" rel="noopener noreferrer">' + esc(t("common.link")) + "</a>"
 								: "";
 							const orderBtn = canEdit
 								? '<button type="button" class="btn btn--small" data-action="inventory-order" data-id="' +
 								  i.id +
 								  '" data-name="' +
 								  esc(i.name) +
-								  '">Add to order</button>'
+								  '">' + esc(t("js.inventory.add_to_order")) + "</button>"
 								: "";
 							const editBtn = canEdit
 								? '<button type="button" class="btn btn--small" data-action="inventory-edit" data-id="' +
 								  i.id +
-								  '">Edit</button>'
+								  '">' + esc(t("common.edit")) + "</button>"
 								: "";
 							const deleteBtn = canDelete
 								? '<button type="button" class="btn btn--small" data-action="inventory-delete" data-id="' +
 								  i.id +
 								  '" data-name="' +
 								  esc(i.name) +
-								  '">Delete</button>'
+								  '">' + esc(t("common.delete")) + "</button>"
 								: "";
 							const actions = [orderBtn, editBtn, deleteBtn].filter(Boolean).join(" ");
 							const cells = isMalt
@@ -1732,7 +1796,7 @@
 								'"><div class="inventory-log-panel"><div class="inventory-log-list"></div>' +
 								'<button type="button" class="btn btn--small" data-action="inventory-log-more" data-id="' +
 								i.id +
-								'" hidden>Load more</button></div></td></tr>';
+								'" hidden>' + esc(t("js.inventory.load_more")) + '</button></div></td></tr>';
 							return main + detail;
 						})
 						.join("")
@@ -1743,25 +1807,25 @@
 		}
 
 		panel.addEventListener("click", async (ev) => {
-			const t = ev.target;
-			if (!(t instanceof HTMLElement)) {
+			const el = ev.target;
+			if (!(el instanceof HTMLElement)) {
 				return;
 			}
-			if (t.getAttribute("data-action") === "inventory-refresh") {
+			if (el.getAttribute("data-action") === "inventory-refresh") {
 				refresh();
 			}
-			if (t.getAttribute("data-action") === "inventory-export") {
+			if (el.getAttribute("data-action") === "inventory-export") {
 				try {
 					await downloadCSVAuth(
 						"/api/inventory/export?category=" + encodeURIComponent(category),
 						category + "-inventory.csv"
 					);
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 				return;
 			}
-			if (t.getAttribute("data-action") === "inventory-import") {
+			if (el.getAttribute("data-action") === "inventory-import") {
 				if (!canEdit) {
 					return;
 				}
@@ -1772,34 +1836,34 @@
 				}
 				return;
 			}
-			if (t.getAttribute("data-action") === "inventory-new") {
+			if (el.getAttribute("data-action") === "inventory-new") {
 				if (!canEdit) {
 					return;
 				}
 				fillForm(null);
 				dialog.showModal();
 			}
-			if (t.getAttribute("data-action") === "inventory-edit") {
+			if (el.getAttribute("data-action") === "inventory-edit") {
 				if (!canEdit) {
 					return;
 				}
-				const id = parseInt(t.getAttribute("data-id"), 10);
+				const id = parseInt(el.getAttribute("data-id"), 10);
 				api("/api/inventory/" + id)
 					.then((item) => {
 						fillForm(item);
 						dialog.showModal();
 					})
-					.catch((e) => { appInfo({ title: "Notice", message: e.message }); });
+					.catch((e) => { appInfo({ title: noticeTitle(), message: e.message }); });
 			}
-			if (t.getAttribute("data-action") === "inventory-delete") {
+			if (el.getAttribute("data-action") === "inventory-delete") {
 				if (!canDelete) {
 					return;
 				}
-				const id = parseInt(t.getAttribute("data-id"), 10);
-				const name = t.getAttribute("data-name") || "item";
+				const id = parseInt(el.getAttribute("data-id"), 10);
+				const name = el.getAttribute("data-name") || "item";
 				const ok = await appConfirm({
-					title: "Delete item",
-					message: "Delete \"" + name + "\"? Only unused items can be removed.",
+					title: t("js.inventory.delete_title"),
+					message: t("js.inventory.delete_message", { name: name }),
 				});
 				if (!ok) {
 					return;
@@ -1808,26 +1872,26 @@
 					await api("/api/inventory/" + id, { method: "DELETE" });
 					refresh();
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 				return;
 			}
-			if (t.getAttribute("data-action") === "inventory-log-more") {
-				const id = parseInt(t.getAttribute("data-id"), 10);
-				loadLogPage(id, false).catch((e) => { appInfo({ title: "Notice", message: e.message }); });
+			if (el.getAttribute("data-action") === "inventory-log-more") {
+				const id = parseInt(el.getAttribute("data-id"), 10);
+				loadLogPage(id, false).catch((e) => { appInfo({ title: noticeTitle(), message: e.message }); });
 				return;
 			}
-			const invRow = t.closest(".inventory-row");
-			if (invRow && !t.closest("a, button, [data-action]")) {
-				toggleLogRow(invRow).catch((e) => { appInfo({ title: "Notice", message: e.message }); });
+			const invRow = el.closest(".inventory-row");
+			if (invRow && !el.closest("a, button, [data-action]")) {
+				toggleLogRow(invRow).catch((e) => { appInfo({ title: noticeTitle(), message: e.message }); });
 				return;
 			}
-			if (t.getAttribute("data-action") === "inventory-order") {
+			if (el.getAttribute("data-action") === "inventory-order") {
 				if (!canEdit) {
 					return;
 				}
-				const id = parseInt(t.getAttribute("data-id"), 10);
-				const name = t.getAttribute("data-name") || "item";
+				const id = parseInt(el.getAttribute("data-id"), 10);
+				const name = el.getAttribute("data-name") || "item";
 				let planning = [];
 				let breweries = [];
 				try {
@@ -1838,33 +1902,33 @@
 					planning = (orders || []).filter((o) => o.status === "planning");
 					breweries = breweryList || [];
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 					return;
 				}
-				const orderOptions = [{ value: "new", label: "Create new order" }].concat(
+				const orderOptions = [{ value: "new", label: t("js.inventory.create_order") }].concat(
 					planning.map((o) => {
 						const lineCount = (o.lines || []).length;
 						const notes = String(o.notes || "").trim();
 						const noteBit = notes ? " — " + notes.slice(0, 40) : "";
 						return {
 							value: String(o.id),
-							label: "#" + o.id + noteBit + " (" + lineCount + " lines)",
+							label: "#" + o.id + noteBit + " (" + t("js.orders.lines_count", { n: lineCount }) + ")",
 						};
 					})
 				);
-				const breweryOptions = [{ value: "", label: "Unassigned" }].concat(
+				const breweryOptions = [{ value: "", label: t("js.inventory.unassigned") }].concat(
 					breweries.map((b) => ({
 						value: String(b.id),
-						label: b.name || "Brewery #" + b.id,
+						label: b.name || t("js.inventory.brewery_n", { id: b.id }),
 					}))
 				);
 				const defaultBrewery = breweries.length ? String(breweries[0].id) : "";
 				const values = await appPrompt({
-					title: "Add to order",
+					title: t("js.inventory.add_to_order"),
 					fields: [
 						{
 							name: "qty",
-							label: "Qty to order for " + name,
+							label: t("js.inventory.qty_to_order", { name: name }),
 							type: "number",
 							step: "any",
 							min: "0.01",
@@ -1872,21 +1936,21 @@
 						},
 						{
 							name: "brewery_id",
-							label: "Brewery",
+							label: t("js.inventory.brewery"),
 							type: "select",
 							options: breweryOptions,
 							value: defaultBrewery,
 						},
 						{
 							name: "order_id",
-							label: "Order",
+							label: t("js.inventory.order"),
 							type: "select",
 							options: orderOptions,
 							value: planning.length ? String(planning[0].id) : "new",
 						},
 						{
 							name: "notes",
-							label: "Notes (for new order)",
+							label: t("js.inventory.notes_new"),
 							type: "text",
 							required: false,
 						},
@@ -1897,7 +1961,7 @@
 				}
 				const qty = parseFloat(values.qty);
 				if (!(qty > 0)) {
-					await appInfo({ title: "Notice", message: "Qty must be positive" });
+					await appInfo({ title: noticeTitle(), message: t("js.inventory.qty_positive") });
 					return;
 				}
 				const breweryRaw = String(values.brewery_id || "").trim();
@@ -1922,12 +1986,12 @@
 							body: JSON.stringify(line),
 						});
 					}
-					await appInfo({ title: "Notice", message: "Added to order #" + order.id });
+					await appInfo({ title: noticeTitle(), message: t("js.inventory.added_to_order", { id: order.id }) });
 					if (values.order_id === "new") {
 						refreshOrdersNavCount();
 					}
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 			}
 		});
@@ -1945,12 +2009,12 @@
 						file
 					);
 					await appInfo({
-						title: "Import result",
+						title: t("js.inventory.import_result"),
 						message: formatImportResult(result || {}),
 					});
 					refresh();
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 				importFile.value = "";
 			});
@@ -1977,7 +2041,7 @@
 				form.reset();
 				refresh();
 			} catch (e) {
-				await appInfo({ title: "Notice", message: e.message });
+				await appInfo({ title: noticeTitle(), message: e.message });
 			}
 		});
 		refresh();
@@ -2024,7 +2088,7 @@
 			const index = {};
 			(lines || []).forEach((l) => {
 				const key = l.brewery_id != null ? String(l.brewery_id) : "unassigned";
-				const label = l.brewery_id != null ? l.brewery_name || "Brewery #" + l.brewery_id : "Unassigned";
+				const label = l.brewery_id != null ? l.brewery_name || t("js.inventory.brewery_n", { id: l.brewery_id }) : t("js.inventory.unassigned");
 				if (index[key] == null) {
 					index[key] = groups.length;
 					groups.push({ key, label, lines: [] });
@@ -2041,7 +2105,7 @@
 
 		function renderLines(order, lines) {
 			if (!lines || !lines.length) {
-				return "<p class=\"panel__empty\">No lines</p>";
+				return "<p class=\"panel__empty\">" + esc(t("js.orders.no_lines_short")) + "</p>";
 			}
 			const canEditLines =
 				canManage &&
@@ -2062,18 +2126,25 @@
 							let text =
 								esc(l.item_name) +
 								" (" +
-								esc(l.category) +
-								") — need " +
+								esc(categoryText(l.category)) +
+								") — " +
+								t("js.orders.need") +
+								" " +
 								l.qty +
 								unit +
-								" · order " +
+								" · " +
+								t("js.orders.order_qty") +
+								" " +
 								orderQty +
 								unit +
 								" · " +
 								costPrice +
-								" SEK/unit · line " +
+								" " +
+								currencyCode() +
+								"/unit · line " +
 								lineCost +
-								" SEK";
+								" " +
+								currencyCode();
 							if (canEditLines) {
 								text +=
 									' <button type="button" class="btn btn--small" data-action="order-line-ordered-qty" data-order-id="' +
@@ -2113,11 +2184,11 @@
 				linksOrderIdEl.value = String(order.id);
 			}
 			if (linksTitle) {
-				linksTitle.textContent = "Product links — order #" + order.id;
+				linksTitle.textContent = t("js.orders.product_links", { id: order.id });
 			}
 			const lines = order.lines || [];
 			if (!lines.length) {
-				linksList.innerHTML = "<p class=\"panel__empty\">No lines on this order.</p>";
+				linksList.innerHTML = "<p class=\"panel__empty\">" + esc(t("js.orders.no_lines")) + "</p>";
 				return;
 			}
 			linksList.innerHTML = lines
@@ -2128,11 +2199,15 @@
 					const meta =
 						esc(l.item_name) +
 						" (" +
-						esc(l.category) +
-						") — need " +
+						esc(categoryText(l.category)) +
+						") — " +
+						t("js.orders.need") +
+						" " +
 						l.qty +
 						unit +
-						" · order " +
+						" · " +
+						t("js.orders.order_qty") +
+						" " +
 						orderQty +
 						unit;
 					if (!l.inventory_item_id) {
@@ -2141,7 +2216,7 @@
 							'<p class="order-link-row__meta">' +
 							meta +
 							"</p>" +
-							'<p class="panel__empty">No catalog item — link cannot be set.</p>' +
+							'<p class="panel__empty">' + esc(t("js.orders.no_catalog_item")) + "</p>" +
 							"</div>"
 						);
 					}
@@ -2149,12 +2224,12 @@
 					let actions =
 						'<button type="button" class="btn btn--small" data-action="order-link-open" data-line-id="' +
 						l.id +
-						'">Open</button>';
+						'">' + esc(t("js.orders.open")) + "</button>";
 					if (canManage) {
 						actions +=
 							' <button type="button" class="btn btn--small btn--primary" data-action="order-link-save" data-line-id="' +
 							l.id +
-							'">Save</button>';
+							'">' + esc(t("common.save")) + "</button>";
 					}
 					return (
 						'<div class="order-link-row" data-line-id="' +
@@ -2163,7 +2238,7 @@
 						'<p class="order-link-row__meta">' +
 						meta +
 						"</p>" +
-						'<label class="order-link-row__field">Product URL' +
+						'<label class="order-link-row__field">' + esc(t("js.orders.product_url")) +
 						'<input type="url" name="link" value="' +
 						esc(linkVal) +
 						'" placeholder="https://…" data-line-id="' +
@@ -2205,18 +2280,18 @@
 		async function loadBreweryOptions() {
 			const breweries = (await api("/api/breweries")) || [];
 			brewerySelect.innerHTML =
-				'<option value="">Unassigned</option>' +
+				'<option value="">' + esc(t("js.inventory.unassigned")) + "</option>" +
 				breweries
 					.map((b) => '<option value="' + b.id + '">' + esc(b.name) + "</option>")
 					.join("");
 		}
 
 		async function refresh() {
-			list.textContent = "Loading…";
+			list.textContent = t("js.loading");
 			try {
 				const orders = await api("/api/inventory/orders");
 				if (!orders || !orders.length) {
-					list.innerHTML = "<p class=\"panel__empty\">No orders.</p>";
+					list.innerHTML = "<p class=\"panel__empty\">" + esc(t("js.orders.empty")) + "</p>";
 					refreshOrdersNavCount();
 					return;
 				}
@@ -2225,75 +2300,83 @@
 						let actions =
 							'<button type="button" class="btn btn--small" data-action="order-export" data-id="' +
 							o.id +
-							'">Export CSV</button> ' +
+							'">' + esc(t("common.export_csv")) + "</button> " +
 							'<button type="button" class="btn btn--small" data-action="order-product-links" data-id="' +
 							o.id +
-							'">Product links</button>';
+							'">' + esc(t("orders.product_links")) + "</button>";
 						if (canManage && o.status !== "completed") {
 							actions +=
 								' <button type="button" class="btn btn--small" data-action="order-edit-external" data-id="' +
 								o.id +
 								'" data-external="' +
 								esc(o.external_order_id || "") +
-								'">Edit external ID</button>';
+								'">' + esc(t("js.orders.edit_external_id")) + "</button>";
 						}
 						if (canManage && o.status === "planning") {
 							actions +=
 								' <button type="button" class="btn btn--small" data-action="order-add-line" data-id="' +
 								o.id +
-								'">Add line</button> ' +
+								'">' + esc(t("orders.add_line")) + "</button> " +
 								'<button type="button" class="btn btn--small btn--primary" data-action="order-status" data-id="' +
 								o.id +
-								'" data-status="ordered">Mark ordered</button>';
+								'" data-status="ordered">' + esc(t("js.orders.mark_ordered_title")) + "</button>";
 						}
 						if (isAdmin && o.status === "planning") {
 							actions +=
 								' <button type="button" class="btn btn--small" data-action="order-status" data-id="' +
 								o.id +
-								'" data-status="paused">Pause</button>';
+								'" data-status="paused">' + esc(t("js.orders.pause")) + "</button>";
 						}
 						if (isAdmin && o.status === "paused") {
 							actions +=
 								' <button type="button" class="btn btn--small btn--primary" data-action="order-status" data-id="' +
 								o.id +
-								'" data-status="planning">Resume</button>';
+								'" data-status="planning">' + esc(t("js.orders.resume")) + "</button>";
 						}
 						if (canManage && o.status === "ordered") {
 							actions +=
 								' <button type="button" class="btn btn--small btn--primary" data-action="order-status" data-id="' +
 								o.id +
-								'" data-status="completed">Mark completed</button>';
+								'" data-status="completed">' + esc(t("js.orders.mark_completed")) + "</button>";
 						}
 						if (isAdmin && o.status !== "completed") {
 							actions +=
 								' <button type="button" class="btn btn--small" data-action="order-delete" data-id="' +
 								o.id +
-								'">Delete</button>';
+								'">' + esc(t("common.delete")) + "</button>";
 						}
 						const ext =
 							o.external_order_id && String(o.external_order_id).trim()
-								? '<p class="order-external-id">External ID: ' + esc(o.external_order_id) + "</p>"
-								: '<p class="order-external-id order-external-id--empty">No external ID</p>';
+								? '<p class="order-external-id">' + esc(t("js.orders.external_id_label", { id: o.external_order_id })) + "</p>"
+								: '<p class="order-external-id order-external-id--empty">' + esc(t("js.orders.no_external_id")) + "</p>";
 						let dates =
-							'<p class="order-dates">Created: ' +
+							'<p class="order-dates">' +
+							esc(t("js.orders.created")) +
+							": " +
 							esc(formatOrderDate(o.created_at)) +
-							" · Updated: " +
+							" · " +
+							esc(t("js.orders.updated")) +
+							": " +
 							esc(formatOrderDate(o.updated_at || o.created_at));
 						if (o.ordered_at) {
-							dates += " · Ordered: " + esc(formatOrderDate(o.ordered_at));
+							dates += " · " + t("js.orders.ordered") + ": " + esc(formatOrderDate(o.ordered_at));
 						}
 						dates += "</p>";
 						const total =
-							'<p class="order-total"><strong>Total: ' +
+							'<p class="order-total"><strong>' +
+							t("js.orders.total") +
+							": " +
 							(o.total != null ? o.total : 0) +
-							" SEK</strong></p>";
+							" " +
+							currencyCode() +
+							"</strong></p>";
 						return (
 							'<div class="panel__card" data-order-id="' +
 							o.id +
 							'"><div class="panel__card-head"><strong>#' +
 							o.id +
 							'</strong> ' +
-							statusPill(o.status) +
+							statusPill(o.status, statusText(o.status)) +
 							"</div>" +
 							dates +
 							ext +
@@ -2314,52 +2397,52 @@
 		}
 
 		panel.addEventListener("click", async (ev) => {
-			const t = ev.target;
-			if (!(t instanceof HTMLElement)) {
+			const el = ev.target;
+			if (!(el instanceof HTMLElement)) {
 				return;
 			}
-			if (t.getAttribute("data-action") === "orders-refresh") {
+			if (el.getAttribute("data-action") === "orders-refresh") {
 				refresh();
 			}
-			if (t.getAttribute("data-action") === "orders-new") {
+			if (el.getAttribute("data-action") === "orders-new") {
 				if (!canManage) {
 					return;
 				}
 				newForm.reset();
 				newDialog.showModal();
 			}
-			if (t.getAttribute("data-action") === "order-export") {
-				const id = t.getAttribute("data-id");
+			if (el.getAttribute("data-action") === "order-export") {
+				const id = el.getAttribute("data-id");
 				try {
 					await downloadCSVAuth("/api/inventory/orders/" + id + "/export", "order-" + id + ".csv");
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 			}
-			if (t.getAttribute("data-action") === "order-product-links") {
+			if (el.getAttribute("data-action") === "order-product-links") {
 				try {
-					await openLinksModal(t.getAttribute("data-id"));
+					await openLinksModal(el.getAttribute("data-id"));
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 			}
-			if (t.getAttribute("data-action") === "order-link-open") {
-				const row = t.closest(".order-link-row");
+			if (el.getAttribute("data-action") === "order-link-open") {
+				const row = el.closest(".order-link-row");
 				const input = row && row.querySelector('input[name="link"]');
 				const url = input ? String(input.value || "").trim() : "";
 				if (!url) {
-					await appInfo({ title: "Notice", message: "No product URL set" });
+					await appInfo({ title: noticeTitle(), message: t("js.orders.no_url") });
 					return;
 				}
 				window.open(url, "_blank", "noopener,noreferrer");
 			}
-			if (t.getAttribute("data-action") === "order-link-save") {
+			if (el.getAttribute("data-action") === "order-link-save") {
 				if (!canManage) {
 					return;
 				}
-				const lineId = t.getAttribute("data-line-id");
+				const lineId = el.getAttribute("data-line-id");
 				const orderId = linksOrderIdEl && linksOrderIdEl.value;
-				const row = t.closest(".order-link-row");
+				const row = el.closest(".order-link-row");
 				const input = row && row.querySelector('input[name="link"]');
 				if (!orderId || !lineId || !input) {
 					return;
@@ -2375,53 +2458,53 @@
 					renderLinksModal(updated);
 					refresh();
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 			}
-			if (t.getAttribute("data-action") === "order-add-line") {
+			if (el.getAttribute("data-action") === "order-add-line") {
 				if (!canManage) {
 					return;
 				}
 				try {
 					await loadItemOptions();
 					await loadBreweryOptions();
-					lineForm.elements.namedItem("order_id").value = t.getAttribute("data-id");
+					lineForm.elements.namedItem("order_id").value = el.getAttribute("data-id");
 					lineDialog.showModal();
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 			}
-			if (t.getAttribute("data-action") === "order-edit-external") {
+			if (el.getAttribute("data-action") === "order-edit-external") {
 				if (!canManage) {
 					return;
 				}
-				externalForm.elements.namedItem("order_id").value = t.getAttribute("data-id");
+				externalForm.elements.namedItem("order_id").value = el.getAttribute("data-id");
 				externalForm.elements.namedItem("external_order_id").value =
-					t.getAttribute("data-external") || "";
+					el.getAttribute("data-external") || "";
 				externalDialog.showModal();
 			}
-			if (t.getAttribute("data-action") === "order-line-ordered-qty") {
+			if (el.getAttribute("data-action") === "order-line-ordered-qty") {
 				if (!canManage) {
 					return;
 				}
-				const defaultQty = t.getAttribute("data-ordered") || t.getAttribute("data-need") || "1";
-				orderedQtyForm.elements.namedItem("order_id").value = t.getAttribute("data-order-id");
-				orderedQtyForm.elements.namedItem("line_id").value = t.getAttribute("data-line-id");
+				const defaultQty = el.getAttribute("data-ordered") || el.getAttribute("data-need") || "1";
+				orderedQtyForm.elements.namedItem("order_id").value = el.getAttribute("data-order-id");
+				orderedQtyForm.elements.namedItem("line_id").value = el.getAttribute("data-line-id");
 				orderedQtyForm.elements.namedItem("ordered_qty").value = defaultQty;
 				orderedQtyDialog.showModal();
 			}
-			if (t.getAttribute("data-action") === "order-line-cost") {
+			if (el.getAttribute("data-action") === "order-line-cost") {
 				if (!canManage) {
 					return;
 				}
-				costForm.elements.namedItem("order_id").value = t.getAttribute("data-order-id");
-				costForm.elements.namedItem("line_id").value = t.getAttribute("data-line-id");
-				costForm.elements.namedItem("cost_price").value = t.getAttribute("data-cost") || "0";
+				costForm.elements.namedItem("order_id").value = el.getAttribute("data-order-id");
+				costForm.elements.namedItem("line_id").value = el.getAttribute("data-line-id");
+				costForm.elements.namedItem("cost_price").value = el.getAttribute("data-cost") || "0";
 				costDialog.showModal();
 			}
-			if (t.getAttribute("data-action") === "order-status") {
-				const status = t.getAttribute("data-status");
-				const card = t.closest("[data-order-id]");
+			if (el.getAttribute("data-action") === "order-status") {
+				const status = el.getAttribute("data-status");
+				const card = el.closest("[data-order-id]");
 				const currentStatus =
 					card && card.querySelector(".status-pill")
 						? card.querySelector(".status-pill").textContent.trim()
@@ -2435,34 +2518,32 @@
 					return;
 				}
 				confirmForm.elements.namedItem("action").value = "status";
-				confirmForm.elements.namedItem("order_id").value = t.getAttribute("data-id");
+				confirmForm.elements.namedItem("order_id").value = el.getAttribute("data-id");
 				confirmForm.elements.namedItem("status").value = status;
 				if (isPause) {
-					confirmTitle.textContent = "Pause order";
-					confirmMessage.textContent =
-						"Pause this order? No new lines can be added until it is resumed.";
+					confirmTitle.textContent = t("js.orders.pause_title");
+					confirmMessage.textContent = t("js.orders.pause_message");
 				} else if (isResume) {
-					confirmTitle.textContent = "Resume order";
-					confirmMessage.textContent = "Resume this order back to planning?";
+					confirmTitle.textContent = t("js.orders.resume_title");
+					confirmMessage.textContent = t("js.orders.resume_message");
 				} else if (status === "completed") {
-					confirmTitle.textContent = "Complete order";
-					confirmMessage.textContent = "Complete and receive stock into inventory?";
+					confirmTitle.textContent = t("js.orders.complete_title");
+					confirmMessage.textContent = t("js.orders.complete_message");
 				} else {
-					confirmTitle.textContent = "Mark ordered";
-					confirmMessage.textContent = "Mark this order as ordered?";
+					confirmTitle.textContent = t("js.orders.mark_ordered_title");
+					confirmMessage.textContent = t("js.orders.mark_ordered_message");
 				}
 				confirmDialog.showModal();
 			}
-			if (t.getAttribute("data-action") === "order-delete") {
+			if (el.getAttribute("data-action") === "order-delete") {
 				if (!isAdmin) {
 					return;
 				}
 				confirmForm.elements.namedItem("action").value = "delete";
-				confirmForm.elements.namedItem("order_id").value = t.getAttribute("data-id");
+				confirmForm.elements.namedItem("order_id").value = el.getAttribute("data-id");
 				confirmForm.elements.namedItem("status").value = "";
-				confirmTitle.textContent = "Delete order";
-				confirmMessage.textContent =
-					"Delete this order and all of its lines? This cannot be undone.";
+				confirmTitle.textContent = t("js.orders.delete_title");
+				confirmMessage.textContent = t("js.orders.delete_message");
 				confirmDialog.showModal();
 			}
 		});
@@ -2481,10 +2562,10 @@
 						lines: [],
 					}),
 				});
-				await appInfo({ title: "Notice", message: "Created order #" + order.id });
+				await appInfo({ title: noticeTitle(), message: t("js.orders.created_order", { id: order.id }) });
 				refresh();
 			} catch (e) {
-				await appInfo({ title: "Notice", message: e.message });
+				await appInfo({ title: noticeTitle(), message: e.message });
 			}
 		});
 
@@ -2509,7 +2590,7 @@
 				});
 				refresh();
 			} catch (e) {
-				await appInfo({ title: "Notice", message: e.message });
+				await appInfo({ title: noticeTitle(), message: e.message });
 			}
 		});
 
@@ -2531,7 +2612,7 @@
 				}
 				refresh();
 			} catch (e) {
-				await appInfo({ title: "Notice", message: e.message });
+				await appInfo({ title: noticeTitle(), message: e.message });
 			}
 		});
 
@@ -2549,7 +2630,7 @@
 				});
 				refresh();
 			} catch (e) {
-				await appInfo({ title: "Notice", message: e.message });
+				await appInfo({ title: noticeTitle(), message: e.message });
 			}
 		});
 
@@ -2560,7 +2641,7 @@
 			const fd = new FormData(orderedQtyForm);
 			const orderedQty = parseFloat(fd.get("ordered_qty"));
 			if (Number.isNaN(orderedQty) || orderedQty < 0) {
-				await appInfo({ title: "Notice", message: "Ordered qty must be zero or positive" });
+				await appInfo({ title: noticeTitle(), message: t("js.orders.ordered_qty_invalid") });
 				return;
 			}
 			try {
@@ -2573,7 +2654,7 @@
 				);
 				refresh();
 			} catch (e) {
-				await appInfo({ title: "Notice", message: e.message });
+				await appInfo({ title: noticeTitle(), message: e.message });
 			}
 		});
 
@@ -2584,7 +2665,7 @@
 			const fd = new FormData(costForm);
 			const costPrice = parseFloat(fd.get("cost_price"));
 			if (Number.isNaN(costPrice) || costPrice < 0) {
-				await appInfo({ title: "Notice", message: "Cost price must be zero or positive" });
+				await appInfo({ title: noticeTitle(), message: t("js.orders.cost_invalid") });
 				return;
 			}
 			try {
@@ -2597,7 +2678,7 @@
 				);
 				refresh();
 			} catch (e) {
-				await appInfo({ title: "Notice", message: e.message });
+				await appInfo({ title: noticeTitle(), message: e.message });
 			}
 		});
 
@@ -2613,12 +2694,12 @@
 
 		function renderGroupedRoutines(routines) {
 			if (!routines || !routines.length) {
-				return "<p class=\"panel__empty\">No hygiene routines.</p>";
+				return "<p class=\"panel__empty\">" + esc(t("js.hygiene.no_routines")) + "</p>";
 			}
 			const groups = [];
 			const index = {};
 			routines.forEach((r) => {
-				const section = r.description || "Checklist";
+				const section = r.description || t("js.hygiene.checklist");
 				if (index[section] == null) {
 					index[section] = groups.length;
 					groups.push({ section, items: [] });
@@ -2649,7 +2730,7 @@
 		}
 
 		async function refresh() {
-			list.textContent = "Loading…";
+			list.textContent = t("js.loading");
 			try {
 				const [routines, recipes] = await Promise.all([
 					api("/api/settings/hygiene-routines"),
@@ -2657,7 +2738,7 @@
 				]);
 				list.innerHTML = renderGroupedRoutines(routines || []);
 				const brewday = (recipes || []).filter((r) => r.status === "brewday");
-				fillRecipeSelect(recipeSel, brewday, "No brewday recipes");
+				fillRecipeSelect(recipeSel, brewday, t("js.hygiene.no_brewday"));
 			} catch (e) {
 				list.textContent = e.message;
 			}
@@ -2669,9 +2750,9 @@
 			const fd = new FormData(form);
 			const recipeId = fd.get("recipe_id");
 			const ok = await appConfirm({
-				title: "Hygiene complete",
+				title: t("js.hygiene.complete_title"),
 				message:
-					"Confirm that all hygiene routines are done for recipe #" + recipeId + "?",
+					t("js.hygiene.complete_message", { id: recipeId }),
 			});
 			if (!ok) {
 				return;
@@ -2875,7 +2956,7 @@
 			rangeEl.textContent = fmtG(minG) + "–" + fmtG(maxG);
 			selectedEl.textContent = fmtG(selectedG);
 			packsEl.textContent =
-				packsCeil + " pack" + (packsCeil === 1 ? "" : "s") + " (" + packsExact.toFixed(2) + ")";
+				t("js.tools.packs", { n: packsCeil, exact: packsExact.toFixed(2) });
 			tempEl.textContent = tempC;
 		}
 
@@ -2888,35 +2969,35 @@
 		}
 
 		panel.addEventListener("input", (ev) => {
-			const t = ev.target;
-			if (!(t instanceof HTMLElement)) {
+			const el = ev.target;
+			if (!(el instanceof HTMLElement)) {
 				return;
 			}
-			if (t.closest("#calc-abv-form")) {
+			if (el.closest("#calc-abv-form")) {
 				updateABV();
 			}
-			if (t.closest("#calc-tax-form")) {
+			if (el.closest("#calc-tax-form")) {
 				updateTax();
 			}
-			if (t.closest("#calc-extract-form")) {
+			if (el.closest("#calc-extract-form")) {
 				updateExtract();
 			}
-			if (t.closest("#calc-dilute-form")) {
+			if (el.closest("#calc-dilute-form")) {
 				updateDilute();
 			}
-			if (t.closest("#calc-pitch-form")) {
+			if (el.closest("#calc-pitch-form")) {
 				updatePitch();
 			}
 		});
 		panel.addEventListener("change", (ev) => {
-			const t = ev.target;
-			if (!(t instanceof HTMLElement)) {
+			const el = ev.target;
+			if (!(el instanceof HTMLElement)) {
 				return;
 			}
-			if (t.closest("#calc-extract-form")) {
+			if (el.closest("#calc-extract-form")) {
 				updateExtract();
 			}
-			if (t.closest("#calc-pitch-form")) {
+			if (el.closest("#calc-pitch-form")) {
 				updatePitch();
 			}
 		});
@@ -2925,17 +3006,16 @@
 			taxCfg = (await api("/api/settings/tax-config")) || taxCfg;
 			if (taxCfgEl) {
 				taxCfgEl.textContent =
-					"Config: rate " +
-					taxCfg.rate_sek +
-					" SEK/%/L, free max ABV " +
-					taxCfg.free_max_abv +
-					" %, discount " +
-					Math.round(taxCfg.discount * 100) +
-					"%.";
+					t("js.tools.tax_config", {
+						rate: taxCfg.rate_sek,
+						currency: currencyCode(),
+						free: taxCfg.free_max_abv,
+						discount: Math.round(taxCfg.discount * 100),
+					});
 			}
 		} catch (e) {
 			if (taxCfgEl) {
-				taxCfgEl.textContent = "Could not load tax config; using defaults. " + e.message;
+				taxCfgEl.textContent = t("js.tools.tax_config_error") + " " + e.message;
 			}
 		}
 
@@ -2948,7 +3028,7 @@
 				if (configured.length === 0) {
 					const opt = document.createElement("option");
 					opt.value = "";
-					opt.textContent = "No yeast with pitch data";
+					opt.textContent = t("js.tools.no_yeast_pitch");
 					opt.disabled = true;
 					opt.selected = true;
 					yeastSelect.appendChild(opt);
@@ -2970,7 +3050,7 @@
 				yeastSelect.innerHTML = "";
 				const opt = document.createElement("option");
 				opt.value = "";
-				opt.textContent = "Could not load yeast";
+				opt.textContent = t("js.tools.yeast_load_error");
 				opt.disabled = true;
 				opt.selected = true;
 				yeastSelect.appendChild(opt);
@@ -2999,21 +3079,21 @@
 						abv.toFixed(1) +
 						" %</td><td>" +
 						sek.toFixed(2) +
-						" kr/L</td></tr>"
+						" " +
+						currencyPerLiter() +
+						"</td></tr>"
 					);
 				})
 				.join("");
 			examplesEl.innerHTML =
-				"<p class=\"panel__lead\">Examples at current settings (ABV × " +
-				rate +
-				" × " +
-				discount +
-				"):</p>" +
-				table(["Öl ABV", "Alkoholskatt"], rows);
+				"<p class=\"panel__lead\">" +
+				esc(t("js.economy.examples_lead", { rate: rate, discount: discount })) +
+				"</p>" +
+				table([t("js.economy.examples_abv"), t("js.economy.examples_tax")], rows);
 		}
 
 		async function refresh() {
-			examplesEl.textContent = "Loading…";
+			examplesEl.textContent = t("js.loading");
 			try {
 				const cfg = await api("/api/settings/tax-config");
 				form.querySelector('[name="rate_sek"]').value = cfg.rate_sek;
@@ -3071,64 +3151,63 @@
 
 		const columnHelp = {
 			delivered: {
-				title: "Delivered",
-				message: "Date the batch was marked delivered.",
+				title: t("js.economy.col.delivered"),
+				message: t("js.economy.help.delivered"),
 			},
 			id: {
-				title: "ID",
-				message: "Internal recipe/batch id.",
+				title: t("js.economy.col.id"),
+				message: t("js.economy.help.id"),
 			},
 			name: {
-				title: "Name",
-				message: "Batch name.",
+				title: t("js.economy.col.name"),
+				message: t("js.economy.help.name"),
 			},
 			brewery: {
-				title: "Brewery",
-				message: "Brewery that produced the batch.",
+				title: t("js.economy.col.brewery"),
+				message: t("js.economy.help.brewery"),
 			},
 			abv: {
-				title: "ABV",
-				message: "Alcohol by volume from (OG − FG) × 131.25.",
+				title: t("js.economy.col.abv"),
+				message: t("js.economy.help.abv"),
 			},
 			volume: {
-				title: "Volume (L)",
-				message: "Liters delivered to the pub.",
+				title: t("js.economy.col.volume"),
+				message: t("js.economy.help.volume"),
 			},
 			cost: {
-				title: "Cost",
-				message: "Sum of ingredient qty × cost price.",
+				title: t("js.economy.col.cost"),
+				message: t("js.economy.help.cost"),
 			},
 			tax: {
-				title: "Tax",
-				message: "Alcohol tax for this delivery volume.",
+				title: t("js.economy.col.tax"),
+				message: t("js.economy.help.tax"),
 			},
 			net: {
-				title: "Net",
-				message:
-					"Invoice net: beer net × multiplier × volume. Tax is separate and not included.",
+				title: t("js.economy.col.net"),
+				message: t("js.economy.help.net"),
 			},
 			profit: {
-				title: "Est. profit",
-				message: "Net − Cost. Alcohol tax is separate.",
+				title: t("js.economy.col.profit"),
+				message: t("js.economy.help.profit"),
 			},
 			"net-per-l": {
-				title: "Net SEK/L",
-				message: "Beer net × multiplier (net divided by delivery volume).",
+				title: t("js.economy.net_per_l", { currency: currencyCode() }),
+				message: t("js.economy.net_per_l_help"),
 			},
 		};
 
 		const helpHeaders = [
-			{ key: "delivered", label: "Delivered" },
-			{ key: "id", label: "ID" },
-			{ key: "name", label: "Name" },
-			{ key: "brewery", label: "Brewery" },
-			{ key: "abv", label: "ABV" },
-			{ key: "volume", label: "Volume (L)" },
-			{ key: "cost", label: "Cost" },
-			{ key: "tax", label: "Tax" },
-			{ key: "net", label: "Net" },
-			{ key: "profit", label: "Est. profit" },
-			{ key: "net-per-l", label: "Net SEK/L" },
+			{ key: "delivered", label: t("js.economy.col.delivered") },
+			{ key: "id", label: t("js.economy.col.id") },
+			{ key: "name", label: t("js.economy.col.name") },
+			{ key: "brewery", label: t("js.economy.col.brewery") },
+			{ key: "abv", label: t("js.economy.col.abv") },
+			{ key: "volume", label: t("js.economy.col.volume") },
+			{ key: "cost", label: t("js.economy.col.cost") },
+			{ key: "tax", label: t("js.economy.col.tax") },
+			{ key: "net", label: t("js.economy.col.net") },
+			{ key: "profit", label: t("js.economy.col.profit") },
+			{ key: "net-per-l", label: t("js.economy.net_per_l", { currency: currencyCode() }) },
 		];
 
 		function helpTable(rowsHtml) {
@@ -3175,7 +3254,7 @@
 				sumProfit.textContent = "—";
 				return;
 			}
-			sumVol.textContent = fmtMoney(totals.volume) + " L";
+			sumVol.textContent = fmtMoneyAmount(totals.volume) + " L";
 			sumCost.textContent = fmtMoney(totals.cost);
 			sumTax.textContent = fmtMoney(totals.tax);
 			sumNet.textContent = fmtMoney(totals.net);
@@ -3193,17 +3272,17 @@
 		function downloadCSV() {
 			const month = monthInput.value || currentMonthValue();
 			const header = [
-				"Delivered",
-				"ID",
-				"Name",
-				"Brewery",
-				"ABV %",
-				"Volume L",
-				"Cost",
-				"Tax",
-				"Net",
-				"Est. profit",
-				"Net SEK/L",
+				t("js.economy.col.delivered"),
+				t("js.economy.col.id"),
+				t("js.economy.col.name"),
+				t("js.economy.col.brewery"),
+				t("js.economy.col.abv") + " %",
+				t("js.economy.col.volume"),
+				t("js.economy.col.cost"),
+				t("js.economy.col.tax"),
+				t("js.economy.col.net"),
+				t("js.economy.col.profit"),
+				t("js.economy.net_per_l", { currency: currencyCode() }),
 			];
 			const lines = [header.join(",")];
 			rows.forEach((r) => {
@@ -3247,7 +3326,7 @@
 		async function refresh() {
 			const month = monthInput.value || currentMonthValue();
 			monthInput.value = month;
-			list.textContent = "Loading…";
+			list.textContent = t("js.loading");
 			setSummary(null);
 			rows = [];
 			try {
@@ -3275,7 +3354,7 @@
 				setSummary(totals);
 				if (!rows.length) {
 					list.innerHTML =
-						'<p class="panel__empty">No deliveries in ' + esc(month) + ".</p>";
+						'<p class="panel__empty">' + esc(t("js.economy.no_deliveries", { month: month })) + "</p>";
 					return;
 				}
 				list.innerHTML = helpTable(
@@ -3295,7 +3374,7 @@
 								"</td><td>" +
 								esc(recipeABV(r)) +
 								"</td><td>" +
-								fmtMoney(r.delivery_volume) +
+								fmtMoneyAmount(r.delivery_volume) +
 								"</td><td>" +
 								fmtMoney(r.cost) +
 								"</td><td>" +
@@ -3499,7 +3578,7 @@
 					byID[String(r.id)] = r;
 				});
 				const prev = recipeSel.value;
-				fillRecipeSelect(recipeSel, selectable, "No recipes ready for delivery calc");
+				fillRecipeSelect(recipeSel, selectable, t("js.delivery.no_ready"));
 				if (prev && byID[prev]) {
 					recipeSel.value = prev;
 				}
@@ -3509,23 +3588,23 @@
 					["hygiene_done", "ready_for_delivery", "delivered"].includes(r.status)
 				);
 				if (!relevant.length) {
-					list.innerHTML = "<p class=\"panel__empty\">No batches in delivery pipeline.</p>";
+					list.innerHTML = "<p class=\"panel__empty\">" + esc(t("js.delivery.empty")) + "</p>";
 					refreshBrewingNavCounts();
 					return;
 				}
 				list.innerHTML = table(
 					[
-						"ID",
-						"Name",
-						"Brewery",
-						"Status",
-						"Brew date",
-						"Delivery date",
-						"ABV",
-						"Cost",
-						"Tax",
-						"Net",
-						"Est. profit",
+						t("js.delivery.col.id"),
+						t("js.delivery.col.name"),
+						t("js.delivery.col.brewery"),
+						t("js.delivery.col.status"),
+						t("js.delivery.col.brew_date"),
+						t("js.delivery.col.delivery_date"),
+						t("js.delivery.col.abv"),
+						t("js.delivery.col.cost"),
+						t("js.delivery.col.tax"),
+						t("js.delivery.col.net"),
+						t("js.delivery.col.profit"),
 						"",
 					],
 					relevant
@@ -3535,12 +3614,12 @@
 								btn =
 									'<button type="button" class="btn btn--small" data-deliver="' +
 									r.id +
-									'">Deliver</button>';
+									'">' + esc(t("js.recipes.deliver")) + "</button>";
 							} else if (r.status === "delivered") {
 								btn =
 									'<button type="button" class="btn btn--small" data-revoke-delivery="' +
 									r.id +
-									'">Revoke</button>';
+									'">' + esc(t("js.delivery.revoke")) + "</button>";
 							}
 							const hasCostNet = r.cost != null && r.net != null;
 							const profit = hasCostNet
@@ -3554,7 +3633,7 @@
 								"</td><td>" +
 								esc(r.brewery_name || "") +
 								"</td><td>" +
-								statusPill(r.status) +
+								statusPill(r.status, statusText(r.status)) +
 								"</td><td>" +
 								esc(r.booked_date || "") +
 								"</td><td>" +
@@ -3593,30 +3672,27 @@
 			multSel.addEventListener(evt, updatePreview);
 		});
 		panel.addEventListener("click", async (ev) => {
-			const t = ev.target;
-			if (!(t instanceof HTMLElement)) {
+			const el = ev.target;
+			if (!(el instanceof HTMLElement)) {
 				return;
 			}
-			if (t.hasAttribute("data-deliver")) {
+			if (el.hasAttribute("data-deliver")) {
 				try {
-					await api("/api/recipes/" + t.getAttribute("data-deliver") + "/deliver", {
+					await api("/api/recipes/" + el.getAttribute("data-deliver") + "/deliver", {
 						method: "POST",
 					});
 					refresh();
 					await appInfo(pipelineGuide("delivered"));
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 				return;
 			}
-			if (t.hasAttribute("data-revoke-delivery")) {
-				const id = t.getAttribute("data-revoke-delivery");
+			if (el.hasAttribute("data-revoke-delivery")) {
+				const id = el.getAttribute("data-revoke-delivery");
 				const ok = await appConfirm({
-					title: "Revoke delivery",
-					message:
-						"Revoke delivery for recipe #" +
-						id +
-						"? This clears FG, delivery volume, and pricing so you can recalculate.",
+					title: t("js.delivery.revoke_title"),
+					message: t("js.delivery.revoke_message", { id: id }),
 				});
 				if (!ok) {
 					return;
@@ -3625,7 +3701,7 @@
 					await api("/api/recipes/" + id + "/delivery/revoke", { method: "POST" });
 					refresh();
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 			}
 		});
@@ -3666,17 +3742,17 @@
 			try {
 				const users = await api("/api/users");
 				usersEl.innerHTML = table(
-					["ID", "Username", "Name", "Email", "Role", "Active", ""],
+					[t("common.id"), t("common.username"), t("common.name"), t("common.email"), t("common.role"), t("common.active"), ""],
 					(users || [])
 						.map((u) => {
 							const active = u.active !== false;
-							const label = active ? "Active" : "Inactive";
-							const btnLabel = active ? "Deactivate" : "Activate";
+							const label = active ? t("js.iam.active") : t("js.iam.inactive");
+							const btnLabel = active ? t("js.iam.deactivate") : t("js.iam.activate");
 							const name = [u.first_name, u.last_name].filter(Boolean).join(" ");
 							const btn =
 								'<button type="button" class="btn btn--small" data-edit-user="' +
 								u.id +
-								'">Edit</button> ' +
+								'">' + esc(t("common.edit")) + "</button> " +
 								'<button type="button" class="btn btn--small" data-set-active="' +
 								u.id +
 								'" data-active="' +
@@ -3685,7 +3761,7 @@
 								btnLabel +
 								'</button> <button type="button" class="btn btn--small" data-reset-password="' +
 								u.id +
-								'">Reset password</button>';
+								'">' + esc(t("iam.users.reset_password")) + "</button>";
 							return (
 								"<tr><td>" +
 								u.id +
@@ -3712,11 +3788,11 @@
 		}
 
 		panel.addEventListener("click", async (ev) => {
-			const t = ev.target;
-			if (!(t instanceof HTMLElement)) {
+			const el = ev.target;
+			if (!(el instanceof HTMLElement)) {
 				return;
 			}
-			const action = t.getAttribute("data-action");
+			const action = el.getAttribute("data-action");
 			if (action === "iam-users-refresh") {
 				refreshUsers();
 			}
@@ -3724,7 +3800,7 @@
 				try {
 					await downloadCSVAuth("/api/users/export", "users.csv");
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 			}
 			if (action === "iam-users-import") {
@@ -3740,17 +3816,17 @@
 				try {
 					const breweries = await api("/api/breweries");
 					brewSel.innerHTML =
-						'<option value="">None</option>' +
+						'<option value="">' + esc(t("common.none")) + "</option>" +
 						(breweries || [])
 							.map((b) => '<option value="' + b.id + '">' + esc(b.name) + "</option>")
 							.join("");
 				} catch (e) {
-					brewSel.innerHTML = '<option value="">None</option>';
+					brewSel.innerHTML = '<option value="">' + esc(t("common.none")) + "</option>";
 				}
 				dlg.showModal();
 			}
-			if (t.hasAttribute("data-edit-user")) {
-				const id = t.getAttribute("data-edit-user");
+			if (el.hasAttribute("data-edit-user")) {
+				const id = el.getAttribute("data-edit-user");
 				const dlg = panel.querySelector("#iam-edit-user-dialog");
 				const form = panel.querySelector("#iam-edit-user-form");
 				const roleSel = form.querySelector('[name="role"]');
@@ -3775,12 +3851,12 @@
 					hint.hidden = !editingSelfAdmin;
 					dlg.showModal();
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 			}
-			if (t.hasAttribute("data-set-active")) {
-				const id = t.getAttribute("data-set-active");
-				const active = t.getAttribute("data-active") === "1";
+			if (el.hasAttribute("data-set-active")) {
+				const id = el.getAttribute("data-set-active");
+				const active = el.getAttribute("data-active") === "1";
 				try {
 					await api("/api/users/" + id + "/active", {
 						method: "PATCH",
@@ -3788,11 +3864,11 @@
 					});
 					refreshUsers();
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 			}
-			if (t.hasAttribute("data-reset-password")) {
-				const id = t.getAttribute("data-reset-password");
+			if (el.hasAttribute("data-reset-password")) {
+				const id = el.getAttribute("data-reset-password");
 				const dlg = panel.querySelector("#iam-reset-password-dialog");
 				const form = panel.querySelector("#iam-reset-password-form");
 				try {
@@ -3810,7 +3886,7 @@
 					form.querySelector('[name="password"]').value = "";
 					dlg.showModal();
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 			}
 		});
@@ -3846,7 +3922,7 @@
 				userForm.reset();
 				refreshUsers();
 			} catch (e) {
-				await appInfo({ title: "Notice", message: e.message });
+				await appInfo({ title: noticeTitle(), message: e.message });
 			}
 		});
 
@@ -3862,7 +3938,7 @@
 			const role = roleSel.disabled ? "admin" : fd.get("role");
 			const selfID = sessionStorage.getItem("brewhouse_user_id") || "";
 			if (String(id) === selfID && role !== "admin") {
-				await appInfo({ title: "Notice", message: "cannot change your own role away from admin" });
+				await appInfo({ title: noticeTitle(), message: t("js.iam.cannot_demote_self") });
 				return;
 			}
 			try {
@@ -3885,7 +3961,7 @@
 				panel.querySelector("#iam-edit-role-hint").hidden = true;
 				refreshUsers();
 			} catch (e) {
-				await appInfo({ title: "Notice", message: e.message });
+				await appInfo({ title: noticeTitle(), message: e.message });
 			}
 		});
 
@@ -3914,9 +3990,9 @@
 					}),
 				});
 				resetForm.reset();
-				await appInfo({ title: "Notice", message: "Password updated" });
+				await appInfo({ title: noticeTitle(), message: t("js.iam.password_updated") });
 			} catch (e) {
-				await appInfo({ title: "Notice", message: e.message });
+				await appInfo({ title: noticeTitle(), message: e.message });
 			}
 		});
 
@@ -3930,12 +4006,12 @@
 				try {
 					const result = await importCSVAuth("/api/users/import", file);
 					await appInfo({
-						title: "Users import",
+						title: t("js.inventory.import_result"),
 						message: formatImportResult(result || {}),
 					});
 					refreshUsers();
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				} finally {
 					usersImportFile.value = "";
 				}
@@ -3981,28 +4057,28 @@
 						const editBtn = b.can_manage
 							? '<button type="button" class="btn btn--small" data-edit-brewery="' +
 								b.id +
-								'">Edit</button> '
+								'">' + esc(t("common.edit")) + "</button> "
 							: "";
 						const delBtn = isAdmin
 							? '<button type="button" class="btn btn--small" data-del-brewery="' +
 								b.id +
 								'" data-brewery-name="' +
 								esc(b.name) +
-								'">Remove</button> '
+								'">' + esc(t("common.remove")) + "</button> "
 							: "";
 						const addBtn = b.can_manage
 							? '<button type="button" class="btn btn--small" data-add-member="' +
 								b.id +
 								'" data-brewery-name="' +
 								esc(b.name) +
-								'">Add member</button> '
+								'">' + esc(t("iam.breweries.add_member")) + "</button> "
 							: "";
 						const membersBtn =
 							'<button type="button" class="btn btn--small" data-list-members="' +
 							b.id +
 							'" data-brewery-name="' +
 							esc(b.name) +
-							'">Members</button>';
+							'">' + esc(t("iam.breweries.members")) + "</button>";
 						const ig = b.instagram
 							? ' <a href="' +
 								esc(b.instagram) +
@@ -4032,7 +4108,7 @@
 							"</div></div>"
 						);
 					})
-					.join("") || '<p class="panel__empty">No breweries.</p>';
+					.join("") || '<p class="panel__empty">' + esc(t("js.iam.no_breweries")) + "</p>";
 			} catch (e) {
 				brewEl.textContent = e.message;
 			}
@@ -4042,7 +4118,7 @@
 			try {
 				const users = await api("/api/users");
 				selectEl.innerHTML =
-					'<option value="">None</option>' +
+					'<option value="">' + esc(t("common.none")) + "</option>" +
 					(users || [])
 						.filter((u) => u.active !== false)
 						.map(
@@ -4058,7 +4134,7 @@
 					selectEl.value = String(selectedID);
 				}
 			} catch (e) {
-				selectEl.innerHTML = '<option value="">None</option>';
+				selectEl.innerHTML = '<option value="">' + esc(t("common.none")) + "</option>";
 			}
 		}
 
@@ -4082,7 +4158,7 @@
 			let adminID = "";
 			let logoConfigured = false;
 			if (breweryID) {
-				title.textContent = "Edit brewery";
+				title.textContent = t("js.iam.edit_brewery");
 				const [brewery, members] = await Promise.all([
 					api("/api/breweries/" + breweryID),
 					api("/api/breweries/" + breweryID + "/members"),
@@ -4102,7 +4178,7 @@
 				}
 				setBreweryLogoPreview(breweryID, logoConfigured);
 			} else {
-				title.textContent = "New brewery";
+				title.textContent = t("js.iam.new_brewery");
 				if (logoBlock) {
 					logoBlock.hidden = true;
 				}
@@ -4120,16 +4196,16 @@
 
 		async function refreshMembersList(breweryID) {
 			const listEl = panel.querySelector("#iam-members-list");
-			listEl.textContent = "Loading…";
+			listEl.textContent = t("js.loading");
 			try {
 				const members = await api("/api/breweries/" + breweryID + "/members");
 				if (!members || !members.length) {
-					listEl.innerHTML = '<p class="panel__empty">No members.</p>';
+					listEl.innerHTML = '<p class="panel__empty">' + esc(t("js.iam.no_members")) + "</p>";
 					return;
 				}
 				const roles = ["user", "superuser", "brewery_admin"];
 				listEl.innerHTML = table(
-					["User", "Role", ""],
+					[t("common.user"), t("common.role"), ""],
 					members
 						.map((m) => {
 							const opts = roles
@@ -4155,7 +4231,7 @@
 								opts +
 								'</select></td><td><button type="button" class="btn btn--small" data-remove-member="' +
 								m.user_id +
-								'">Remove</button></td></tr>'
+								'">' + esc(t("common.remove")) + "</button></td></tr>"
 							);
 						})
 						.join("")
@@ -4167,7 +4243,7 @@
 
 		async function openMembersDialog(breweryID, breweryName) {
 			panel.querySelector("#iam-members-brewery-id").value = breweryID;
-			panel.querySelector("#iam-members-title").textContent = "Members — " + breweryName;
+			panel.querySelector("#iam-members-title").textContent = t("js.iam.members_title", { name: breweryName });
 			await refreshMembersList(breweryID);
 			membersDialog.showModal();
 		}
@@ -4179,11 +4255,11 @@
 		}
 
 		panel.addEventListener("click", async (ev) => {
-			const t = ev.target;
-			if (!(t instanceof HTMLElement)) {
+			const el = ev.target;
+			if (!(el instanceof HTMLElement)) {
 				return;
 			}
-			const action = t.getAttribute("data-action");
+			const action = el.getAttribute("data-action");
 			if (action === "iam-breweries-refresh") {
 				refreshBreweries();
 			}
@@ -4195,12 +4271,12 @@
 				const file = fileInput && fileInput.files && fileInput.files[0];
 				if (!breweryID) {
 					errEl.hidden = false;
-					errEl.textContent = "Save the brewery before uploading a logo";
+					errEl.textContent = t("js.iam.save_before_logo");
 					return;
 				}
 				if (!file) {
 					errEl.hidden = false;
-					errEl.textContent = "Choose a file first";
+					errEl.textContent = t("js.iam.choose_file");
 					return;
 				}
 				try {
@@ -4251,7 +4327,7 @@
 				try {
 					await downloadCSVAuth("/api/breweries/export", "breweries.csv");
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 			}
 			if (action === "iam-breweries-import") {
@@ -4265,7 +4341,7 @@
 				try {
 					await downloadCSVAuth("/api/breweries/members/export", "members.csv");
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 			}
 			if (action === "iam-members-import") {
@@ -4279,28 +4355,23 @@
 				try {
 					await openBreweryDialog(null);
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 			}
-			if (t.hasAttribute("data-edit-brewery")) {
+			if (el.hasAttribute("data-edit-brewery")) {
 				try {
-					await openBreweryDialog(t.getAttribute("data-edit-brewery"));
+					await openBreweryDialog(el.getAttribute("data-edit-brewery"));
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 				return;
 			}
-			if (t.hasAttribute("data-del-brewery")) {
-				const id = t.getAttribute("data-del-brewery");
-				const name = t.getAttribute("data-brewery-name") || id;
+			if (el.hasAttribute("data-del-brewery")) {
+				const id = el.getAttribute("data-del-brewery");
+				const name = el.getAttribute("data-brewery-name") || id;
 				const ok = await appConfirm({
-					title: "Remove brewery",
-					message:
-						"Remove brewery #" +
-						id +
-						" (" +
-						name +
-						")? This is blocked if the brewery has delivered batches.",
+					title: t("js.iam.remove_brewery_title"),
+					message: t("js.iam.remove_brewery_message", { id: id, name: name }),
 				});
 				if (!ok) {
 					return;
@@ -4309,17 +4380,17 @@
 					await api("/api/breweries/" + id, { method: "DELETE" });
 					refreshBreweries();
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 				return;
 			}
-			if (t.hasAttribute("data-add-member")) {
-				const breweryID = t.getAttribute("data-add-member");
+			if (el.hasAttribute("data-add-member")) {
+				const breweryID = el.getAttribute("data-add-member");
 				const dlg = panel.querySelector("#iam-member-dialog");
 				const form = panel.querySelector("#iam-member-form");
 				const userSel = form.querySelector('[name="user_id"]');
 				form.querySelector('[name="brewery_id"]').value = breweryID;
-				userSel.innerHTML = '<option value="">Select user…</option>';
+				userSel.innerHTML = '<option value="">' + esc(t("iam.breweries.select_user")) + "</option>";
 				try {
 					const [users, members] = await Promise.all([
 						api("/api/users"),
@@ -4327,7 +4398,7 @@
 					]);
 					const memberIDs = new Set((members || []).map((m) => m.user_id));
 					userSel.innerHTML =
-						'<option value="">Select user…</option>' +
+						'<option value="">' + esc(t("iam.breweries.select_user")) + "</option>" +
 						(users || [])
 							.filter((u) => u.active !== false && !memberIDs.has(u.id))
 							.map(
@@ -4340,22 +4411,22 @@
 							)
 							.join("");
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 					return;
 				}
 				dlg.showModal();
 			}
-			if (t.hasAttribute("data-list-members")) {
-				const breweryID = t.getAttribute("data-list-members");
-				const name = t.getAttribute("data-brewery-name") || "#" + breweryID;
+			if (el.hasAttribute("data-list-members")) {
+				const breweryID = el.getAttribute("data-list-members");
+				const name = el.getAttribute("data-brewery-name") || "#" + breweryID;
 				openMembersDialog(breweryID, name);
 			}
-			if (t.hasAttribute("data-remove-member")) {
+			if (el.hasAttribute("data-remove-member")) {
 				const breweryID = panel.querySelector("#iam-members-brewery-id").value;
-				const userID = t.getAttribute("data-remove-member");
+				const userID = el.getAttribute("data-remove-member");
 				const ok = await appConfirm({
-					title: "Remove member",
-					message: "Remove this member from the brewery?",
+					title: t("js.iam.remove_member_title"),
+					message: t("js.iam.remove_member_message"),
 				});
 				if (!ok) {
 					return;
@@ -4366,32 +4437,32 @@
 					});
 					await refreshMembersList(breweryID);
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 			}
 		});
 
 		panel.addEventListener("change", async (ev) => {
-			const t = ev.target;
-			if (!(t instanceof HTMLElement)) {
+			const el = ev.target;
+			if (!(el instanceof HTMLElement)) {
 				return;
 			}
-			if (!t.hasAttribute("data-member-role")) {
+			if (!el.hasAttribute("data-member-role")) {
 				return;
 			}
 			const breweryID = panel.querySelector("#iam-members-brewery-id").value;
-			const userID = parseInt(t.getAttribute("data-member-role"), 10);
-			const prevRole = t.getAttribute("data-prev-role") || "";
-			const newRole = t.value;
+			const userID = parseInt(el.getAttribute("data-member-role"), 10);
+			const prevRole = el.getAttribute("data-prev-role") || "";
+			const newRole = el.value;
 			if (newRole === prevRole) {
 				return;
 			}
 			const ok = await appConfirm({
-				title: "Change role",
-				message: "Change this member's role to " + newRole + "?",
+				title: t("js.iam.change_role_title"),
+				message: t("js.iam.change_role_message", { role: newRole }),
 			});
 			if (!ok) {
-				t.value = prevRole;
+				el.value = prevRole;
 				return;
 			}
 			try {
@@ -4399,9 +4470,9 @@
 					method: "POST",
 					body: JSON.stringify({ user_id: userID, role: newRole }),
 				});
-				t.setAttribute("data-prev-role", newRole);
+				el.setAttribute("data-prev-role", newRole);
 			} catch (e) {
-				await appInfo({ title: "Notice", message: e.message });
+				await appInfo({ title: noticeTitle(), message: e.message });
 				await refreshMembersList(breweryID);
 			}
 		});
@@ -4438,7 +4509,7 @@
 				breweryForm.reset();
 				refreshBreweries();
 			} catch (e) {
-				await appInfo({ title: "Notice", message: e.message });
+				await appInfo({ title: noticeTitle(), message: e.message });
 			}
 		});
 
@@ -4450,8 +4521,8 @@
 			}
 			const fd = new FormData(memberForm);
 			const ok = await appConfirm({
-				title: "Add member",
-				message: "Add this user to the brewery?",
+				title: t("iam.breweries.add_member"),
+				message: t("js.iam.add_member_message"),
 			});
 			if (!ok) {
 				return;
@@ -4464,9 +4535,9 @@
 						role: fd.get("role"),
 					}),
 				});
-				await appInfo({ title: "Notice", message: "Member added" });
+				await appInfo({ title: noticeTitle(), message: t("js.iam.member_added") });
 			} catch (e) {
-				await appInfo({ title: "Notice", message: e.message });
+				await appInfo({ title: noticeTitle(), message: e.message });
 			}
 		});
 
@@ -4480,12 +4551,12 @@
 				try {
 					const result = await importCSVAuth("/api/breweries/import", file);
 					await appInfo({
-						title: "Breweries import",
+						title: t("js.inventory.import_result"),
 						message: formatImportResult(result || {}),
 					});
 					refreshBreweries();
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				} finally {
 					breweriesImportFile.value = "";
 				}
@@ -4502,12 +4573,12 @@
 				try {
 					const result = await importCSVAuth("/api/breweries/members/import", file);
 					await appInfo({
-						title: "Members import",
+						title: t("js.inventory.import_result"),
 						message: formatImportResult(result || {}),
 					});
 					refreshBreweries();
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				} finally {
 					membersImportFile.value = "";
 				}
@@ -4565,7 +4636,7 @@
 			const file = fileInput.files && fileInput.files[0];
 			if (!file) {
 				errEl.hidden = false;
-				errEl.textContent = "Choose a file first";
+				errEl.textContent = t("js.iam.choose_file");
 				return;
 			}
 			const fd = new FormData();
@@ -4618,11 +4689,11 @@
 		}
 
 		panel.addEventListener("click", async (ev) => {
-			const t = ev.target;
-			if (!(t instanceof HTMLElement)) {
+			const el = ev.target;
+			if (!(el instanceof HTMLElement)) {
 				return;
 			}
-			const action = t.getAttribute("data-action");
+			const action = el.getAttribute("data-action");
 			if (action === "settings-logo-upload") {
 				try {
 					await uploadBrand("logo", panel.querySelector("#settings-logo-file"), logoErr);
@@ -4693,34 +4764,38 @@
 			try {
 				const tanks = await api("/api/settings/tanks");
 				tanksEl.innerHTML = table(
-					["ID", "Name", "Capacity L", "Active", ""],
+					[t("common.id"), t("common.name"), t("js.settings.capacity_l"), t("common.active"), ""],
 					(tanks || [])
-						.map((t) => {
-							const toggleLabel = t.active ? "Disable" : "Enable";
+						.map((tank) => {
+							const toggleLabel = tank.active ? t("js.settings.disable") : t("js.settings.enable");
 							return (
 								"<tr><td>" +
-								t.id +
+								tank.id +
 								"</td><td>" +
-								esc(t.name) +
+								esc(tank.name) +
 								"</td><td>" +
-								t.capacity_liters +
+								tank.capacity_liters +
 								"</td><td>" +
-								(t.active ? "yes" : "no") +
+								(tank.active ? t("js.settings.yes") : t("js.settings.no")) +
 								'</td><td><button type="button" class="btn btn--small" data-tank-edit="' +
-								t.id +
+								tank.id +
 								'" data-name="' +
-								esc(t.name) +
+								esc(tank.name) +
 								'" data-capacity="' +
-								t.capacity_liters +
-								'">Edit</button> <button type="button" class="btn btn--small" data-tank-active="' +
-								t.id +
+								tank.capacity_liters +
+								'">' +
+								esc(t("common.edit")) +
+								'</button> <button type="button" class="btn btn--small" data-tank-active="' +
+								tank.id +
 								'" data-active="' +
-								(t.active ? "0" : "1") +
+								(tank.active ? "0" : "1") +
 								'">' +
 								toggleLabel +
 								'</button> <button type="button" class="btn btn--small" data-tank-delete="' +
-								t.id +
-								'">Remove</button></td></tr>'
+								tank.id +
+								'">' +
+								esc(t("common.remove")) +
+								"</button></td></tr>"
 							);
 						})
 						.join("")
@@ -4731,27 +4806,27 @@
 		}
 
 		panel.addEventListener("click", async (ev) => {
-			const t = ev.target;
-			if (!(t instanceof HTMLElement)) {
+			const el = ev.target;
+			if (!(el instanceof HTMLElement)) {
 				return;
 			}
-			if (t.hasAttribute("data-tank-edit")) {
-				const id = t.getAttribute("data-tank-edit");
+			if (el.hasAttribute("data-tank-edit")) {
+				const id = el.getAttribute("data-tank-edit");
 				const values = await appPrompt({
-					title: "Edit tank",
+					title: t("js.settings.edit_tank"),
 					fields: [
 						{
 							name: "name",
-							label: "Tank name",
+							label: t("js.settings.tank_name"),
 							type: "text",
-							value: t.getAttribute("data-name") || "",
+							value: el.getAttribute("data-name") || "",
 						},
 						{
 							name: "capacity_liters",
-							label: "Capacity liters",
+							label: t("js.settings.capacity_liters"),
 							type: "number",
 							step: "any",
-							value: t.getAttribute("data-capacity") || "0",
+							value: el.getAttribute("data-capacity") || "0",
 						},
 					],
 				});
@@ -4768,27 +4843,27 @@
 					});
 					refresh();
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 				return;
 			}
-			if (t.hasAttribute("data-tank-active")) {
+			if (el.hasAttribute("data-tank-active")) {
 				try {
-					await api("/api/settings/tanks/" + t.getAttribute("data-tank-active") + "/active", {
+					await api("/api/settings/tanks/" + el.getAttribute("data-tank-active") + "/active", {
 						method: "POST",
-						body: JSON.stringify({ active: t.getAttribute("data-active") === "1" }),
+						body: JSON.stringify({ active: el.getAttribute("data-active") === "1" }),
 					});
 					refresh();
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 				return;
 			}
-			if (t.hasAttribute("data-tank-delete")) {
-				const id = t.getAttribute("data-tank-delete");
+			if (el.hasAttribute("data-tank-delete")) {
+				const id = el.getAttribute("data-tank-delete");
 				const ok = await appConfirm({
-					title: "Remove tank",
-					message: "Remove tank #" + id + " permanently?",
+					title: t("js.settings.remove_tank_title"),
+					message: t("js.settings.remove_tank_message", { id: id }),
 				});
 				if (!ok) {
 					return;
@@ -4797,18 +4872,18 @@
 					await api("/api/settings/tanks/" + id, { method: "DELETE" });
 					refresh();
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 				return;
 			}
-			if (t.getAttribute("data-action") !== "settings-tank-new") {
+			if (el.getAttribute("data-action") !== "settings-tank-new") {
 				return;
 			}
 			const values = await appPrompt({
-				title: "New tank",
+				title: t("js.settings.new_tank"),
 				fields: [
-					{ name: "name", label: "Tank name", type: "text" },
-					{ name: "capacity_liters", label: "Capacity liters", type: "number", step: "any", value: "1000" },
+					{ name: "name", label: t("js.settings.tank_name"), type: "text" },
+					{ name: "capacity_liters", label: t("js.settings.capacity_liters"), type: "number", step: "any", value: "1000" },
 				],
 			});
 			if (!values || !String(values.name || "").trim()) {
@@ -4824,7 +4899,7 @@
 				});
 				refresh();
 			} catch (e) {
-				await appInfo({ title: "Notice", message: e.message });
+				await appInfo({ title: noticeTitle(), message: e.message });
 			}
 		});
 		refresh();
@@ -4837,10 +4912,10 @@
 			try {
 				const mults = await api("/api/settings/multipliers");
 				multsEl.innerHTML = table(
-					["ID", "Name", "×", "Active", ""],
+					[t("common.id"), t("common.name"), "×", t("common.active"), ""],
 					(mults || [])
 						.map((m) => {
-							const toggleLabel = m.active ? "Disable" : "Enable";
+							const toggleLabel = m.active ? t("js.settings.disable") : t("js.settings.enable");
 							return (
 								"<tr><td>" +
 								m.id +
@@ -4849,14 +4924,14 @@
 								"</td><td>" +
 								m.multiplier +
 								"</td><td>" +
-								(m.active ? "yes" : "no") +
+								(m.active ? t("js.settings.yes") : t("js.settings.no")) +
 								'</td><td><button type="button" class="btn btn--small" data-mult-edit="' +
 								m.id +
 								'" data-name="' +
 								esc(m.name) +
 								'" data-multiplier="' +
 								m.multiplier +
-								'">Edit</button> <button type="button" class="btn btn--small" data-mult-active="' +
+								'">' + esc(t("common.edit")) + '</button> <button type="button" class="btn btn--small" data-mult-active="' +
 								m.id +
 								'" data-active="' +
 								(m.active ? "0" : "1") +
@@ -4864,7 +4939,7 @@
 								toggleLabel +
 								'</button> <button type="button" class="btn btn--small" data-mult-delete="' +
 								m.id +
-								'">Remove</button></td></tr>'
+								'">' + esc(t("common.remove")) + "</button></td></tr>"
 							);
 						})
 						.join("")
@@ -4875,27 +4950,27 @@
 		}
 
 		panel.addEventListener("click", async (ev) => {
-			const t = ev.target;
-			if (!(t instanceof HTMLElement)) {
+			const el = ev.target;
+			if (!(el instanceof HTMLElement)) {
 				return;
 			}
-			if (t.hasAttribute("data-mult-edit")) {
-				const id = t.getAttribute("data-mult-edit");
+			if (el.hasAttribute("data-mult-edit")) {
+				const id = el.getAttribute("data-mult-edit");
 				const values = await appPrompt({
-					title: "Edit multiplier",
+					title: t("js.settings.edit_multiplier"),
 					fields: [
 						{
 							name: "name",
-							label: "Multiplier name",
+							label: t("js.settings.multiplier_name"),
 							type: "text",
-							value: t.getAttribute("data-name") || "",
+							value: el.getAttribute("data-name") || "",
 						},
 						{
 							name: "multiplier",
-							label: "Multiplier",
+							label: t("delivery.multiplier"),
 							type: "number",
 							step: "any",
-							value: t.getAttribute("data-multiplier") || "1",
+							value: el.getAttribute("data-multiplier") || "1",
 						},
 					],
 				});
@@ -4912,30 +4987,30 @@
 					});
 					refresh();
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 				return;
 			}
-			if (t.hasAttribute("data-mult-active")) {
+			if (el.hasAttribute("data-mult-active")) {
 				try {
 					await api(
-						"/api/settings/multipliers/" + t.getAttribute("data-mult-active") + "/active",
+						"/api/settings/multipliers/" + el.getAttribute("data-mult-active") + "/active",
 						{
 							method: "POST",
-							body: JSON.stringify({ active: t.getAttribute("data-active") === "1" }),
+							body: JSON.stringify({ active: el.getAttribute("data-active") === "1" }),
 						}
 					);
 					refresh();
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 				return;
 			}
-			if (t.hasAttribute("data-mult-delete")) {
-				const id = t.getAttribute("data-mult-delete");
+			if (el.hasAttribute("data-mult-delete")) {
+				const id = el.getAttribute("data-mult-delete");
 				const ok = await appConfirm({
-					title: "Remove multiplier",
-					message: "Remove multiplier #" + id + " permanently?",
+					title: t("js.settings.remove_multiplier_title"),
+					message: t("js.settings.remove_multiplier_message", { id: id }),
 				});
 				if (!ok) {
 					return;
@@ -4944,18 +5019,18 @@
 					await api("/api/settings/multipliers/" + id, { method: "DELETE" });
 					refresh();
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 				return;
 			}
-			if (t.getAttribute("data-action") !== "settings-mult-new") {
+			if (el.getAttribute("data-action") !== "settings-mult-new") {
 				return;
 			}
 			const values = await appPrompt({
-				title: "New multiplier",
+				title: t("js.settings.new_multiplier"),
 				fields: [
-					{ name: "name", label: "Multiplier name", type: "text" },
-					{ name: "multiplier", label: "Multiplier", type: "number", step: "any", value: "1.5" },
+					{ name: "name", label: t("js.settings.multiplier_name"), type: "text" },
+					{ name: "multiplier", label: t("delivery.multiplier"), type: "number", step: "any", value: "1.5" },
 				],
 			});
 			if (!values || !String(values.name || "").trim()) {
@@ -4971,7 +5046,7 @@
 				});
 				refresh();
 			} catch (e) {
-				await appInfo({ title: "Notice", message: e.message });
+				await appInfo({ title: noticeTitle(), message: e.message });
 			}
 		});
 		refresh();
@@ -5011,6 +5086,45 @@
 		refresh();
 	}
 
+	async function loadSettingsRegional(panel) {
+		const form = panel.querySelector("#settings-regional-form");
+		const errEl = panel.querySelector("#settings-regional-error");
+		const currencySel = panel.querySelector("#settings-regional-currency");
+		const languageSel = panel.querySelector("#settings-regional-language");
+
+		async function refresh() {
+			try {
+				const cfg = await api("/api/settings/regional");
+				currencySel.value = cfg.currency_code || "SEK";
+				languageSel.value = cfg.language || "en";
+			} catch (e) {
+				errEl.hidden = false;
+				errEl.textContent = e.message;
+			}
+		}
+
+		form.addEventListener("submit", async (ev) => {
+			ev.preventDefault();
+			errEl.hidden = true;
+			try {
+				const cfg = await api("/api/settings/regional", {
+					method: "PUT",
+					body: JSON.stringify({
+						currency_code: currencySel.value,
+						language: languageSel.value,
+					}),
+				});
+				if (window.BH_I18N && typeof window.BH_I18N.applyRegional === "function") {
+					await window.BH_I18N.applyRegional(cfg);
+				}
+			} catch (e) {
+				errEl.hidden = false;
+				errEl.textContent = e.message;
+			}
+		});
+		refresh();
+	}
+
 	async function loadSettingsHygiene(panel) {
 		const hygEl = panel.querySelector("#settings-hygiene");
 
@@ -5018,7 +5132,7 @@
 			try {
 				const hyg = await api("/api/settings/hygiene-routines");
 				hygEl.innerHTML = table(
-					["Name", "Description", "Sort", ""],
+					[t("common.name"), t("js.settings.description"), t("js.settings.sort"), ""],
 					(hyg || [])
 						.map((r) => {
 							return (
@@ -5036,9 +5150,9 @@
 								esc(r.description || "") +
 								'" data-sort="' +
 								r.sort_order +
-								'">Edit</button> <button type="button" class="btn btn--small" data-hygiene-delete="' +
+								'">' + esc(t("common.edit")) + '</button> <button type="button" class="btn btn--small" data-hygiene-delete="' +
 								r.id +
-								'">Remove</button></td></tr>'
+								'">' + esc(t("common.remove")) + "</button></td></tr>"
 							);
 						})
 						.join("")
@@ -5049,33 +5163,33 @@
 		}
 
 		panel.addEventListener("click", async (ev) => {
-			const t = ev.target;
-			if (!(t instanceof HTMLElement)) {
+			const el = ev.target;
+			if (!(el instanceof HTMLElement)) {
 				return;
 			}
-			if (t.hasAttribute("data-hygiene-edit")) {
-				const id = t.getAttribute("data-hygiene-edit");
+			if (el.hasAttribute("data-hygiene-edit")) {
+				const id = el.getAttribute("data-hygiene-edit");
 				const values = await appPrompt({
-					title: "Edit hygiene routine",
+					title: t("js.settings.edit_hygiene"),
 					fields: [
 						{
 							name: "name",
-							label: "Name",
+							label: t("common.name"),
 							type: "text",
-							value: t.getAttribute("data-name") || "",
+							value: el.getAttribute("data-name") || "",
 						},
 						{
 							name: "description",
-							label: "Description",
+							label: t("js.settings.description"),
 							type: "text",
-							value: t.getAttribute("data-description") || "",
+							value: el.getAttribute("data-description") || "",
 						},
 						{
 							name: "sort_order",
-							label: "Sort order",
+							label: t("js.settings.sort_order"),
 							type: "number",
 							step: "1",
-							value: t.getAttribute("data-sort") || "0",
+							value: el.getAttribute("data-sort") || "0",
 						},
 					],
 				});
@@ -5093,15 +5207,15 @@
 					});
 					refresh();
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 				return;
 			}
-			if (t.hasAttribute("data-hygiene-delete")) {
-				const id = t.getAttribute("data-hygiene-delete");
+			if (el.hasAttribute("data-hygiene-delete")) {
+				const id = el.getAttribute("data-hygiene-delete");
 				const ok = await appConfirm({
-					title: "Remove hygiene routine",
-					message: "Remove routine #" + id + " permanently?",
+					title: t("js.settings.remove_hygiene_title"),
+					message: t("js.settings.remove_hygiene_message", { id: id }),
 				});
 				if (!ok) {
 					return;
@@ -5110,23 +5224,23 @@
 					await api("/api/settings/hygiene-routines/" + id, { method: "DELETE" });
 					refresh();
 				} catch (e) {
-					await appInfo({ title: "Notice", message: e.message });
+					await appInfo({ title: noticeTitle(), message: e.message });
 				}
 				return;
 			}
-			if (t.getAttribute("data-action") === "settings-hygiene-refresh") {
+			if (el.getAttribute("data-action") === "settings-hygiene-refresh") {
 				refresh();
 				return;
 			}
-			if (t.getAttribute("data-action") !== "settings-hygiene-new") {
+			if (el.getAttribute("data-action") !== "settings-hygiene-new") {
 				return;
 			}
 			const values = await appPrompt({
-				title: "New hygiene routine",
+				title: t("js.settings.new_hygiene"),
 				fields: [
-					{ name: "name", label: "Name", type: "text" },
-					{ name: "description", label: "Description", type: "text" },
-					{ name: "sort_order", label: "Sort order", type: "number", step: "1", value: "0" },
+					{ name: "name", label: t("common.name"), type: "text" },
+					{ name: "description", label: t("js.settings.description"), type: "text" },
+					{ name: "sort_order", label: t("js.settings.sort_order"), type: "number", step: "1", value: "0" },
 				],
 			});
 			if (!values || !String(values.name || "").trim()) {
@@ -5143,7 +5257,7 @@
 				});
 				refresh();
 			} catch (e) {
-				await appInfo({ title: "Notice", message: e.message });
+				await appInfo({ title: noticeTitle(), message: e.message });
 			}
 		});
 		refresh();
@@ -5177,13 +5291,13 @@
 
 		function kindLabel(kind) {
 			if (kind === "daily") {
-				return "Daily";
+				return t("js.settings.backup_daily");
 			}
 			if (kind === "monthly") {
-				return "Monthly";
+				return t("js.settings.backup_monthly");
 			}
 			if (kind === "manual") {
-				return "Manual";
+				return t("js.settings.backup_manual");
 			}
 			return kind || "";
 		}
@@ -5206,11 +5320,11 @@
 			try {
 				const list = await api("/api/settings/backup");
 				if (!list || !list.length) {
-					listEl.innerHTML = '<p class="panel__empty">No backups yet.</p>';
+					listEl.innerHTML = '<p class="panel__empty">' + esc(t("js.settings.no_backups")) + "</p>";
 					return;
 				}
 				listEl.innerHTML = table(
-					["Taken", "Type", "Size", "File", ""],
+					[t("js.settings.backup_taken"), t("js.settings.backup_type"), t("js.settings.backup_size"), t("js.settings.backup_file"), ""],
 					list
 						.map((b) => {
 							const name = esc(b.name || "");
@@ -5226,13 +5340,19 @@
 								'</td><td class="panel__row-actions">' +
 								'<button type="button" class="btn btn--small" data-action="settings-backup-download" data-name="' +
 								name +
-								'">Download</button> ' +
+								'">' +
+								esc(t("js.settings.download")) +
+								"</button> " +
 								'<button type="button" class="btn btn--small" data-action="settings-backup-restore" data-name="' +
 								name +
-								'">Restore</button> ' +
+								'">' +
+								esc(t("js.settings.restore")) +
+								"</button> " +
 								'<button type="button" class="btn btn--small" data-action="settings-backup-delete" data-name="' +
 								name +
-								'">Delete</button></td></tr>'
+								'">' +
+								esc(t("common.delete")) +
+								"</button></td></tr>"
 							);
 						})
 						.join("")
@@ -5248,11 +5368,8 @@
 
 		async function restoreNamed(name) {
 			const ok = await appConfirm({
-				title: "Restore backup",
-				message:
-					"Replace the live database with " +
-					name +
-					"? A pre-restore copy is kept next to the database file. Continue?",
+				title: t("js.settings.restore_backup_title"),
+				message: t("js.settings.restore_backup_message", { name: name }),
 			});
 			if (!ok) {
 				return;
@@ -5261,17 +5378,17 @@
 				method: "POST",
 			});
 			await appInfo({
-				title: "Restore complete",
-				message: "Database restored. Reload the page to continue with the restored data.",
+				title: t("js.settings.restore_complete_title"),
+				message: t("js.settings.restore_complete_message"),
 			});
 			window.location.reload();
 		}
 
 		async function restoreUpload(file) {
 			const ok = await appConfirm({
-				title: "Restore from file",
+				title: t("js.settings.restore_from_file"),
 				message:
-					"Replace the live database with the uploaded file? A pre-restore copy is kept next to the database file. Continue?",
+					t("js.settings.restore_upload_message"),
 			});
 			if (!ok) {
 				return;
@@ -5294,18 +5411,18 @@
 				throw new Error((data && data.error) || res.statusText);
 			}
 			await appInfo({
-				title: "Restore complete",
-				message: "Database restored. Reload the page to continue with the restored data.",
+				title: t("js.settings.restore_complete_title"),
+				message: t("js.settings.restore_complete_message"),
 			});
 			window.location.reload();
 		}
 
 		panel.addEventListener("click", async (ev) => {
-			const t = ev.target;
-			if (!(t instanceof HTMLElement)) {
+			const el = ev.target;
+			if (!(el instanceof HTMLElement)) {
 				return;
 			}
-			const action = t.getAttribute("data-action");
+			const action = el.getAttribute("data-action");
 			if (action === "settings-backup-refresh") {
 				refresh();
 				return;
@@ -5320,7 +5437,7 @@
 				}
 				return;
 			}
-			const name = t.getAttribute("data-name");
+			const name = el.getAttribute("data-name");
 			if (action === "settings-backup-download" && name) {
 				try {
 					await downloadBackup(name);
@@ -5339,8 +5456,8 @@
 			}
 			if (action === "settings-backup-delete" && name) {
 				const ok = await appConfirm({
-					title: "Delete backup",
-					message: "Delete backup " + name + "?",
+					title: t("js.settings.delete_backup_title"),
+					message: t("js.settings.delete_backup_message", { name: name }),
 				});
 				if (!ok) {
 					return;

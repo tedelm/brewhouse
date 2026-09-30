@@ -1,99 +1,99 @@
 <section class="panel" data-panel="orders">
 	<header class="panel__header">
-		<h1 class="panel__title">Orders</h1>
-		<p class="panel__lead">Build a planning order, mark it ordered, then complete it to receive stock into inventory.</p>
+		<h1 class="panel__title" data-i18n="orders.title">Orders</h1>
+		<p class="panel__lead" data-i18n="orders.lead">Build a planning order, mark it ordered, then complete it to receive stock into inventory.</p>
 	</header>
 	<div class="panel__toolbar">
-		<button type="button" class="btn" data-action="orders-refresh">Refresh</button>
-		<button type="button" class="btn btn--primary" data-action="orders-new" data-require-roles="superuser,admin">New order</button>
+		<button type="button" class="btn" data-action="orders-refresh" data-i18n="common.refresh">Refresh</button>
+		<button type="button" class="btn btn--primary" data-action="orders-new" data-require-roles="superuser,admin" data-i18n="orders.new">New order</button>
 	</div>
-	<div class="panel__body" id="orders-list">Loading…</div>
+	<div class="panel__body" id="orders-list" data-i18n="common.loading">Loading…</div>
 	<dialog class="panel__dialog" id="order-new-dialog">
 		<form method="dialog" class="panel__form" id="order-new-form">
-			<h2>New order</h2>
-			<label>External order ID <input name="external_order_id" type="text" placeholder="Optional"></label>
-			<label>Notes <input name="notes" type="text" placeholder="Optional"></label>
+			<h2 data-i18n="orders.new">New order</h2>
+			<label><span data-i18n="orders.external_id">External order ID</span> <input name="external_order_id" type="text" placeholder="Optional" data-i18n-attr="placeholder:common.optional"></label>
+			<label><span data-i18n="common.notes">Notes</span> <input name="notes" type="text" placeholder="Optional" data-i18n-attr="placeholder:common.optional"></label>
 			<div class="panel__dialog-actions">
-				<button type="submit" class="btn btn--primary" value="save">Create</button>
-				<button type="submit" class="btn" value="cancel" formnovalidate>Cancel</button>
+				<button type="submit" class="btn btn--primary" value="save" data-i18n="common.create">Create</button>
+				<button type="submit" class="btn" value="cancel" formnovalidate data-i18n="common.cancel">Cancel</button>
 			</div>
 		</form>
 	</dialog>
 	<dialog class="panel__dialog" id="order-line-dialog">
 		<form method="dialog" class="panel__form" id="order-line-form">
-			<h2>Add line</h2>
+			<h2 data-i18n="orders.add_line">Add line</h2>
 			<input type="hidden" name="order_id" value="">
-			<label>Item
+			<label><span data-i18n="orders.item">Item</span>
 				<select name="inventory_item_id" id="order-line-item" required></select>
 			</label>
-			<label>Qty <input name="qty" type="number" step="any" min="0.01" value="1" required></label>
-			<label>Brewery
+			<label><span data-i18n="common.qty">Qty</span> <input name="qty" type="number" step="any" min="0.01" value="1" required></label>
+			<label><span data-i18n="common.brewery">Brewery</span>
 				<select name="brewery_id" id="order-line-brewery">
-					<option value="">Unassigned</option>
+					<option value="" data-i18n="orders.unassigned">Unassigned</option>
 				</select>
 			</label>
 			<div class="panel__dialog-actions">
-				<button type="submit" class="btn btn--primary" value="save">Add</button>
-				<button type="submit" class="btn" value="cancel" formnovalidate>Cancel</button>
+				<button type="submit" class="btn btn--primary" value="save" data-i18n="common.add">Add</button>
+				<button type="submit" class="btn" value="cancel" formnovalidate data-i18n="common.cancel">Cancel</button>
 			</div>
 		</form>
 	</dialog>
 	<dialog class="panel__dialog" id="order-confirm-dialog">
 		<form method="dialog" class="panel__form" id="order-confirm-form">
-			<h2 id="order-confirm-title">Confirm</h2>
+			<h2 id="order-confirm-title" data-i18n="common.confirm">Confirm</h2>
 			<p id="order-confirm-message"></p>
 			<input type="hidden" name="action" value="">
 			<input type="hidden" name="order_id" value="">
 			<input type="hidden" name="status" value="">
 			<div class="panel__dialog-actions">
-				<button type="submit" class="btn btn--primary" value="confirm">Confirm</button>
-				<button type="submit" class="btn" value="cancel" formnovalidate>Cancel</button>
+				<button type="submit" class="btn btn--primary" value="confirm" data-i18n="common.confirm">Confirm</button>
+				<button type="submit" class="btn" value="cancel" formnovalidate data-i18n="common.cancel">Cancel</button>
 			</div>
 		</form>
 	</dialog>
 	<dialog class="panel__dialog" id="order-external-dialog">
 		<form method="dialog" class="panel__form" id="order-external-form">
-			<h2>External order ID</h2>
+			<h2 data-i18n="orders.external_id">External order ID</h2>
 			<input type="hidden" name="order_id" value="">
-			<label>External order ID <input name="external_order_id" type="text" placeholder="Optional"></label>
+			<label><span data-i18n="orders.external_id">External order ID</span> <input name="external_order_id" type="text" placeholder="Optional" data-i18n-attr="placeholder:common.optional"></label>
 			<div class="panel__dialog-actions">
-				<button type="submit" class="btn btn--primary" value="save">Save</button>
-				<button type="submit" class="btn" value="cancel" formnovalidate>Cancel</button>
+				<button type="submit" class="btn btn--primary" value="save" data-i18n="common.save">Save</button>
+				<button type="submit" class="btn" value="cancel" formnovalidate data-i18n="common.cancel">Cancel</button>
 			</div>
 		</form>
 	</dialog>
 	<dialog class="panel__dialog" id="order-ordered-qty-dialog">
 		<form method="dialog" class="panel__form" id="order-ordered-qty-form">
-			<h2>Ordered quantity</h2>
+			<h2 data-i18n="orders.ordered_qty_title">Ordered quantity</h2>
 			<input type="hidden" name="order_id" value="">
 			<input type="hidden" name="line_id" value="">
-			<label>Ordered qty <input name="ordered_qty" type="number" step="any" min="0.01" required></label>
+			<label><span data-i18n="orders.ordered_qty">Ordered qty</span> <input name="ordered_qty" type="number" step="any" min="0.01" required></label>
 			<div class="panel__dialog-actions">
-				<button type="submit" class="btn btn--primary" value="save">Save</button>
-				<button type="submit" class="btn" value="cancel" formnovalidate>Cancel</button>
+				<button type="submit" class="btn btn--primary" value="save" data-i18n="common.save">Save</button>
+				<button type="submit" class="btn" value="cancel" formnovalidate data-i18n="common.cancel">Cancel</button>
 			</div>
 		</form>
 	</dialog>
 	<dialog class="panel__dialog" id="order-cost-dialog">
 		<form method="dialog" class="panel__form" id="order-cost-form">
-			<h2>Line cost price</h2>
+			<h2 data-i18n="orders.line_cost_title">Line cost price</h2>
 			<input type="hidden" name="order_id" value="">
 			<input type="hidden" name="line_id" value="">
-			<label>Cost price (SEK) <input name="cost_price" type="number" step="any" min="0" required></label>
+			<label><span data-i18n="orders.cost_price">Cost price ({currency})</span> <input name="cost_price" type="number" step="any" min="0" required></label>
 			<div class="panel__dialog-actions">
-				<button type="submit" class="btn btn--primary" value="save">Save</button>
-				<button type="submit" class="btn" value="cancel" formnovalidate>Cancel</button>
+				<button type="submit" class="btn btn--primary" value="save" data-i18n="common.save">Save</button>
+				<button type="submit" class="btn" value="cancel" formnovalidate data-i18n="common.cancel">Cancel</button>
 			</div>
 		</form>
 	</dialog>
 	<dialog class="panel__dialog panel__dialog--wide" id="order-links-dialog">
 		<form method="dialog" class="panel__form" id="order-links-form">
-			<h2 id="order-links-title">Product links</h2>
-			<p class="panel__lead">Open supplier product pages while ordering. Managers can save links to the inventory catalog.</p>
+			<h2 id="order-links-title" data-i18n="orders.product_links">Product links</h2>
+			<p class="panel__lead" data-i18n="orders.product_links_lead">Open supplier product pages while ordering. Managers can save links to the inventory catalog.</p>
 			<input type="hidden" name="order_id" value="" id="order-links-order-id">
 			<div id="order-links-list" class="order-links-list"></div>
 			<div class="panel__dialog-actions">
-				<button type="submit" class="btn" value="cancel" formnovalidate>Close</button>
+				<button type="submit" class="btn" value="cancel" formnovalidate data-i18n="common.close">Close</button>
 			</div>
 		</form>
 	</dialog>

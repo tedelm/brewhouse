@@ -1,22 +1,22 @@
 <section class="panel" data-panel="schedule">
 	<header class="panel__header">
-		<h1 class="panel__title">Schedule</h1>
-		<p class="panel__lead">Book a brew day and fermentation tank for a created recipe. Moves the batch to scheduled.</p>
+		<h1 class="panel__title" data-i18n="schedule.title">Schedule</h1>
+		<p class="panel__lead" data-i18n="schedule.lead">Book a brew day and fermentation tank for a created recipe. Moves the batch to scheduled.</p>
 	</header>
 	<div class="panel__toolbar">
-		<button type="button" class="btn" data-action="schedule-refresh">Refresh</button>
+		<button type="button" class="btn" data-action="schedule-refresh" data-i18n="common.refresh">Refresh</button>
 	</div>
 	<form class="panel__form panel__form--inline" id="schedule-form">
-		<label>Recipe
+		<label><span data-i18n="common.recipe">Recipe</span>
 			<select name="recipe_id" id="schedule-recipe" required></select>
 		</label>
-		<label>Date <input name="date" type="date" required></label>
-		<label>Tank
+		<label><span data-i18n="common.date">Date</span> <input name="date" type="date" required></label>
+		<label><span data-i18n="schedule.tank">Tank</span>
 			<select name="tank_id" required></select>
 		</label>
-		<label>Tank days <input name="tank_days" type="number" value="14" min="1"></label>
-		<button type="submit" class="btn btn--primary">Book</button>
+		<label><span data-i18n="schedule.tank_days">Tank days</span> <input name="tank_days" type="number" value="14" min="1"></label>
+		<button type="submit" class="btn btn--primary" data-i18n="schedule.book">Book</button>
 		<p class="panel__error" id="schedule-error" hidden></p>
 	</form>
-	<div class="panel__body" id="schedule-list">Loading…</div>
+	<div class="panel__body" id="schedule-list" data-i18n="common.loading">Loading…</div>
 </section>

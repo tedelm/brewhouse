@@ -1,0 +1,25 @@
+<section class="panel" data-panel="settings-regional">
+	<header class="panel__header">
+		<h1 class="panel__title" data-i18n="settings.regional.title">Regional</h1>
+		<p class="panel__lead" data-i18n="settings.regional.lead">Currency and language used across the app.</p>
+	</header>
+	<form class="panel__form" id="settings-regional-form">
+		<label>
+			<span data-i18n="settings.regional.currency">Currency</span>
+			<select name="currency_code" id="settings-regional-currency" required>
+				<option value="SEK">SEK</option>
+				<option value="EUR">EUR</option>
+				<option value="USD">USD</option>
+			</select>
+		</label>
+		<label>
+			<span data-i18n="settings.regional.language">Language</span>
+			<select name="language" id="settings-regional-language" required>
+				<option value="en">English</option>
+				<option value="sv">Svenska</option>
+			</select>
+		</label>
+		<button type="submit" class="btn btn--primary" data-i18n="common.save">Save</button>
+		<p class="panel__error" id="settings-regional-error" hidden></p>
+	</form>
+</section>

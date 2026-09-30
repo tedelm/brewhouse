@@ -388,6 +388,8 @@ func (h *Handler) Settings(w http.ResponseWriter, r *http.Request) {
 		h.settingsMultipliers(w, r, actor, parts[1:])
 	case "beer-price":
 		h.settingsBeerPrice(w, r, actor, parts[1:])
+	case "regional":
+		h.settingsRegional(w, r, actor, parts[1:])
 	case "hygiene-routines":
 		h.settingsHygiene(w, r, actor, parts[1:])
 	case "logo":
@@ -599,6 +601,40 @@ func (h *Handler) settingsBeerPrice(w http.ResponseWriter, r *http.Request, acto
 			return
 		}
 		cfg, err := h.settings.UpdateBeerPriceConfig(actor, req.MinNetSEKPerLiter)
+		if err != nil {
+			if errors.Is(err, service.ErrForbidden) {
+				h.writeErr(w, err)
+				return
+			}
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, cfg)
+	default:
+		writeJSON(w, http.StatusMethodNotAllowed, ErrorResponse{Error: "method not allowed"})
+	}
+}
+
+func (h *Handler) settingsRegional(w http.ResponseWriter, r *http.Request, actor service.Actor, parts []string) {
+	if len(parts) != 0 {
+		writeJSON(w, http.StatusNotFound, ErrorResponse{Error: "not found"})
+		return
+	}
+	switch r.Method {
+	case http.MethodGet:
+		cfg, err := h.settings.GetRegionalConfig()
+		if err != nil {
+			h.writeErr(w, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, cfg)
+	case http.MethodPut, http.MethodPatch:
+		var req RegionalRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			writeJSON(w, http.StatusBadRequest, ErrorResponse{Error: "invalid body"})
+			return
+		}
+		cfg, err := h.settings.UpdateRegionalConfig(actor, req.CurrencyCode, req.Language)
 		if err != nil {
 			if errors.Is(err, service.ErrForbidden) {
 				h.writeErr(w, err)

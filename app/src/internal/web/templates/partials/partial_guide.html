@@ -1,118 +1,119 @@
 <section class="panel" data-panel="guide">
 	<header class="panel__header">
-		<h1 class="panel__title">Brewery 101</h1>
-		<p class="panel__lead">How to take a batch from recipe to the pub, what roles mean, and what each section of Brewhouse is for.</p>
+		<h1 class="panel__title" data-i18n="guide.title">Brewery 101</h1>
+		<p class="panel__lead" data-i18n="guide.lead">How to take a batch from recipe to the pub, what roles mean, and what each section of Brewhouse is for.</p>
 	</header>
 
 	<section class="guide-section">
-		<h2 class="guide-section__title">How to deliver a batch</h2>
-		<p class="guide-section__lead">Follow these steps in order. Each step advances the batch status.</p>
+		<h2 class="guide-section__title" data-i18n="guide.pipeline_title">How to deliver a batch</h2>
+		<p class="guide-section__lead" data-i18n="guide.pipeline_lead">Follow these steps in order. Each step advances the batch status.</p>
 		<ol class="guide-steps">
 			<li>
-				<strong>Recipes</strong> — Create a batch and pick ingredients. Available stock is checked out; shortfalls go to a planning order.
-				<span class="guide-steps__status">Status: created</span>
+				<strong data-i18n="nav.recipes">Recipes</strong> — <span data-i18n="guide.steps.recipes">Create a batch and pick ingredients. Available stock is checked out; shortfalls go to a planning order.</span>
+				<span class="guide-steps__status" data-i18n="guide.status.created">Status: created</span>
 			</li>
 			<li>
-				<strong>Schedule</strong> — Book a brew day and a fermentation tank.
-				<span class="guide-steps__status">Status: scheduled</span>
+				<strong data-i18n="nav.schedule">Schedule</strong> — <span data-i18n="guide.steps.schedule">Book a brew day and a fermentation tank.</span>
+				<span class="guide-steps__status" data-i18n="guide.status.scheduled">Status: scheduled</span>
 			</li>
 			<li>
-				<strong>Brewday</strong> — Record original gravity (OG) and brew volume, then mark brewday completed.
-				<span class="guide-steps__status">Status: brewday</span>
+				<strong data-i18n="nav.brewday">Brewday</strong> — <span data-i18n="guide.steps.brewday">Record original gravity (OG) and brew volume, then mark brewday completed.</span>
+				<span class="guide-steps__status" data-i18n="guide.status.brewday">Status: brewday</span>
 			</li>
 			<li>
-				<strong>Hygiene</strong> — Confirm cleaning is done for the batch (or use Hygiene done on Brewday).
-				<span class="guide-steps__status">Status: hygiene done</span>
+				<strong data-i18n="nav.hygiene">Hygiene</strong> — <span data-i18n="guide.steps.hygiene">Confirm cleaning is done for the batch (or use Hygiene done on Brewday).</span>
+				<span class="guide-steps__status" data-i18n="guide.status.hygiene_done">Status: hygiene done</span>
 			</li>
 			<li>
-				<strong>Delivery</strong> — Set final gravity (FG), delivery volume, beer net SEK/L, and multiplier. Live estimate shows tax (fixed), net (= beer net × multiplier × liters), and estimated profit (net − cost). Click Calculate &amp; ready.
-				<span class="guide-steps__status">Status: ready for delivery</span>
+				<strong data-i18n="nav.delivery">Delivery</strong> — <span data-i18n="guide.steps.delivery">Set final gravity (FG), delivery volume, beer net {currency}/L, and multiplier. Live estimate shows tax (fixed), net (= beer net × multiplier × liters), and estimated profit (net − cost). Click Calculate &amp; ready.</span>
+				<span class="guide-steps__status" data-i18n="guide.status.ready">Status: ready for delivery</span>
 			</li>
 			<li>
-				<strong>Deliver</strong> — On Delivery, click Deliver to mark the batch as sent to the pub.
-				<span class="guide-steps__status">Status: delivered</span>
+				<strong data-i18n="js.recipes.deliver">Deliver</strong> — <span data-i18n="guide.steps.deliver">On Delivery, click Deliver to mark the batch as sent to the pub.</span>
+				<span class="guide-steps__status" data-i18n="guide.status.delivered">Status: delivered</span>
 			</li>
 		</ol>
 	</section>
 
 	<section class="guide-section" data-require-elevate>
-		<h2 class="guide-section__title">Admin mode</h2>
-		<p class="guide-section__lead">Admin accounts sign in as superuser. Economy, IAM, and Settings stay hidden until you elevate.</p>
+		<h2 class="guide-section__title" data-i18n="guide.admin_title">Admin mode</h2>
+		<p class="guide-section__lead" data-i18n="guide.admin_lead">Admin accounts sign in as superuser. Economy, IAM, and Settings stay hidden until you elevate.</p>
 		<ul class="guide-list">
-			<li><strong>Where</strong> — Open the profile menu (avatar, top right) and use the <strong>Admin mode</strong> toggle. Only admin accounts see it.</li>
-			<li><strong>On</strong> — Your session becomes admin; Economy, IAM, and Settings appear in the navigation.</li>
-			<li><strong>Off</strong> — You return to superuser; admin-only pages are left and those nav sections hide again.</li>
+			<li><strong data-i18n="guide.admin.where">Where</strong> — <span data-i18n="guide.admin.where_text">Open the profile menu (avatar, top right) and use the Admin mode toggle. Only admin accounts see it.</span></li>
+			<li><strong data-i18n="guide.admin.on">On</strong> — <span data-i18n="guide.admin.on_text">Your session becomes admin; Economy, IAM, and Settings appear in the navigation.</span></li>
+			<li><strong data-i18n="guide.admin.off">Off</strong> — <span data-i18n="guide.admin.off_text">You return to superuser; admin-only pages are left and those nav sections hide again.</span></li>
 		</ul>
 	</section>
 
 	<section class="guide-section">
-		<h2 class="guide-section__title">Roles</h2>
-		<p class="guide-section__lead">Access has two layers: the <strong>account role</strong> on the user (IAM → Users), and a <strong>brewery membership</strong> role per brewery (IAM → Breweries).</p>
+		<h2 class="guide-section__title" data-i18n="guide.roles_title">Roles</h2>
+		<p class="guide-section__lead" data-i18n="guide.roles_lead">Access has two layers: the account role on the user (IAM → Users), and a brewery membership role per brewery (IAM → Breweries).</p>
 
-		<h3 class="guide-section__subtitle">Account roles</h3>
+		<h3 class="guide-section__subtitle" data-i18n="guide.account_roles">Account roles</h3>
 		<ul class="guide-list">
-			<li><strong>user</strong> — Brewing, Inventory (view), and Hygiene for breweries you belong to: recipes, schedule, brewday, delivery, and wishlist shortfalls from recipes.</li>
-			<li><strong>superuser</strong> — Same as user, plus create and edit shared inventory and purchase orders. Economy, IAM, and Settings stay hidden.</li>
-			<li><strong>admin</strong> — Signs in as superuser. With <strong>Admin mode</strong> on, full access including Economy, IAM, and Settings.</li>
+			<li><strong>user</strong> — <span data-i18n="guide.account.user">Brewing, Inventory (view), and Hygiene for breweries you belong to: recipes, schedule, brewday, delivery, and wishlist shortfalls from recipes.</span></li>
+			<li><strong>superuser</strong> — <span data-i18n="guide.account.superuser">Same as user, plus create and edit shared inventory and purchase orders. Economy, IAM, and Settings stay hidden.</span></li>
+			<li><strong>admin</strong> — <span data-i18n="guide.account.admin">Signs in as superuser. With Admin mode on, full access including Economy, IAM, and Settings.</span></li>
 		</ul>
 
-		<h3 class="guide-section__subtitle">Brewery membership roles</h3>
+		<h3 class="guide-section__subtitle" data-i18n="guide.membership_roles">Brewery membership roles</h3>
 		<ul class="guide-list">
-			<li><strong>user</strong> — Member of that brewery; can work on its batches.</li>
-			<li><strong>superuser</strong> — Member plus inventory management for the shared stock.</li>
-			<li><strong>brewery_admin</strong> — Manages that brewery (contacts, logo, and members). Not a global admin, and not set as the account role in Users — only on membership.</li>
+			<li><strong>user</strong> — <span data-i18n="guide.membership.user">Member of that brewery; can work on its batches.</span></li>
+			<li><strong>superuser</strong> — <span data-i18n="guide.membership.superuser">Member plus inventory management for the shared stock.</span></li>
+			<li><strong>brewery_admin</strong> — <span data-i18n="guide.membership.brewery_admin">Manages that brewery (contacts, logo, and members). Not a global admin, and not set as the account role in Users — only on membership.</span></li>
 		</ul>
-		<p class="guide-section__lead">Economy and Settings always require elevated admin (see Admin mode above). IAM → Breweries is also available to brewery managers for their brewery; Users stays admin-only.</p>
+		<p class="guide-section__lead" data-i18n="guide.roles_footer">Economy and Settings always require elevated admin (see Admin mode above). IAM → Breweries is also available to brewery managers for their brewery; Users stays admin-only.</p>
 	</section>
 
 	<section class="guide-section">
-		<h2 class="guide-section__title">What each page does</h2>
+		<h2 class="guide-section__title" data-i18n="guide.pages_title">What each page does</h2>
 
-		<h3 class="guide-section__subtitle">Brewing</h3>
+		<h3 class="guide-section__subtitle" data-i18n="guide.brewing_title">Brewing</h3>
 		<ul class="guide-list">
-			<li><strong>Brewery 101</strong> — This guide.</li>
-			<li><strong>Recipes</strong> — Create and manage batches; inventory checkout and planning shortfalls.</li>
-			<li><strong>Schedule</strong> — Book brew day and tank.</li>
-			<li><strong>Brewday</strong> — Enter OG and brew volume; edit or revoke brewday.</li>
-			<li><strong>Delivery</strong> — Price and deliver hygiene-done batches to the pub; live estimate includes estimated profit (net − cost).</li>
+			<li><strong data-i18n="nav.guide">Brewery 101</strong> — <span data-i18n="guide.brewing.guide">This guide.</span></li>
+			<li><strong data-i18n="nav.recipes">Recipes</strong> — <span data-i18n="guide.brewing.recipes">Create and manage batches; inventory checkout and planning shortfalls.</span></li>
+			<li><strong data-i18n="nav.schedule">Schedule</strong> — <span data-i18n="guide.brewing.schedule">Book brew day and tank.</span></li>
+			<li><strong data-i18n="nav.brewday">Brewday</strong> — <span data-i18n="guide.brewing.brewday">Enter OG and brew volume; edit or revoke brewday.</span></li>
+			<li><strong data-i18n="nav.delivery">Delivery</strong> — <span data-i18n="guide.brewing.delivery">Price and deliver hygiene-done batches to the pub; live estimate includes estimated profit (net − cost).</span></li>
 		</ul>
 
-		<h3 class="guide-section__subtitle">Inventory</h3>
+		<h3 class="guide-section__subtitle" data-i18n="guide.inventory_title">Inventory</h3>
 		<ul class="guide-list">
-			<li><strong>Malt / Hops / Yeast / Misc / Equipment</strong> — Shared stock. Cost price feeds batch cost.</li>
-			<li><strong>Orders</strong> — Plan purchases, mark ordered, complete to receive stock.</li>
+			<li><strong>Malt / Hops / Yeast / Misc / Equipment</strong> — <span data-i18n="guide.inventory.stock">Shared stock. Cost price feeds batch cost.</span></li>
+			<li><strong data-i18n="nav.inventory.orders">Orders</strong> — <span data-i18n="guide.inventory.orders">Plan purchases, mark ordered, complete to receive stock.</span></li>
 		</ul>
 
-		<h3 class="guide-section__subtitle">Hygiene</h3>
+		<h3 class="guide-section__subtitle" data-i18n="guide.hygiene_title">Hygiene</h3>
 		<ul class="guide-list">
-			<li><strong>Routines</strong> — Confirm brewday cleaning so the batch can go to delivery.</li>
+			<li><strong data-i18n="nav.hygiene.routines">Routines</strong> — <span data-i18n="guide.hygiene.routines">Confirm brewday cleaning so the batch can go to delivery.</span></li>
 		</ul>
 
-		<h3 class="guide-section__subtitle">Tools</h3>
+		<h3 class="guide-section__subtitle" data-i18n="guide.tools_title">Tools</h3>
 		<ul class="guide-list">
-			<li><strong>Calculators</strong> — ABV from SG, Swedish alcohol tax, DME/LME to raise gravity, water to dilute to a target SG, and yeast pitch rate (from Inventory → Yeast items with pitch fields set).</li>
+			<li><strong data-i18n="nav.tools.calculators">Calculators</strong> — <span data-i18n="guide.tools.calculators">ABV from SG, Swedish alcohol tax, DME/LME to raise gravity, water to dilute to a target SG, and yeast pitch rate (from Inventory → Yeast items with pitch fields set).</span></li>
 		</ul>
 
-		<h3 class="guide-section__subtitle">Economy (admin)</h3>
+		<h3 class="guide-section__subtitle" data-i18n="guide.economy_title">Economy (admin)</h3>
 		<ul class="guide-list">
-			<li><strong>Tax rates</strong> — Swedish beer alcohol tax formula used on delivery.</li>
-			<li><strong>Monthly deliveries</strong> — Delivered batches by month with cost, tax, net, and estimated profit (CSV export).</li>
+			<li><strong data-i18n="nav.economy.tax_rates">Tax rates</strong> — <span data-i18n="guide.economy.tax">Swedish beer alcohol tax formula used on delivery.</span></li>
+			<li><strong data-i18n="nav.economy.monthly_deliveries">Monthly deliveries</strong> — <span data-i18n="guide.economy.deliveries">Delivered batches by month with cost, tax, net, and estimated profit (CSV export).</span></li>
 		</ul>
 
-		<h3 class="guide-section__subtitle">IAM</h3>
+		<h3 class="guide-section__subtitle" data-i18n="guide.iam_title">IAM</h3>
 		<ul class="guide-list">
-			<li><strong>Users</strong> — Create and edit accounts and roles (admin).</li>
-			<li><strong>Breweries</strong> — Breweries, contacts, logo, and memberships. Brewery managers can edit their brewery and upload a logo (max 300×300, 1 MB).</li>
+			<li><strong data-i18n="nav.iam.users">Users</strong> — <span data-i18n="guide.iam.users">Create and edit accounts and roles (admin).</span></li>
+			<li><strong data-i18n="nav.iam.breweries">Breweries</strong> — <span data-i18n="guide.iam.breweries">Breweries, contacts, logo, and memberships. Brewery managers can edit their brewery and upload a logo (max 300×300, 1 MB).</span></li>
 		</ul>
 
-		<h3 class="guide-section__subtitle">Settings (admin)</h3>
+		<h3 class="guide-section__subtitle" data-i18n="guide.settings_title">Settings (admin)</h3>
 		<ul class="guide-list">
-			<li><strong>Brand</strong> — Logo and favicon.</li>
-			<li><strong>Tanks</strong> — Fermentation tanks for scheduling.</li>
-			<li><strong>Multipliers</strong> — Options that scale beer net SEK/L on delivery.</li>
-			<li><strong>Beer net price</strong> — Default SEK/L prefilling the Delivery form.</li>
-			<li><strong>Hygiene routines</strong> — Master checklist used when confirming hygiene.</li>
-			<li><strong>Backup</strong> — Nightly database backups at 01:00, download, and restore.</li>
+			<li><strong data-i18n="nav.settings.brand">Brand</strong> — <span data-i18n="guide.settings.brand">Logo and favicon.</span></li>
+			<li><strong data-i18n="nav.settings.tanks">Tanks</strong> — <span data-i18n="guide.settings.tanks">Fermentation tanks for scheduling.</span></li>
+			<li><strong data-i18n="nav.settings.multipliers">Multipliers</strong> — <span data-i18n="guide.settings.multipliers">Options that scale beer net {currency}/L on delivery.</span></li>
+			<li><strong data-i18n="nav.settings.beer_price">Beer net price</strong> — <span data-i18n="guide.settings.beer_price">Default {currency}/L prefilling the Delivery form.</span></li>
+			<li><strong data-i18n="nav.settings.regional">Regional</strong> — <span data-i18n="guide.settings.regional">Currency and language used across the app.</span></li>
+			<li><strong data-i18n="nav.settings.hygiene">Hygiene routines</strong> — <span data-i18n="guide.settings.hygiene">Master checklist used when confirming hygiene.</span></li>
+			<li><strong data-i18n="nav.settings.backup">Backup</strong> — <span data-i18n="guide.settings.backup">Nightly database backups at 01:00, download, and restore.</span></li>
 		</ul>
 	</section>
 </section>

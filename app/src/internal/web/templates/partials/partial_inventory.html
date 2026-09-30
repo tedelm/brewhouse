@@ -1,38 +1,38 @@
 <section class="panel" data-panel="inventory" data-category="{{.Category}}">
 	<header class="panel__header">
 		<h1 class="panel__title">{{.Title}}</h1>
-		<p class="panel__lead">Shared stock across all breweries. Cost price is used for batch cost on delivery.</p>
+		<p class="panel__lead" data-i18n="inventory.lead">Shared stock across all breweries. Cost price is used for batch cost on delivery.</p>
 	</header>
 	<div class="panel__toolbar">
-		<button type="button" class="btn" data-action="inventory-refresh">Refresh</button>
-		<button type="button" class="btn" data-action="inventory-export">Export CSV</button>
-		<button type="button" class="btn" data-action="inventory-import" data-require-roles="superuser,admin">Import CSV</button>
+		<button type="button" class="btn" data-action="inventory-refresh" data-i18n="common.refresh">Refresh</button>
+		<button type="button" class="btn" data-action="inventory-export" data-i18n="common.export_csv">Export CSV</button>
+		<button type="button" class="btn" data-action="inventory-import" data-require-roles="superuser,admin" data-i18n="common.import_csv">Import CSV</button>
 		<input type="file" id="inventory-import-file" accept=".csv,text/csv" hidden>
-		<button type="button" class="btn btn--primary" data-action="inventory-new" data-require-roles="superuser,admin">Add item</button>
+		<button type="button" class="btn btn--primary" data-action="inventory-new" data-require-roles="superuser,admin" data-i18n="inventory.add_item">Add item</button>
 	</div>
-	<div class="panel__body" id="inventory-list">Loading…</div>
+	<div class="panel__body" id="inventory-list" data-i18n="common.loading">Loading…</div>
 	<dialog class="panel__dialog" id="inventory-dialog">
 		<form method="dialog" class="panel__form" id="inventory-form">
-			<h2 id="inventory-dialog-title">Inventory item</h2>
+			<h2 id="inventory-dialog-title" data-i18n="inventory.dialog_title">Inventory item</h2>
 			<input type="hidden" name="id" value="">
-			<label>Name <input name="name" required></label>
-			<label class="inventory-field--catalog">Type <input name="item_type" placeholder="Type"></label>
-			<label class="inventory-field--catalog">Producer <input name="producer"></label>
-			<label class="inventory-field--malt">Min EBC <input name="min_ebc" type="number" step="any" value="0"></label>
-			<label class="inventory-field--malt">Max EBC <input name="max_ebc" type="number" step="any" value="0"></label>
-			<label class="inventory-field--yeast">Pitch min (g/hl) <input name="pitch_min_g_hl" type="number" step="any" min="0" value="0"></label>
-			<label class="inventory-field--yeast">Pitch max (g/hl) <input name="pitch_max_g_hl" type="number" step="any" min="0" value="0"></label>
-			<label class="inventory-field--yeast">Pack size (g) <input name="pack_size_g" type="number" step="any" min="0" value="0"></label>
-			<label class="inventory-field--yeast">Temp min (°C) <input name="temp_min_c" type="number" step="any" value="0"></label>
-			<label class="inventory-field--yeast">Temp max (°C) <input name="temp_max_c" type="number" step="any" value="0"></label>
-			<label class="inventory-field--catalog">Link <input name="link" type="url" placeholder="https://"></label>
-			<label>Unit <input name="unit" value="kg"></label>
-			<label>Qty <input name="qty" type="number" step="any" value="0"></label>
-			<label>Cost price (SEK) <input name="cost_price" type="number" step="any" value="0"></label>
+			<label><span data-i18n="common.name">Name</span> <input name="name" required></label>
+			<label class="inventory-field--catalog"><span data-i18n="common.type">Type</span> <input name="item_type" placeholder="Type" data-i18n-attr="placeholder:inventory.type_placeholder"></label>
+			<label class="inventory-field--catalog"><span data-i18n="common.producer">Producer</span> <input name="producer"></label>
+			<label class="inventory-field--malt"><span data-i18n="inventory.min_ebc">Min EBC</span> <input name="min_ebc" type="number" step="any" value="0"></label>
+			<label class="inventory-field--malt"><span data-i18n="inventory.max_ebc">Max EBC</span> <input name="max_ebc" type="number" step="any" value="0"></label>
+			<label class="inventory-field--yeast"><span data-i18n="inventory.pitch_min">Pitch min (g/hl)</span> <input name="pitch_min_g_hl" type="number" step="any" min="0" value="0"></label>
+			<label class="inventory-field--yeast"><span data-i18n="inventory.pitch_max">Pitch max (g/hl)</span> <input name="pitch_max_g_hl" type="number" step="any" min="0" value="0"></label>
+			<label class="inventory-field--yeast"><span data-i18n="inventory.pack_size">Pack size (g)</span> <input name="pack_size_g" type="number" step="any" min="0" value="0"></label>
+			<label class="inventory-field--yeast"><span data-i18n="inventory.temp_min">Temp min (°C)</span> <input name="temp_min_c" type="number" step="any" value="0"></label>
+			<label class="inventory-field--yeast"><span data-i18n="inventory.temp_max">Temp max (°C)</span> <input name="temp_max_c" type="number" step="any" value="0"></label>
+			<label class="inventory-field--catalog"><span data-i18n="common.link">Link</span> <input name="link" type="url" placeholder="https://" data-i18n-attr="placeholder:inventory.link_placeholder"></label>
+			<label><span data-i18n="common.unit">Unit</span> <input name="unit" value="kg"></label>
+			<label><span data-i18n="common.qty">Qty</span> <input name="qty" type="number" step="any" value="0"></label>
+			<label><span data-i18n="inventory.cost_price">Cost price ({currency})</span> <input name="cost_price" type="number" step="any" value="0"></label>
 			<p class="panel__error" id="inventory-error" hidden></p>
 			<div class="panel__dialog-actions">
-				<button type="submit" class="btn btn--primary" value="save">Save</button>
-				<button type="submit" class="btn" value="cancel" formnovalidate>Cancel</button>
+				<button type="submit" class="btn btn--primary" value="save" data-i18n="common.save">Save</button>
+				<button type="submit" class="btn" value="cancel" formnovalidate data-i18n="common.cancel">Cancel</button>
 			</div>
 		</form>
 	</dialog>

@@ -138,6 +138,11 @@ func migrate(db *sql.DB) error {
 			id INTEGER PRIMARY KEY CHECK (id = 1),
 			logo_bg_hex TEXT NOT NULL
 		)`,
+		`CREATE TABLE IF NOT EXISTS regional_config (
+			id INTEGER PRIMARY KEY CHECK (id = 1),
+			currency_code TEXT NOT NULL,
+			language TEXT NOT NULL
+		)`,
 		`CREATE TABLE IF NOT EXISTS price_multipliers (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			name TEXT NOT NULL UNIQUE,
@@ -613,6 +618,17 @@ func seedDefaults(db *sql.DB) error {
 	if count == 0 {
 		if _, err := db.Exec(
 			`INSERT INTO brand_config (id, logo_bg_hex) VALUES (1, '#6c704a')`,
+		); err != nil {
+			return err
+		}
+	}
+
+	if err := db.QueryRow(`SELECT COUNT(*) FROM regional_config`).Scan(&count); err != nil {
+		return err
+	}
+	if count == 0 {
+		if _, err := db.Exec(
+			`INSERT INTO regional_config (id, currency_code, language) VALUES (1, 'SEK', 'en')`,
 		); err != nil {
 			return err
 		}

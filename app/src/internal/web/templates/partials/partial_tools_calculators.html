@@ -1,114 +1,114 @@
 <section class="panel" data-panel="tools-calculators">
 	<header class="panel__header">
-		<h1 class="panel__title">Calculators</h1>
-		<p class="panel__lead">Quick brewing helpers for ABV, Swedish alcohol tax, extract additions, dilution, and yeast pitch. Results update as you type.</p>
+		<h1 class="panel__title" data-i18n="tools.title">Calculators</h1>
+		<p class="panel__lead" data-i18n="tools.lead">Quick brewing helpers for ABV, Swedish alcohol tax, extract additions, dilution, and yeast pitch. Results update as you type.</p>
 	</header>
 
 	<div class="calc-block">
-		<h2 class="calc-block__title">ABV from SG</h2>
-		<p class="panel__lead">ABV = (OG − FG) × 131.25</p>
+		<h2 class="calc-block__title" data-i18n="tools.abv.title">ABV from SG</h2>
+		<p class="panel__lead" data-i18n="tools.abv.formula">ABV = (OG − FG) × 131.25</p>
 		<form class="panel__form panel__form--inline" id="calc-abv-form">
-			<label>OG
+			<label><span data-i18n="common.og">OG</span>
 				<input name="og" type="number" step="0.001" min="1" value="1.050" required>
 			</label>
-			<label>FG
+			<label><span data-i18n="common.fg">FG</span>
 				<input name="fg" type="number" step="0.001" min="0.990" value="1.010" required>
 			</label>
 		</form>
-		<p class="calc-block__result">ABV: <strong id="calc-abv-result">—</strong></p>
+		<p class="calc-block__result"><span data-i18n="tools.abv.result">ABV:</span> <strong id="calc-abv-result">—</strong></p>
 	</div>
 
 	<div class="calc-block">
-		<h2 class="calc-block__title">Alcohol tax</h2>
-		<p class="panel__lead">Uses current tax settings. Free up to the free-max ABV; otherwise ABV × rate × discount (SEK/L) × volume.</p>
-		<p class="panel__lead" id="calc-tax-config">Loading tax config…</p>
+		<h2 class="calc-block__title" data-i18n="tools.tax.title">Alcohol tax</h2>
+		<p class="panel__lead" data-i18n="tools.tax.lead">Uses current tax settings. Free up to the free-max ABV; otherwise ABV × rate × discount ({currency}/L) × volume.</p>
+		<p class="panel__lead" id="calc-tax-config" data-i18n="tools.tax.loading">Loading tax config…</p>
 		<form class="panel__form panel__form--inline" id="calc-tax-form">
-			<label>OG
+			<label><span data-i18n="common.og">OG</span>
 				<input name="og" type="number" step="0.001" min="1" value="1.050" required>
 			</label>
-			<label>FG
+			<label><span data-i18n="common.fg">FG</span>
 				<input name="fg" type="number" step="0.001" min="0.990" value="1.010" required>
 			</label>
-			<label>Volume (L)
+			<label><span data-i18n="tools.tax.volume">Volume (L)</span>
 				<input name="volume" type="number" step="0.1" min="0.1" value="100" required>
 			</label>
 		</form>
 		<p class="calc-block__result">
-			ABV: <strong id="calc-tax-abv">—</strong>
-			· SEK/L: <strong id="calc-tax-per-l">—</strong>
-			· Total tax: <strong id="calc-tax-total">—</strong>
+			<span data-i18n="tools.tax.abv">ABV:</span> <strong id="calc-tax-abv">—</strong>
+			· <span data-i18n="tools.tax.per_l">{currency}/L:</span> <strong id="calc-tax-per-l">—</strong>
+			· <span data-i18n="tools.tax.total">Total tax:</span> <strong id="calc-tax-total">—</strong>
 		</p>
 	</div>
 
 	<div class="calc-block">
-		<h2 class="calc-block__title">Extract to raise SG</h2>
-		<p class="panel__lead">How much DME or LME to add to reach a higher SG. DME ≈ 370 points·L/kg (~44 PPG); LME ≈ 300. Volume is assumed unchanged after dissolving. Rule of thumb: ~27 g DME per +0.001 SG in 10 L.</p>
+		<h2 class="calc-block__title" data-i18n="tools.extract.title">Extract to raise SG</h2>
+		<p class="panel__lead" data-i18n="tools.extract.lead">How much DME or LME to add to reach a higher SG. DME ≈ 370 points·L/kg (~44 PPG); LME ≈ 300. Volume is assumed unchanged after dissolving. Rule of thumb: ~27 g DME per +0.001 SG in 10 L.</p>
 		<form class="panel__form panel__form--inline" id="calc-extract-form">
-			<label>Current SG
+			<label><span data-i18n="tools.extract.current_sg">Current SG</span>
 				<input name="current_sg" type="number" step="0.001" min="1" value="1.040" required>
 			</label>
-			<label>Target SG
+			<label><span data-i18n="tools.extract.target_sg">Target SG</span>
 				<input name="target_sg" type="number" step="0.001" min="1" value="1.050" required>
 			</label>
-			<label>Volume (L)
+			<label><span data-i18n="tools.extract.volume">Volume (L)</span>
 				<input name="volume" type="number" step="0.1" min="0.1" value="20" required>
 			</label>
-			<label>Extract
+			<label><span data-i18n="tools.extract.type">Extract</span>
 				<select name="extract_type">
-					<option value="dme" selected>DME (dry)</option>
-					<option value="lme">LME (liquid)</option>
+					<option value="dme" selected data-i18n="tools.extract.dme">DME (dry)</option>
+					<option value="lme" data-i18n="tools.extract.lme">LME (liquid)</option>
 				</select>
 			</label>
 		</form>
-		<p class="calc-block__result">Need: <strong id="calc-extract-result">—</strong></p>
+		<p class="calc-block__result"><span data-i18n="tools.extract.need">Need:</span> <strong id="calc-extract-result">—</strong></p>
 	</div>
 
 	<div class="calc-block">
-		<h2 class="calc-block__title">Water to lower SG</h2>
-		<p class="panel__lead">Dilution by gravity-point conservation: final volume = current × (current SG − 1) / (wanted SG − 1).</p>
+		<h2 class="calc-block__title" data-i18n="tools.dilute.title">Water to lower SG</h2>
+		<p class="panel__lead" data-i18n="tools.dilute.lead">Dilution by gravity-point conservation: final volume = current × (current SG − 1) / (wanted SG − 1).</p>
 		<form class="panel__form panel__form--inline" id="calc-dilute-form">
-			<label>Current SG
+			<label><span data-i18n="tools.dilute.current_sg">Current SG</span>
 				<input name="current_sg" type="number" step="0.001" min="1.001" value="1.060" required>
 			</label>
-			<label>Current volume (L)
+			<label><span data-i18n="tools.dilute.current_volume">Current volume (L)</span>
 				<input name="volume" type="number" step="0.1" min="0.1" value="20" required>
 			</label>
-			<label>Wanted SG
+			<label><span data-i18n="tools.dilute.wanted_sg">Wanted SG</span>
 				<input name="wanted_sg" type="number" step="0.001" min="1.001" value="1.050" required>
 			</label>
 		</form>
 		<p class="calc-block__result">
-			Water to add: <strong id="calc-dilute-water">—</strong>
-			· Final volume: <strong id="calc-dilute-final">—</strong>
+			<span data-i18n="tools.dilute.water">Water to add:</span> <strong id="calc-dilute-water">—</strong>
+			· <span data-i18n="tools.dilute.final">Final volume:</span> <strong id="calc-dilute-final">—</strong>
 		</p>
 	</div>
 
 	<div class="calc-block">
-		<h2 class="calc-block__title">Yeast pitch rate</h2>
-		<p class="panel__lead">Dry yeast dosing by volume (g/hl) from Inventory → Yeast items with pitch fields configured. Choose Low / Mid / High within the strain’s range. 1 hl = 100 L.</p>
+		<h2 class="calc-block__title" data-i18n="tools.pitch.title">Yeast pitch rate</h2>
+		<p class="panel__lead" data-i18n="tools.pitch.lead">Dry yeast dosing by volume (g/hl) from Inventory → Yeast items with pitch fields configured. Choose Low / Mid / High within the strain’s range. 1 hl = 100 L.</p>
 		<p class="panel__lead" id="calc-pitch-info">—</p>
 		<form class="panel__form panel__form--inline" id="calc-pitch-form">
-			<label>Yeast
+			<label><span data-i18n="tools.pitch.yeast">Yeast</span>
 				<select name="yeast" id="calc-pitch-yeast">
-					<option value="">Loading…</option>
+					<option value="" data-i18n="common.loading">Loading…</option>
 				</select>
 			</label>
-			<label>Volume (L)
+			<label><span data-i18n="tools.pitch.volume">Volume (L)</span>
 				<input name="volume" type="number" step="0.1" min="0.1" value="80" required>
 			</label>
-			<label>Pitch
+			<label><span data-i18n="tools.pitch.pitch">Pitch</span>
 				<select name="pitch">
-					<option value="low">Low</option>
-					<option value="mid" selected>Mid</option>
-					<option value="high">High</option>
+					<option value="low" data-i18n="tools.pitch.low">Low</option>
+					<option value="mid" selected data-i18n="tools.pitch.mid">Mid</option>
+					<option value="high" data-i18n="tools.pitch.high">High</option>
 				</select>
 			</label>
 		</form>
 		<p class="calc-block__result">
-			Range: <strong id="calc-pitch-range">—</strong>
-			· Selected: <strong id="calc-pitch-selected">—</strong>
-			· Packs: <strong id="calc-pitch-packs">—</strong>
-			· Temp: <strong id="calc-pitch-temp">—</strong>
+			<span data-i18n="tools.pitch.range">Range:</span> <strong id="calc-pitch-range">—</strong>
+			· <span data-i18n="tools.pitch.selected">Selected:</span> <strong id="calc-pitch-selected">—</strong>
+			· <span data-i18n="tools.pitch.packs">Packs:</span> <strong id="calc-pitch-packs">—</strong>
+			· <span data-i18n="tools.pitch.temp">Temp:</span> <strong id="calc-pitch-temp">—</strong>
 		</p>
 	</div>
 </section>

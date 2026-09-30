@@ -199,6 +199,12 @@ type BrandColorConfig struct {
 	LogoBgHex string `json:"logo_bg_hex"`
 }
 
+// RegionalConfig holds display currency and UI language.
+type RegionalConfig struct {
+	CurrencyCode string `json:"currency_code"`
+	Language     string `json:"language"`
+}
+
 // PriceMultiplier scales (cost+tax) to net price.
 type PriceMultiplier struct {
 	ID         int64   `json:"id"`

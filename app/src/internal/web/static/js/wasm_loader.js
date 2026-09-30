@@ -44,6 +44,13 @@
 	let sessionTimer = null;
 	let refreshInFlight = null;
 
+	function t(key, vars) {
+		if (window.BH_I18N && typeof window.BH_I18N.t === "function") {
+			return window.BH_I18N.t(key, vars);
+		}
+		return key;
+	}
+
 	function authHeaders() {
 		const token = sessionStorage.getItem("brewhouse_token") || "";
 		return {
@@ -311,7 +318,7 @@
 		shell.classList.toggle("is-sheet-open", open);
 		document.body.classList.toggle("is-nav-sheet-open", open);
 		navFab.setAttribute("aria-expanded", open ? "true" : "false");
-		navFab.setAttribute("aria-label", open ? "Close navigation" : "Open navigation");
+		navFab.setAttribute("aria-label", open ? t("nav.close") : t("nav.open"));
 		navSheet.setAttribute("aria-hidden", open ? "false" : "true");
 		navBackdrop.hidden = !open;
 		if (fabIcon) {
@@ -360,18 +367,38 @@
 		applyNavVisibility(currentRole());
 		syncAdminToggle();
 		loadWelcomeLogoBg();
+		loadRegionalSettings();
 		startSessionWatch();
 
 		const initial = (username || "?").charAt(0).toUpperCase();
 		shellAvatar.textContent = initial;
 		shellProfileName.textContent = username;
-		shellProfile.setAttribute("aria-label", "Profile: " + username);
+		shellProfile.setAttribute("aria-label", t("profile.aria_user", { username: username }));
 
 		if (window.BrewhouseUI && typeof window.BrewhouseUI.refreshOrdersNavCount === "function") {
 			window.BrewhouseUI.refreshOrdersNavCount();
 		}
 		if (window.BrewhouseUI && typeof window.BrewhouseUI.refreshBrewingNavCounts === "function") {
 			window.BrewhouseUI.refreshBrewingNavCounts();
+		}
+		if (window.BH_I18N && typeof window.BH_I18N.applyI18n === "function") {
+			window.BH_I18N.applyI18n(document);
+		}
+	}
+
+	async function loadRegionalSettings() {
+		if (!window.BH_I18N) {
+			return;
+		}
+		try {
+			const res = await fetch("/api/settings/regional", { headers: authHeaders() });
+			const data = await res.json().catch(() => ({}));
+			if (!res.ok) {
+				return;
+			}
+			await window.BH_I18N.applyRegional(data);
+		} catch (err) {
+			console.error(err);
 		}
 	}
 
@@ -398,8 +425,14 @@
 
 	function welcomeHTML() {
 		const tip = canElevate()
-			? '<p class="shell__welcome-tip" id="shell-welcome-admin-tip">Admin accounts: open your profile menu and turn on <strong>Admin mode</strong> for Economy, IAM, and Settings.</p>'
+			? '<p class="shell__welcome-tip" id="shell-welcome-admin-tip" data-i18n-html="shell.welcome.admin_tip">Admin accounts: open your profile menu and turn on <strong>Admin mode</strong> for Economy, IAM, and Settings.</p>'
 			: "";
+		const t =
+			window.BH_I18N && typeof window.BH_I18N.t === "function"
+				? window.BH_I18N.t
+				: function (k) {
+						return k;
+				  };
 		return (
 			'<section class="shell__welcome">' +
 			'<div class="shell__welcome-logo-wrap">' +
@@ -407,9 +440,15 @@
 			'<img class="shell__welcome-logo" src="/logo" alt="" width="120" height="120">' +
 			"</div>" +
 			'<p class="shell__welcome-brand">Brewhouse</p>' +
-			'<h1 class="shell__welcome-title">From recipe to the pub</h1>' +
-			'<p class="shell__welcome-text">Pick a section in the navigation, or start with the batch pipeline guide.</p>' +
-			'<a class="btn btn--primary shell__welcome-cta" href="/app/guide" hx-get="/app/guide" hx-target="#main-content" hx-swap="innerHTML">Brewery 101</a>' +
+			'<h1 class="shell__welcome-title" data-i18n="shell.welcome.title">' +
+			t("shell.welcome.title") +
+			"</h1>" +
+			'<p class="shell__welcome-text" data-i18n="shell.welcome.text">' +
+			t("shell.welcome.text") +
+			"</p>" +
+			'<a class="btn btn--primary shell__welcome-cta" href="/app/guide" hx-get="/app/guide" hx-target="#main-content" hx-swap="innerHTML" data-i18n="shell.welcome.cta">' +
+			t("shell.welcome.cta") +
+			"</a>" +
 			tip +
 			"</section>"
 		);
@@ -438,7 +477,7 @@
 			shellCollapse.setAttribute("aria-expanded", collapsed ? "false" : "true");
 			shellCollapse.setAttribute(
 				"aria-label",
-				collapsed ? "Expand navigation" : "Collapse navigation"
+				collapsed ? t("nav.expand") : t("nav.collapse")
 			);
 		}
 		if (collapsed) {
@@ -469,7 +508,7 @@
 		});
 		const data = await res.json().catch(() => ({}));
 		if (!res.ok) {
-			throw new Error(data.error || "Could not change admin mode");
+			throw new Error(data.error || t("profile.admin_mode_error"));
 		}
 		applySessionData(data);
 		applyNavVisibility(data.role);
@@ -491,8 +530,8 @@
 			if (!res.ok) {
 				if (window.BrewhouseUI && typeof window.BrewhouseUI.info === "function") {
 					await window.BrewhouseUI.info({
-						title: "Notice",
-						message: data.error || "Could not load profile",
+						title: t("common.notice"),
+						message: data.error || t("profile.load_error"),
 					});
 				}
 				return;
@@ -510,8 +549,8 @@
 			console.error(err);
 			if (window.BrewhouseUI && typeof window.BrewhouseUI.info === "function") {
 				await window.BrewhouseUI.info({
-					title: "Notice",
-					message: "Could not load profile",
+					title: t("common.notice"),
+					message: t("profile.load_error"),
 				});
 			}
 		}
@@ -520,7 +559,7 @@
 	function showLoginSuccess(username) {
 		loginError.hidden = true;
 		loginSuccess.hidden = false;
-		loginSuccess.textContent = "Signed in as " + username;
+		loginSuccess.textContent = t("login.signed_in", { username: username });
 		loginStage.classList.add("is-authenticated");
 		sessionStorage.setItem("brewhouse_username", username);
 		setTimeout(() => {
@@ -591,8 +630,8 @@
 				profileAdminToggle.checked = !want;
 				if (window.BrewhouseUI && typeof window.BrewhouseUI.info === "function") {
 					await window.BrewhouseUI.info({
-						title: "Notice",
-						message: err.message || "Could not change admin mode",
+						title: t("common.notice"),
+						message: err.message || t("profile.admin_mode_error"),
 					});
 				}
 			}
@@ -638,7 +677,7 @@
 			const passwordConfirm = profileForm.password_confirm.value;
 			if (password !== passwordConfirm) {
 				profileError.hidden = false;
-				profileError.textContent = "Passwords do not match";
+				profileError.textContent = t("profile.password_mismatch");
 				profileDialog.showModal();
 				return;
 			}
@@ -663,7 +702,7 @@
 				const data = await res.json().catch(() => ({}));
 				if (!res.ok) {
 					profileError.hidden = false;
-					profileError.textContent = data.error || "Save failed";
+					profileError.textContent = data.error || t("profile.save_failed");
 					profileDialog.showModal();
 					return;
 				}
@@ -671,7 +710,7 @@
 				profileForm.password_confirm.value = "";
 			} catch (err) {
 				profileError.hidden = false;
-				profileError.textContent = "Could not reach the server";
+				profileError.textContent = t("profile.server_unreachable");
 				profileDialog.showModal();
 			}
 		});
@@ -775,7 +814,7 @@
 
 				const data = await response.json().catch(() => ({}));
 				if (!response.ok) {
-					showLoginError(data.error || "Login failed");
+					showLoginError(data.error || t("login.failed"));
 					return;
 				}
 
@@ -784,7 +823,7 @@
 				showLoginSuccess(data.username);
 			} catch (err) {
 				console.error("Login request failed:", err);
-				showLoginError("Could not reach the server");
+				showLoginError(t("login.server_unreachable"));
 			} finally {
 				if (submitButton) {
 					submitButton.disabled = false;
@@ -794,6 +833,16 @@
 	}
 
 	const go = new Go();
+
+	if (window.BH_I18N && typeof window.BH_I18N.loadCatalogs === "function") {
+		window.BH_I18N.loadCatalogs()
+			.then(() => {
+				window.BH_I18N.applyI18n(document);
+			})
+			.catch((err) => {
+				console.warn("i18n catalog load failed:", err);
+			});
+	}
 
 	if ("serviceWorker" in navigator && window.isSecureContext) {
 		const meta = document.querySelector('meta[name="app-version"]');
@@ -813,6 +862,6 @@
 		})
 		.catch((err) => {
 			console.error("Failed to load WASM:", err);
-			showLoadError("Failed to load application. Refresh and try again.");
+			showLoadError(t("splash.load_failed"));
 		});
 })();
