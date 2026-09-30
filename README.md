@@ -1,6 +1,6 @@
-# Brewhouse (Brewery Management System)
+# Brewhouse - Collective Brewing: A Brewery Management System
 
-Brewery management app (HTMX + Go WASM GUI, Go HTTP API, SQLite).
+Collective brewing is a brewery managment system for breweries that share inventory and brewery equipment.
 
 ![Brewhouse Logo](doc/img/logo.png)
 
@@ -40,6 +40,10 @@ Brewery management app (HTMX + Go WASM GUI, Go HTTP API, SQLite).
 ### Settings
 
 ![Settings](doc/img/settings.png)
+
+## Tech
+
+This app runs on HTMX + Go WASM GUI, Go HTTP API, SQLite
 
 ## Prerequisites
 
