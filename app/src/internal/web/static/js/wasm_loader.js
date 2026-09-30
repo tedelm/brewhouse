@@ -10,6 +10,7 @@
 	const bootstrapBox = document.getElementById("bootstrap-credentials");
 	const bootstrapUsername = document.getElementById("bootstrap-username");
 	const bootstrapPassword = document.getElementById("bootstrap-password");
+	const bootstrapPasswordCopy = document.getElementById("bootstrap-password-copy");
 	const shell = document.getElementById("shell");
 	const shellCollapse = document.getElementById("shell-collapse");
 	const shellAvatar = document.getElementById("shell-avatar");
@@ -255,6 +256,43 @@
 		if (bootstrapPassword) {
 			bootstrapPassword.value = "";
 		}
+		resetBootstrapCopyButton();
+	}
+
+	function resetBootstrapCopyButton() {
+		if (!bootstrapPasswordCopy) {
+			return;
+		}
+		bootstrapPasswordCopy.textContent = t("login.copy_password");
+		bootstrapPasswordCopy.disabled = false;
+	}
+
+	async function copyBootstrapPassword() {
+		if (!bootstrapPassword || !bootstrapPassword.value) {
+			return;
+		}
+		try {
+			await navigator.clipboard.writeText(bootstrapPassword.value);
+			if (bootstrapPasswordCopy) {
+				bootstrapPasswordCopy.textContent = t("login.password_copied");
+				bootstrapPasswordCopy.disabled = true;
+				window.setTimeout(() => {
+					resetBootstrapCopyButton();
+				}, 1600);
+			}
+		} catch (err) {
+			console.error("Copy bootstrap password failed:", err);
+			if (bootstrapPassword) {
+				bootstrapPassword.focus();
+				bootstrapPassword.select();
+			}
+		}
+	}
+
+	if (bootstrapPasswordCopy) {
+		bootstrapPasswordCopy.addEventListener("click", () => {
+			copyBootstrapPassword();
+		});
 	}
 
 	async function loadBootstrapCredentials() {
@@ -274,6 +312,7 @@
 			if (bootstrapPassword) {
 				bootstrapPassword.value = data.password || "";
 			}
+			resetBootstrapCopyButton();
 			bootstrapBox.hidden = false;
 			if (loginForm && loginForm.username && data.username) {
 				loginForm.username.value = data.username;

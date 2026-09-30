@@ -14,7 +14,10 @@ From `app/src`:
 # Optional: local config (copy once, then edit)
 Copy-Item .env.example .env
 
-# Build WASM + server with version from VERSION baked into the binary
+# Build WASM + server with version from VERSION baked into the binary.
+# Also cross-compiles Windows/Linux amd64 and writes release zips under dist/:
+#   dist/brewhouse-<version>-windows-amd64.zip
+#   dist/brewhouse-<version>-linux-amd64.zip
 .\scripts\build.ps1
 
 # Or for a quick server-only run (reads VERSION file at startup; rebuild WASM separately if needed)
@@ -29,7 +32,7 @@ Open http://localhost:8080 — splash loads, then the login page. On first start
 
 ### App version
 
-Bump [`VERSION`](app/src/VERSION) when releasing. Production builds (`.\scripts\build.ps1`) inject it into the binary with `-ldflags`. The splash UI, shell, and `/api/version` (WASM stale-reload) all use that value. Azure does not need an app-settings version — the deployed binary already carries it.
+Bump [`VERSION`](app/src/VERSION) when releasing. Production builds (`.\scripts\build.ps1`) inject it into the binary with `-ldflags` and package Windows + Linux amd64 zip archives under `app/src/dist/`. The splash UI, shell, and `/api/version` (WASM stale-reload) all use that value. Azure does not need an app-settings version — the deployed binary already carries it.
 
 Optional override: set `APP_VERSION` in the environment if you must force a version without rebuilding (takes effect only when the binary still has the placeholder `dev`).
 

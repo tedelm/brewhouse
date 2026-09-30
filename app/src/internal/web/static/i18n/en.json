@@ -97,6 +97,8 @@
   "login.bootstrap_username": "Bootstrap username",
   "login.bootstrap_password": "Bootstrap password",
   "login.generated_password": "Generated password",
+  "login.copy_password": "Copy password",
+  "login.password_copied": "Copied",
   "profile.title": "Profile",
   "profile.admin_mode": "Admin mode",
   "profile.view": "View profile",

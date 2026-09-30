@@ -97,6 +97,8 @@
   "login.bootstrap_username": "Bootstrap-användarnamn",
   "login.bootstrap_password": "Bootstrap-lösenord",
   "login.generated_password": "Genererat lösenord",
+  "login.copy_password": "Kopiera lösenord",
+  "login.password_copied": "Kopierat",
   "profile.title": "Profil",
   "profile.admin_mode": "Adminläge",
   "profile.view": "Visa profil",

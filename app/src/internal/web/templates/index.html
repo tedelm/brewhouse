@@ -79,7 +79,10 @@
 				</label>
 				<label class="login__label">
 					<span class="visually-hidden" data-i18n="login.bootstrap_password">Bootstrap password</span>
-					<input class="login__input" id="bootstrap-password" type="text" readonly placeholder="Generated password" data-i18n-attr="placeholder:login.generated_password">
+					<div class="login__bootstrap-password-row">
+						<input class="login__input" id="bootstrap-password" type="text" readonly placeholder="Generated password" data-i18n-attr="placeholder:login.generated_password">
+						<button type="button" class="login__copy-btn" id="bootstrap-password-copy" data-i18n="login.copy_password">Copy password</button>
+					</div>
 				</label>
 			</div>
 			<p class="login__success" id="login-success" hidden></p>

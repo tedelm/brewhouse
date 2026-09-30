@@ -258,6 +258,45 @@ body {
 	font-size: 0.8rem;
 }
 
+.login__bootstrap-password-row {
+	display: flex;
+	gap: 0.5rem;
+	align-items: stretch;
+	width: 100%;
+}
+
+.login__bootstrap-password-row .login__input {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.login__copy-btn {
+	flex: 0 0 auto;
+	margin: 0;
+	padding: 0.65rem 0.9rem;
+	border: 1px solid rgba(255, 255, 255, 0.35);
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.12);
+	color: #fff;
+	font: inherit;
+	font-size: 0.8rem;
+	font-weight: 600;
+	line-height: 1.25;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.login__copy-btn:hover,
+.login__copy-btn:focus-visible {
+	background: rgba(255, 255, 255, 0.22);
+	outline: none;
+}
+
+.login__copy-btn:focus-visible {
+	outline: 2px solid rgba(255, 255, 255, 0.85);
+	outline-offset: 2px;
+}
+
 /* —— App shell —— */
 
 .shell {

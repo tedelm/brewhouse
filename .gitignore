@@ -8,6 +8,7 @@
 *.so
 *.dylib
 *.wasm
+app/src/brewhouse
 
 # Test binary, built with `go test -c`
 *.test
@@ -34,6 +35,9 @@ go.work.sum
 *.db-wal
 *.db-shm
 *.db.pre-restore
+
+# Release packaging
+app/src/dist/
 
 # Editor/IDE
 # .idea/
